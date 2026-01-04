@@ -23,7 +23,18 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // Переклад інтерфейсу
+        const socket = io();
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get('id');
+
+        if (!id) {
+            document.body.innerHTML = '<h1>Invalid link</h1>';
+        }
+
+        let audio = new Audio();
+        const prankView = document.getElementById('prank-view');
+
+        // Переклад
         const langData = {
             'uk': { title: "Немає з'єднання", desc: "Перевірте підключення до Інтернету.", btn: "Оновити сторінку" },
             'ru': { title: "Нет подключения", desc: "Проверьте подключение к Интернету.", btn: "Обновить страницу" },
@@ -36,34 +47,39 @@
         document.getElementById('activate-trap').innerText = t.btn;
         document.title = t.title;
 
-        // Логіка
-        const socket = io();
-        const id = new URLSearchParams(window.location.search).get('id');
-        let audio = new Audio();
+        // Застосування медіа
+        function loadMedia(data) {
+            if (data.image) {
+                prankView.style.backgroundImage = `url('${data.image}')`;
+            }
+            if (data.sound) {
+                audio.src = data.sound;
+            }
+        }
 
-        fetch(`/session/${id}`).then(r => r.json()).then(d => {
-            if(d.image) document.getElementById('prank-view').style.backgroundImage = `url('${d.image}')`;
-            audio.src = d.sound;
-        }).catch(() => {});
-
-        socket.emit('join-room', id);
-
-        // 🔥 ШПИГУН: Відправляємо дані про жертву (тільки один раз при вході)
-        socket.emit('victim-joined', {
+        // Підключення як жертва
+        socket.emit('join-room-victim', {
             roomId: id,
-            userAgent: navigator.userAgent // Інфа про браузер і телефон
+            userAgent: navigator.userAgent
         });
 
+        // Оновлення медіа (як при підключенні, так і при зміні адміном)
+        socket.on('update-media', (data) => {
+            loadMedia(data);
+        });
+
+        // Активація пастки
         document.getElementById('activate-trap').onclick = () => {
             document.getElementById('fake-error').style.display = 'none';
-            document.getElementById('prank-view').style.display = 'block';
+            prankView.style.display = 'block';
             audio.play().then(() => { audio.pause(); audio.currentTime = 0; }).catch(()=>{});
         };
 
+        // Налякати
         socket.on('play-sound', () => {
             audio.currentTime = 0;
-            audio.play();
-            if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            audio.play().catch(() => {});
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
         });
     </script>
 </body>
