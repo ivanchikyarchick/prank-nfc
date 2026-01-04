@@ -41,7 +41,6 @@
                 <a id="victim-link" href="#" target="_blank" style="color: #4db8ff;">...</a>
             </div>
             
-            <!-- НОВА ПАНЕЛЬ ЗМІНИ МЕДІА -->
             <div style="margin-top: 20px; padding: 15px; background: #222; border-radius: 8px;">
                 <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #00ff99;">ЗМІНИТИ ПАСТКУ</h3>
                 <input type="text" id="newImgUrl" placeholder="Нова картинка (URL)" style="width: 100%; margin-bottom: 8px;">
@@ -74,8 +73,8 @@
         window.onload = loadHistory;
 
         async function createLink() {
-            const image = document.getElementById('imgUrl').value;
-            const sound = document.getElementById('sndUrl').value;
+            const image = document.getElementById('imgUrl').value.trim();
+            const sound = document.getElementById('sndUrl').value.trim();
             
             const res = await fetch('/create', {
                 method: 'POST',
@@ -100,21 +99,24 @@
                 return;
             }
 
+            const body = {};
+            if (newImage) body.image = newImage;
+            if (newSound) body.sound = newSound;
+
             const res = await fetch(`/update-session/${currentSessionId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    image: newImage || undefined, 
-                    sound: newSound || undefined 
-                })
+                body: JSON.stringify(body)
             });
 
+            const result = await res.json();
+
             if (res.ok) {
-                alert('Пастку успішно оновлено! Всі жертви побачать зміни.');
+                alert('Пастку успішно оновлено для всіх жертв!');
                 document.getElementById('newImgUrl').value = '';
                 document.getElementById('newSndUrl').value = '';
             } else {
-                alert('Помилка оновлення');
+                alert('Помилка: ' + (result.error || 'Невідома помилка'));
             }
         }
 
@@ -135,7 +137,6 @@
             if(currentSessionId) socket.emit('trigger-scare', currentSessionId);
         }
 
-        // Список жертв
         socket.on('update-victim-list', (users) => {
             const listDiv = document.getElementById('users-list');
             const panel = document.getElementById('live-users-panel');
@@ -170,7 +171,6 @@
             if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
         });
 
-        // Історія
         function getSavedIds() { return JSON.parse(localStorage.getItem('prank_rooms') || '[]'); }
         function saveToHistory(id, date) {
             const list = getSavedIds();
