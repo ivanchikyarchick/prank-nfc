@@ -6,6 +6,9 @@ const { v4: uuidv4 } = require('uuid'); // Бібліотека для унік�
 const path = require('path');
 
 app.use(express.static('public'));
+app.get('/', (req, res) => {
+    res.redirect('/admin.html');
+});
 app.use(express.json());
 
 // Тут зберігаємо налаштування активних сесій
