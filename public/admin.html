@@ -1,110 +1,181 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uk">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control Panel</title>
+    <title>Admin Base</title>
     <style>
-        body { background-color: #121212; color: #00ff99; font-family: 'Courier New', monospace; text-align: center; padding: 20px; }
-        .container { max-width: 500px; margin: 0 auto; background: #1e1e1e; padding: 20px; border-radius: 10px; }
-        input { width: 90%; padding: 12px; margin: 10px 0; background: #333; border: 1px solid #00ff99; color: white; border-radius: 5px; }
-        button { width: 100%; padding: 15px; border: none; border-radius: 5px; cursor: pointer; font-size: 18px; font-weight: bold; margin-top: 10px; }
+        body { background-color: #0d0d0d; color: #00ff99; font-family: 'Courier New', monospace; text-align: center; padding: 10px; }
+        .container { max-width: 500px; margin: 0 auto; background: #1a1a1a; padding: 15px; border-radius: 10px; border: 1px solid #333; }
+        input { width: 90%; padding: 12px; margin: 5px 0; background: #222; border: 1px solid #444; color: white; border-radius: 5px; }
+        button { width: 100%; padding: 15px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; }
+        
         .btn-create { background: #00ff99; color: black; }
-        .btn-scare { background: #ff0055; color: white; height: 100px; font-size: 24px; display: none; }
-        #link-box { display: none; margin-top: 20px; color: white; word-break: break-all; border: 1px dashed #555; padding: 10px;}
+        .btn-scare { background: #ff0055; color: white; height: 100px; font-size: 28px; display: none; margin-top: 20px; box-shadow: 0 0 20px rgba(255, 0, 85, 0.4); }
+        .btn-scare:active { transform: scale(0.98); }
+        
+        /* Стилі для історії */
+        #history-panel { margin-top: 30px; text-align: left; }
+        .history-item { background: #222; padding: 10px; margin-bottom: 8px; border-radius: 5px; border-left: 3px solid #555; cursor: pointer; transition: 0.2s; font-size: 12px; display: flex; justify-content: space-between; align-items: center;}
+        .history-item:hover { background: #333; }
+        .active-room { border-left: 3px solid #00ff99; box-shadow: 0 0 10px rgba(0, 255, 153, 0.1); }
+        .status-dot { height: 10px; width: 10px; background-color: #555; border-radius: 50%; display: inline-block; margin-right: 5px;}
+        .online { background-color: #00ff99; box-shadow: 0 0 5px #00ff99; }
+
+        /* Лог жертви */
+        #victim-log { display: none; margin-top: 15px; padding: 10px; background: #2a2a00; border: 1px solid #ffff00; color: #ffff00; font-size: 12px; text-align: left; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 id="txt-title">PRANK MASTER</h1>
+        <h1>👁️ CONTROL CENTER</h1>
         
         <div id="setup-step">
-            <input type="text" id="imgUrl" placeholder="Image URL">
-            <input type="text" id="sndUrl" placeholder="Sound URL" value="https://www.myinstants.com/media/sounds/scream.mp3">
-            <button id="btn-gen" class="btn-create" onclick="createLink()">GENERATE LINK</button>
+            <input type="text" id="imgUrl" placeholder="Картинка (URL)">
+            <input type="text" id="sndUrl" placeholder="Звук (URL .mp3)" value="https://www.myinstants.com/media/sounds/scream.mp3">
+            <button class="btn-create" onclick="createLink()">СТВОРИТИ ПАСТКУ</button>
         </div>
 
-        <div id="link-box">
-            <p id="txt-send" style="color: #aaa;">Send this to victim:</p>
-            <a id="victim-link" href="#" target="_blank" style="color: #4db8ff;">...</a>
+        <div id="control-panel" style="display: none;">
+            <div style="background: #333; padding: 10px; border-radius: 5px; word-break: break-all;">
+                <span style="color: #aaa; font-size: 12px;">Посилання для жертви:</span><br>
+                <a id="victim-link" href="#" target="_blank" style="color: #4db8ff; font-size: 14px;">...</a>
+            </div>
+            
+            <div id="victim-log"></div>
+            <button id="scare-btn" class="btn-scare" onclick="trigger()">НАЛЯКАТИ 💀</button>
+            <button onclick="location.reload()" style="background: #333; color: #888; margin-top: 20px; font-size: 12px; padding: 10px;">⬅ Назад до меню</button>
         </div>
 
-        <button id="btn-scare" class="btn-scare" onclick="trigger()">SCARE NOW!</button>
+        <div id="history-panel">
+            <h3 style="color: #666; font-size: 14px; border-bottom: 1px solid #333; padding-bottom: 5px;">ІСТОРІЯ КІМНАТ</h3>
+            <div id="history-list"></div>
+        </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // --- БЛОК ПЕРЕКЛАДУ ---
-        const langData = {
-            'uk': {
-                title: "МАЙСТЕР ПРАНКІВ 💀",
-                ph_img: "URL Картинки (не обов'язково)",
-                ph_snd: "URL Звуку (.mp3)",
-                btn_gen: "ЗГЕНЕРУВАТИ ПОСИЛАННЯ",
-                txt_send: "Надішли це жертві:",
-                btn_scare: "НАЛЯКАТИ !!!"
-            },
-            'ru': {
-                title: "МАСТЕР ПРАНКОВ 💀",
-                ph_img: "URL Картинки (не обязательно)",
-                ph_snd: "URL Звука (.mp3)",
-                btn_gen: "СОЗДАТЬ ССЫЛКУ",
-                txt_send: "Отправь это жертве:",
-                btn_scare: "НАПУГАТЬ !!!"
-            },
-            'en': { // Стандартна
-                title: "PRANK MASTER 💀",
-                ph_img: "Image URL (Optional)",
-                ph_snd: "Sound URL (.mp3)",
-                btn_gen: "GENERATE LINK",
-                txt_send: "Send this to victim:",
-                btn_scare: "SCARE NOW !!!"
-            }
-        };
-
-        // Визначаємо мову (беремо перші 2 літери: uk-UA -> uk)
-        const userLang = navigator.language.slice(0, 2); 
-        const t = langData[userLang] || langData['en']; // Якщо мови немає, беремо англ
-
-        // Застосовуємо текст
-        document.getElementById('txt-title').innerText = t.title;
-        document.getElementById('imgUrl').placeholder = t.ph_img;
-        document.getElementById('sndUrl').placeholder = t.ph_snd;
-        document.getElementById('btn-gen').innerText = t.btn_gen;
-        document.getElementById('txt-send').innerText = t.txt_send;
-        document.getElementById('btn-scare').innerText = t.btn_scare;
-
-        // --- ЛОГІКА ПРАНКУ ---
         const socket = io();
         let currentSessionId = null;
+
+        // 1. При завантаженні - малюємо історію
+        window.onload = loadHistory;
 
         async function createLink() {
             const image = document.getElementById('imgUrl').value;
             const sound = document.getElementById('sndUrl').value;
-            if(!sound) return alert("URL sound error");
-
+            
             const res = await fetch('/create', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ image, sound })
             });
             const data = await res.json();
-            currentSessionId = data.id;
-
-            const link = `${window.location.origin}/victim.html?id=${currentSessionId}`;
             
-            document.getElementById('link-box').style.display = 'block';
-            document.getElementById('victim-link').href = link;
-            document.getElementById('victim-link').innerText = link;
-            document.getElementById('btn-scare').style.display = 'block';
-            document.getElementById('setup-step').style.display = 'none';
-
-            socket.emit('join-room', currentSessionId);
+            saveToHistory(data.id, data.createdAt); // Зберігаємо в телефон
+            activateRoom(data.id); // Вмикаємо пульт
+            loadHistory(); // Оновлюємо список
         }
 
+        // Вхід у вже створену кімнату
+        function activateRoom(id) {
+            currentSessionId = id;
+            
+            // Налаштування UI
+            document.getElementById('setup-step').style.display = 'none';
+            document.getElementById('history-panel').style.display = 'none'; // Ховаємо історію, щоб не заважала
+            document.getElementById('control-panel').style.display = 'block';
+            document.getElementById('scare-btn').style.display = 'block';
+            
+            const link = `${window.location.origin}/victim.html?id=${id}`;
+            document.getElementById('victim-link').href = link;
+            document.getElementById('victim-link').innerText = link;
+            document.getElementById('victim-log').style.display = 'none';
+
+            // Підключаємо сокети
+            socket.emit('join-room', id);
+        }
+
+        // Кнопка "Налякати"
         function trigger() {
             if(currentSessionId) socket.emit('trigger-scare', currentSessionId);
         }
+
+        // --- ЛОГІКА ІСТОРІЇ (LocalStorage) ---
+        function getSavedIds() {
+            const saved = localStorage.getItem('prank_rooms');
+            return saved ? JSON.parse(saved) : [];
+        }
+
+        function saveToHistory(id, date) {
+            const list = getSavedIds();
+            // Додаємо нову на початок
+            list.unshift({ id, date });
+            // Тримаємо тільки останні 10
+            if(list.length > 10) list.pop();
+            localStorage.setItem('prank_rooms', JSON.stringify(list));
+        }
+
+        async function loadHistory() {
+            const list = getSavedIds();
+            if(list.length === 0) {
+                document.getElementById('history-list').innerHTML = '<span style="color:#444; font-size: 12px;">Пусто...</span>';
+                return;
+            }
+
+            // Запитуємо у сервера, хто онлайн
+            const idsOnly = list.map(item => item.id);
+            const res = await fetch('/check-status', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ ids: idsOnly })
+            });
+            const statuses = await res.json(); // Приходить відсортований масив
+
+            const container = document.getElementById('history-list');
+            container.innerHTML = '';
+
+            statuses.forEach(room => {
+                // Знаходимо дату створення
+                const localItem = list.find(l => l.id === room.id);
+                const dateStr = localItem ? localItem.date : 'Unknown';
+                const isActive = room.active;
+
+                const div = document.createElement('div');
+                div.className = `history-item ${isActive ? 'active-room' : ''}`;
+                div.onclick = () => activateRoom(room.id);
+                div.innerHTML = `
+                    <div>
+                        <span class="status-dot ${isActive ? 'online' : ''}"></span>
+                        <span style="color: white; font-weight: bold;">Кімната...${room.id.slice(0, 4)}</span>
+                        <br>
+                        <span style="color: #777;">🕒 ${dateStr}</span>
+                    </div>
+                    ${isActive ? '<span style="color: #00ff99;">ОНЛАЙН 🔥</span>' : '<span style="color: #555;">Пусто</span>'}
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // --- СПОВІЩЕННЯ ПРО ЖЕРТВУ ---
+        socket.on('admin-alert', (data) => {
+            const log = document.getElementById('victim-log');
+            log.style.display = 'block';
+            
+            // Простий парсинг пристрою
+            let device = "PC";
+            if(data.device.includes('Android')) device = "Android";
+            if(data.device.includes('iPhone')) device = "iPhone";
+
+            log.innerHTML = `
+                <strong>${data.msg}</strong><br>
+                📱 ${device}<br>
+                🌐 IP: ${data.ip}<br>
+                🕒 ${data.time}
+            `;
+            // Вібрація адміна, щоб знав, що пора тиснути
+            if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        });
     </script>
 </body>
 </html>
