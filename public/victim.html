@@ -1,24 +1,101 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uk">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Network Error</title>
+    <title>Немає з'єднання</title>
     <style>
-        body, html { margin: 0; height: 100%; font-family: sans-serif; background: #f0f2f5; }
-        #fake-error { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; color: #65676b; }
-        h2 { color: #1c1e21; }
-        button { background: #1877f2; color: white; border: none; padding: 10px 20px; font-size: 16px; border-radius: 6px; margin-top: 20px; cursor: pointer; }
-        #prank-view { display: none; width: 100%; height: 100%; background: black no-repeat center center; background-size: cover; }
+        body, html {
+            margin: 0;
+            height: 100%;
+            background: #1e1e1e;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            overflow: hidden;
+        }
+        .error-container {
+            max-width: 500px;
+            padding: 30px;
+        }
+        .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+        h1 {
+            font-size: 24px;
+            margin: 20px 0;
+            color: #fff;
+        }
+        p {
+            color: #aaa;
+            line-height: 1.6;
+            margin: 10px 0;
+        }
+        ul {
+            text-align: left;
+            color: #aaa;
+            margin: 20px 0;
+            padding-left: 20px;
+        }
+        li {
+            margin: 8px 0;
+        }
+        .code {
+            color: #888;
+            font-family: monospace;
+            margin: 30px 0;
+            font-size: 14px;
+        }
+        .btn-reload {
+            background: #0078d4;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        .btn-details {
+            background: transparent;
+            color: #888;
+            border: 1px solid #444;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        #prank-view {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: black no-repeat center center;
+            background-size: cover;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
-    <div id="fake-error">
-        <svg style="width: 64px; fill: #fa3e3e;" viewBox="0 0 24 24"><path d="M23.64 7c-.45-.34-4.93-4-11.64-4-1.5 0-2.89.19-4.15.48L18.18 13.8 23.64 7zm-6.6 8.22L3.27 1.44 2 2.72l2.05 2.06C1.91 5.17.51 6.67.36 6.8c-.45.34 3.99 4 11.64 4 2.19 0 4.1-.38 5.76-1.01l4.5 4.51 1.27-1.27-6.49-6.51z"/></svg>
-        <h2 id="err-title">Connection Lost</h2>
-        <p id="err-desc">Checking network protocols...</p>
-        <button id="activate-trap">Reload Page</button>
+    <div class="error-container" id="fake-error">
+        <div class="icon">🌐</div>
+        <h1>Немає зв'язку із сайтом</h1>
+        <p>Хост <strong>fgfg.com</strong> довго не відповідає.</p>
+        <p>Спробуйте:</p>
+        <ul>
+            <li>перевірити наявність з'єднання</li>
+            <li>перевірити проксі-сервер і брандмауер</li>
+            <li>провести діагностику мережі Windows</li>
+        </ul>
+        <div class="code">ERR_TIMED_OUT</div>
+        <button class="btn-reload">Перезавантажити</button>
+        <button class="btn-details">Деталі</button>
     </div>
+
     <div id="prank-view"></div>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -33,21 +110,27 @@
 
         let audio = new Audio();
         const prankView = document.getElementById('prank-view');
+        const fakeError = document.getElementById('fake-error');
 
-        // Переклад
-        const langData = {
-            'uk': { title: "Немає з'єднання", desc: "Перевірте підключення до Інтернету.", btn: "Оновити сторінку" },
-            'ru': { title: "Нет подключения", desc: "Проверьте подключение к Интернету.", btn: "Обновить страницу" },
-            'en': { title: "Connection Lost", desc: "Please check your internet connection.", btn: "Reload Page" }
-        };
-        const userLang = navigator.language.slice(0, 2);
-        const t = langData[userLang] || langData['en'];
-        document.getElementById('err-title').innerText = t.title;
-        document.getElementById('err-desc').innerText = t.desc;
-        document.getElementById('activate-trap').innerText = t.btn;
-        document.title = t.title;
+        function activatePrank() {
+            fakeError.style.display = 'none';
+            prankView.style.display = 'block';
+            audio.play().then(() => {
+                audio.pause();
+                audio.currentTime = 0;
+            }).catch(() => {});
+        }
 
-        // Застосування медіа
+        // Активація при кліку/торканні будь-де
+        document.body.addEventListener('click', activatePrank, { once: true });
+        document.body.addEventListener('touchstart', activatePrank, { once: true });
+
+        // Також по кнопці "Перезавантажити"
+        document.querySelector('.btn-reload').addEventListener('click', (e) => {
+            e.stopPropagation();
+            activatePrank();
+        });
+
         function loadMedia(data) {
             if (data.image) {
                 prankView.style.backgroundImage = `url('${data.image}')`;
@@ -57,29 +140,21 @@
             }
         }
 
-        // Підключення як жертва
         socket.emit('join-room-victim', {
             roomId: id,
             userAgent: navigator.userAgent
         });
 
-        // Оновлення медіа (як при підключенні, так і при зміні адміном)
         socket.on('update-media', (data) => {
             loadMedia(data);
         });
 
-        // Активація пастки
-        document.getElementById('activate-trap').onclick = () => {
-            document.getElementById('fake-error').style.display = 'none';
-            prankView.style.display = 'block';
-            audio.play().then(() => { audio.pause(); audio.currentTime = 0; }).catch(()=>{});
-        };
-
-        // Налякати
         socket.on('play-sound', () => {
             audio.currentTime = 0;
             audio.play().catch(() => {});
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            if (navigator.vibrate) {
+                navigator.vibrate([300, 100, 300]);
+            }
         });
     </script>
 </body>
