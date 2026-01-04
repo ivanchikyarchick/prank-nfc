@@ -21,7 +21,7 @@ app.post('/create', (req, res) => {
     res.json({ id, createdAt });
 });
 
-// ОНОВЛЕННЯ звуку/картинки для існуючої кімнати
+// ОНОВЛЕННЯ медіа (виправлено)
 app.post('/update-session/:id', (req, res) => {
     const id = req.params.id;
     const { sound, image } = req.body;
@@ -30,23 +30,26 @@ app.post('/update-session/:id', (req, res) => {
         return res.status(404).json({ error: 'Session not found' });
     }
 
-    if (sound) sessions[id].sound = sound;
-    if (image) sessions[id].image = image;
+    if (sound !== undefined && sound !== '') sessions[id].sound = sound;
+    if (image !== undefined && image !== '') sessions[id].image = image;
 
-    // Повідомляємо всіх жертв у кімнаті про нові медіа
-    io.to(id).emit('update-media', { sound: sessions[id].sound, image: sessions[id].image });
+    // Надсилаємо оновлення всім у кімнаті
+    io.to(id).emit('update-media', {
+        sound: sessions[id].sound || '',
+        image: sessions[id].image || ''
+    });
 
     res.json({ success: true, session: sessions[id] });
 });
 
-// Отримання інформації про сесію
+// Інформація про сесію
 app.get('/session/:id', (req, res) => {
     const session = sessions[req.params.id];
     if (session) res.json(session);
     else res.status(404).json({ error: 'Not found' });
 });
 
-// Статус кімнат для історії
+// Статус для історії
 app.post('/check-status', (req, res) => {
     const { ids } = req.body;
     const result = ids.map(id => {
@@ -89,8 +92,8 @@ io.on('connection', (socket) => {
         // Надсилаємо актуальні медіа новій жертві
         if (sessions[data.roomId]) {
             socket.emit('update-media', {
-                sound: sessions[data.roomId].sound,
-                image: sessions[data.roomId].image
+                sound: sessions[data.roomId].sound || '',
+                image: sessions[data.roomId].image || ''
             });
         }
     });
