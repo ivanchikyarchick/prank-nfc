@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Panel</title>
+    <style>
+        body { background-color: #121212; color: #00ff99; font-family: 'Courier New', monospace; text-align: center; padding: 20px; }
+        .container { max-width: 500px; margin: 0 auto; background: #1e1e1e; padding: 20px; border-radius: 10px; }
+        input { width: 90%; padding: 12px; margin: 10px 0; background: #333; border: 1px solid #00ff99; color: white; border-radius: 5px; }
+        button { width: 100%; padding: 15px; border: none; border-radius: 5px; cursor: pointer; font-size: 18px; font-weight: bold; margin-top: 10px; }
+        .btn-create { background: #00ff99; color: black; }
+        .btn-scare { background: #ff0055; color: white; height: 100px; font-size: 24px; display: none; }
+        #link-box { display: none; margin-top: 20px; color: white; word-break: break-all; border: 1px dashed #555; padding: 10px;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="txt-title">PRANK MASTER</h1>
+        
+        <div id="setup-step">
+            <input type="text" id="imgUrl" placeholder="Image URL">
+            <input type="text" id="sndUrl" placeholder="Sound URL" value="https://www.myinstants.com/media/sounds/scream.mp3">
+            <button id="btn-gen" class="btn-create" onclick="createLink()">GENERATE LINK</button>
+        </div>
+
+        <div id="link-box">
+            <p id="txt-send" style="color: #aaa;">Send this to victim:</p>
+            <a id="victim-link" href="#" target="_blank" style="color: #4db8ff;">...</a>
+        </div>
+
+        <button id="btn-scare" class="btn-scare" onclick="trigger()">SCARE NOW!</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // --- БЛОК ПЕРЕКЛАДУ ---
+        const langData = {
+            'uk': {
+                title: "МАЙСТЕР ПРАНКІВ 💀",
+                ph_img: "URL Картинки (не обов'язково)",
+                ph_snd: "URL Звуку (.mp3)",
+                btn_gen: "ЗГЕНЕРУВАТИ ПОСИЛАННЯ",
+                txt_send: "Надішли це жертві:",
+                btn_scare: "НАЛЯКАТИ !!!"
+            },
+            'ru': {
+                title: "МАСТЕР ПРАНКОВ 💀",
+                ph_img: "URL Картинки (не обязательно)",
+                ph_snd: "URL Звука (.mp3)",
+                btn_gen: "СОЗДАТЬ ССЫЛКУ",
+                txt_send: "Отправь это жертве:",
+                btn_scare: "НАПУГАТЬ !!!"
+            },
+            'en': { // Стандартна
+                title: "PRANK MASTER 💀",
+                ph_img: "Image URL (Optional)",
+                ph_snd: "Sound URL (.mp3)",
+                btn_gen: "GENERATE LINK",
+                txt_send: "Send this to victim:",
+                btn_scare: "SCARE NOW !!!"
+            }
+        };
+
+        // Визначаємо мову (беремо перші 2 літери: uk-UA -> uk)
+        const userLang = navigator.language.slice(0, 2); 
+        const t = langData[userLang] || langData['en']; // Якщо мови немає, беремо англ
+
+        // Застосовуємо текст
+        document.getElementById('txt-title').innerText = t.title;
+        document.getElementById('imgUrl').placeholder = t.ph_img;
+        document.getElementById('sndUrl').placeholder = t.ph_snd;
+        document.getElementById('btn-gen').innerText = t.btn_gen;
+        document.getElementById('txt-send').innerText = t.txt_send;
+        document.getElementById('btn-scare').innerText = t.btn_scare;
+
+        // --- ЛОГІКА ПРАНКУ ---
+        const socket = io();
+        let currentSessionId = null;
+
+        async function createLink() {
+            const image = document.getElementById('imgUrl').value;
+            const sound = document.getElementById('sndUrl').value;
+            if(!sound) return alert("URL sound error");
+
+            const res = await fetch('/create', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ image, sound })
+            });
+            const data = await res.json();
+            currentSessionId = data.id;
+
+            const link = `${window.location.origin}/victim.html?id=${currentSessionId}`;
+            
+            document.getElementById('link-box').style.display = 'block';
+            document.getElementById('victim-link').href = link;
+            document.getElementById('victim-link').innerText = link;
+            document.getElementById('btn-scare').style.display = 'block';
+            document.getElementById('setup-step').style.display = 'none';
+
+            socket.emit('join-room', currentSessionId);
+        }
+
+        function trigger() {
+            if(currentSessionId) socket.emit('trigger-scare', currentSessionId);
+        }
+    </script>
+</body>
+</html>

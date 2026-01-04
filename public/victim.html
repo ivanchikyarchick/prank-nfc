@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Error</title>
+    <style>
+        body, html { margin: 0; height: 100%; font-family: sans-serif; background: #f0f2f5; }
+        #fake-error { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; color: #65676b; }
+        h2 { color: #1c1e21; }
+        button { background: #1877f2; color: white; border: none; padding: 10px 20px; font-size: 16px; border-radius: 6px; margin-top: 20px; cursor: pointer; }
+        #prank-view { display: none; width: 100%; height: 100%; background: black no-repeat center center; background-size: cover; }
+    </style>
+</head>
+<body>
+    <div id="fake-error">
+        <svg style="width: 64px; fill: #fa3e3e;" viewBox="0 0 24 24"><path d="M23.64 7c-.45-.34-4.93-4-11.64-4-1.5 0-2.89.19-4.15.48L18.18 13.8 23.64 7zm-6.6 8.22L3.27 1.44 2 2.72l2.05 2.06C1.91 5.17.51 6.67.36 6.8c-.45.34 3.99 4 11.64 4 2.19 0 4.1-.38 5.76-1.01l4.5 4.51 1.27-1.27-6.49-6.51z"/></svg>
+        
+        <h2 id="err-title">Connection Lost</h2>
+        <p id="err-desc">Please check your internet connection.</p>
+        <button id="activate-trap">Reload Page</button>
+    </div>
+
+    <div id="prank-view"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // --- ПЕРЕКЛАД ---
+        const langData = {
+            'uk': { title: "Немає з'єднання", desc: "Перевірте підключення до Інтернету.", btn: "Оновити сторінку" },
+            'ru': { title: "Нет подключения", desc: "Проверьте подключение к Интернету.", btn: "Обновить страницу" },
+            'en': { title: "Connection Lost", desc: "Please check your internet connection.", btn: "Reload Page" }
+        };
+        const userLang = navigator.language.slice(0, 2);
+        const t = langData[userLang] || langData['en'];
+
+        document.getElementById('err-title').innerText = t.title;
+        document.getElementById('err-desc').innerText = t.desc;
+        document.getElementById('activate-trap').innerText = t.btn;
+        document.title = t.title; // Змінюємо заголовок вкладки
+
+        // --- ЛОГІКА ---
+        const socket = io();
+        const id = new URLSearchParams(window.location.search).get('id');
+        let audio = new Audio();
+
+        fetch(`/session/${id}`).then(r => r.json()).then(d => {
+            if(d.image) document.getElementById('prank-view').style.backgroundImage = `url('${d.image}')`;
+            audio.src = d.sound;
+        }).catch(() => {});
+
+        socket.emit('join-room', id);
+
+        document.getElementById('activate-trap').onclick = () => {
+            document.getElementById('fake-error').style.display = 'none';
+            document.getElementById('prank-view').style.display = 'block';
+            audio.play().then(() => { audio.pause(); audio.currentTime = 0; }).catch(()=>{});
+        };
+
+        socket.on('play-sound', () => {
+            audio.currentTime = 0;
+            audio.play();
+            if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
+        });
+    </script>
+</body>
+</html>
