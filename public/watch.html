@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watch All Sessions</title>
+    <style>
+        body {
+            background: #0f0f0f;
+            color: #00ff99;
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #00ff99;
+            text-shadow: 0 0 10px #00ff99;
+        }
+        .sessions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .session-card {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 15px;
+            position: relative;
+            transition: transform 0.2s;
+        }
+        .session-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0 15px rgba(0, 255, 153, 0.3);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .room-id {
+            font-size: 12px;
+            color: #888;
+        }
+        .delete-btn {
+            background: #ff0055;
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .delete-btn:hover {
+            background: #ff3366;
+        }
+        .preview-img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            background: #222;
+            margin: 10px 0;
+        }
+        .sound-preview {
+            background: #222;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            word-break: break-all;
+            color: #aaa;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+        .online {
+            color: #00ff99;
+            font-weight: bold;
+        }
+        .last-active {
+            color: #ffcc00;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        .control-btn {
+            width: 100%;
+            padding: 12px;
+            background: #00ccff;
+            color: black;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        .no-sessions {
+            text-align: center;
+            color: #666;
+            font-size: 18px;
+            margin: 50px;
+        }
+        .refresh-info {
+            text-align: center;
+            color: #555;
+            font-size: 12px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>👁️ WATCH ALL SESSIONS</h1>
+        <div class="refresh-info">Оновлюється автоматично кожні 30 секунд</div>
+        <div id="sessions-container" class="sessions-grid">
+            <div class="no-sessions">Завантаження сесій...</div>
+        </div>
+    </div>
+
+    <script>
+        const container = document.getElementById('sessions-container');
+
+        async function loadAllSessions() {
+            try {
+                const res = await fetch('/sessions');
+                if (!res.ok) {
+                    container.innerHTML = '<div class="no-sessions">Помилка завантаження сесій</div>';
+                    return;
+                }
+                const sessions = await res.json();
+
+                if (sessions.length === 0) {
+                    container.innerHTML = '<div class="no-sessions">Немає створених сесій</div>';
+                    return;
+                }
+
+                container.innerHTML = '';
+
+                sessions.forEach(s => {
+                    const lastActiveDate = s.lastActiveAt ? new Date(s.lastActiveAt).toLocaleString('uk-UA') : 'Невідомо';
+                    const isActiveNow = s.onlineCount > 0;
+
+                    const card = document.createElement('div');
+                    card.className = 'session-card';
+
+                    card.innerHTML = `
+                        <div class="header">
+                            <div>
+                                <div style="font-size:14px; font-weight:bold;">Створено: ${s.createdAt}</div>
+                                <div class="room-id">ID: ...${s.id.slice(-8)}</div>
+                            </div>
+                            <button class="delete-btn" onclick="deleteSession('${s.id}', this)">Видалити</button>
+                        </div>
+
+                        ${s.image ? `<img src="${s.image}" class="preview-img" onerror="this.src='https://via.placeholder.com/300x200/222/666?text=Помилка+зображення'; this.onerror=null;">` : 
+                         `<div class="preview-img" style="display:flex;align-items:center;justify-content:center;color:#666;font-size:14px;">Немає картинки</div>`}
+
+                        <div class="sound-preview">
+                            🔊 Звук: ${s.sound ? s.sound.split('/').pop() : 'Немає'}<br>
+                            <small>${s.sound || '—'}</small>
+                        </div>
+
+                        <div class="stats">
+                            <div>${isActiveNow ? `<span class="online">● ${s.onlineCount} онлайн</span>` : 'Оффлайн'}</div>
+                            <div>Всього жертв: <strong>${s.totalVictims}</strong></div>
+                        </div>
+
+                        <div class="last-active">
+                            Остання активність: ${isActiveNow ? '<strong style="color:#00ff99;">ЗАРАЗ</strong>' : lastActiveDate}
+                        </div>
+
+                        <button class="control-btn" onclick="openControl('${s.id}')">
+                            КЕРУВАТИ КІМНАТОЮ
+                        </button>
+                    `;
+
+                    container.appendChild(card);
+                });
+            } catch (err) {
+                container.innerHTML = '<div class="no-sessions">Помилка з\'єднання з сервером</div>';
+            }
+        }
+
+        function openControl(id) {
+            window.open(`/admin.html#${id}`, '_blank');
+        }
+
+        async function deleteSession(id, btn) {
+            if (!confirm('Видалити цю сесію назавжди? (включаючи статистику)')) return;
+
+            btn.disabled = true;
+            btn.innerText = 'Видаляється...';
+
+            try {
+                const res = await fetch(`/session/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    loadAllSessions();
+                } else {
+                    alert('Помилка видалення');
+                    btn.disabled = false;
+                    btn.innerText = 'Видалити';
+                }
+            } catch (e) {
+                alert('Помилка мережі');
+                btn.disabled = false;
+                btn.innerText = 'Видалити';
+            }
+        }
+
+        // Перше завантаження + автооновлення
+        loadAllSessions();
+        setInterval(loadAllSessions, 30000);
+    </script>
+</body>
+</html>
