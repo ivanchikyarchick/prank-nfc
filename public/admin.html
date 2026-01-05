@@ -3,64 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Spy</title>
+    <title>SPY CONTROL v2.1</title>
     <style>
-        body { background-color: #0d0d0d; color: #00ff99; font-family: 'Courier New', monospace; text-align: center; padding: 10px; }
-        .container { max-width: 500px; margin: 0 auto; background: #1a1a1a; padding: 15px; border-radius: 10px; border: 1px solid #333; }
-        input { width: 90%; padding: 12px; margin: 5px 0; background: #222; border: 1px solid #444; color: white; }
-        button { width: 100%; padding: 15px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; }
+        :root {
+            --neon: #00ff99;
+            --danger: #ff0055;
+            --bg: #0a0a0c;
+            --card: #16161a;
+        }
+        body { 
+            background-color: var(--bg); color: white; 
+            font-family: 'Segoe UI', Roboto, sans-serif; 
+            display: flex; justify-content: center; padding: 20px; margin: 0;
+            background-image: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #0a0a0c 100%);
+        }
+        .container { 
+            width: 100%; max-width: 450px; background: var(--card); 
+            padding: 25px; border-radius: 20px; border: 1px solid #333;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .lang-bar { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
+        .lang-btn { 
+            background: #222; border: 1px solid #444; color: #aaa; 
+            padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; transition: 0.3s;
+        }
+        .lang-btn.active { border-color: var(--neon); color: var(--neon); background: rgba(0,255,153,0.1); }
         
-        .btn-create { background: #00ff99; color: black; }
-        .btn-scare { background: #ff0055; color: white; height: 100px; font-size: 28px; display: none; margin-top: 20px; box-shadow: 0 0 20px rgba(255, 0, 85, 0.4); animation: pulse 1s infinite; }
+        h1 { font-size: 22px; letter-spacing: 2px; text-transform: uppercase; color: var(--neon); margin-top: 0; text-align: center; }
         
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 12px; color: #777; margin-bottom: 5px; }
+        input { 
+            width: 100%; padding: 12px; background: #0f0f12; border: 1px solid #333; 
+            color: white; border-radius: 10px; box-sizing: border-box; outline: none; margin-bottom: 10px;
+        }
+        input:focus { border-color: var(--neon); }
         
-        #live-users-panel { display: none; margin-top: 20px; text-align: left; background: #111; padding: 10px; border: 1px solid #333; }
-        .user-row { background: #222; padding: 10px; margin-bottom: 5px; border-left: 3px solid #00ff99; display: flex; justify-content: space-between; align-items: center; font-size: 13px;}
-        .user-online { color: #00ff99; font-weight: bold; }
-        .blink { animation: blinker 1s linear infinite; }
-        @keyframes blinker { 50% { opacity: 0; } }
-        
-        #history-panel { margin-top: 30px; text-align: left; }
-        .history-item { background: #222; padding: 10px; margin-bottom: 8px; border-radius: 5px; font-size: 12px; cursor: pointer; border-left: 3px solid #555; }
-        .active-room { border-left: 3px solid #ff0055; background: #2a1a1a; }
+        button { 
+            width: 100%; padding: 15px; border: none; border-radius: 10px; 
+            cursor: pointer; font-size: 15px; font-weight: bold; transition: 0.3s;
+        }
+        .btn-create { background: var(--neon); color: black; }
+        .btn-update { background: #333; color: white; font-size: 13px; }
+        .btn-scare { 
+            background: var(--danger); color: white; height: 80px; font-size: 22px; 
+            display: none; margin-top: 20px; animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,0,85,0.7); } 70% { box-shadow: 0 0 0 15px rgba(255,0,85,0); } 100% { box-shadow: 0 0 0 0 rgba(255,0,85,0); } }
+
+        .history-item { 
+            background: #1c1c21; padding: 12px; margin-bottom: 10px; border-radius: 10px; 
+            display: flex; justify-content: space-between; align-items: center; border: 1px solid #333;
+        }
+        .history-info { cursor: pointer; flex-grow: 1; }
+        .btn-delete { 
+            background: transparent; color: #ff4444; width: auto; padding: 5px 10px; 
+            font-size: 18px; opacity: 0.6; 
+        }
+        .btn-delete:hover { opacity: 1; }
+
+        .link-box { 
+            background: #000; padding: 10px; border-radius: 8px; font-family: monospace; 
+            font-size: 11px; margin: 15px 0; border: 1px dashed #444; word-break: break-all;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>👁️ SPY CONTROL</h1>
+        <div class="lang-bar">
+            <button class="lang-btn active" onclick="setLang('uk')">UA</button>
+            <button class="lang-btn" onclick="setLang('ru')">RU</button>
+            <button class="lang-btn" onclick="setLang('en')">EN</button>
+            <button class="lang-btn" onclick="setLang('ja')">JP</button>
+        </div>
+
+        <h1 id="t-title">👁️ SPY CONTROL</h1>
         
         <div id="setup-step">
-            <input type="text" id="imgUrl" placeholder="Картинка (URL)">
-            <input type="text" id="sndUrl" placeholder="Звук (URL .mp3)" value="https://www.myinstants.com/media/sounds/scream.mp3">
-            <button class="btn-create" onclick="createLink()">СТВОРИТИ ПАСТКУ</button>
+            <input type="text" id="imgUrl" placeholder="URL Картинки">
+            <input type="text" id="sndUrl" placeholder="URL Звуку (.mp3)" value="https://www.myinstants.com/media/sounds/scream.mp3">
+            <button class="btn-create" onclick="createLink()" id="t-btn-create">СТВОРИТИ ПАСТКУ</button>
         </div>
 
         <div id="control-panel" style="display: none;">
-            <div style="background: #333; padding: 10px; font-size: 12px; word-break: break-all;">
-                <a id="victim-link" href="#" target="_blank" style="color: #4db8ff;">...</a>
+            <div class="link-box">
+                <a id="victim-link" href="#" target="_blank" style="color: #4db8ff; text-decoration: none;">...</a>
             </div>
             
-            <div style="margin-top: 20px; padding: 15px; background: #222; border-radius: 8px;">
-                <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #00ff99;">ЗМІНИТИ ПАСТКУ</h3>
-                <input type="text" id="newImgUrl" placeholder="Нова картинка (URL)" style="width: 100%; margin-bottom: 8px;">
-                <input type="text" id="newSndUrl" placeholder="Новий звук (URL .mp3)" style="width: 100%; margin-bottom: 8px;">
-                <button onclick="updateMedia()" style="width: 100%; padding: 12px; background: #00ccff; color: black; font-weight: bold;">
-                    ОНОВИТИ ДЛЯ ВСІХ
-                </button>
+            <div style="background: #1c1c21; padding: 15px; border-radius: 12px;">
+                <label id="t-update-label" style="color: var(--neon);">ОНОВИТИ МЕДІА</label>
+                <input type="text" id="newImgUrl" placeholder="Новий URL картинки">
+                <input type="text" id="newSndUrl" placeholder="Новий URL звуку">
+                <button onclick="updateMedia()" class="btn-update" id="t-btn-update">ОНОВИТИ ДЛЯ ВСІХ</button>
             </div>
 
             <div id="live-users-panel">
-                <div style="font-size: 10px; color: #777; margin-bottom: 5px;">LIVE CONNECTIONS:</div>
-                <div id="users-list">Checking...</div>
+                <div id="users-list"></div>
             </div>
 
             <button id="scare-btn" class="btn-scare" onclick="trigger()">НАЛЯКАТИ 💀</button>
-            <button onclick="location.reload()" style="background: #333; color: #888; margin-top: 20px; padding: 10px;">⬅ Меню</button>
+            <button onclick="location.reload()" style="background: transparent; color: #555; margin-top: 15px; font-size: 13px;" id="t-btn-back">⬅ Меню</button>
         </div>
 
         <div id="history-panel">
-            <h3 style="color: #666; font-size: 14px;">ІСТОРІЯ</h3>
+            <h3 id="t-history" style="color: #555; font-size: 14px; margin-top: 30px;">ІСТОРІЯ СЕСІЙ</h3>
             <div id="history-list"></div>
         </div>
     </div>
@@ -70,54 +116,56 @@
         const socket = io();
         let currentSessionId = null;
 
+        const i18n = {
+            uk: { title: "👁️ SPY CONTROL", create: "СТВОРИТИ ПАСТКУ", update: "ОНОВИТИ МЕДІА", btnUpdate: "ОНОВИТИ ДЛЯ ВСІХ", scare: "НАЛЯКАТИ 💀", back: "⬅ Меню", history: "ІСТОРІЯ СЕСІЙ", delConfirm: "Видалити цю сесію?" },
+            ru: { title: "👁️ SPY CONTROL", create: "СОЗДАТЬ ЛОВУШКУ", update: "ОБНОВИТЬ МЕДИА", btnUpdate: "ОБНОВИТЬ ДЛЯ ВСЕХ", scare: "ИСПУГАТЬ 💀", back: "⬅ Меню", history: "ИСТОРИЯ СЕССИЙ", delConfirm: "Удалить эту сессию?" },
+            en: { title: "👁️ SPY CONTROL", create: "CREATE TRAP", update: "UPDATE MEDIA", btnUpdate: "UPDATE FOR ALL", scare: "SCARE 'EM 💀", back: "⬅ Menu", history: "SESSION HISTORY", delConfirm: "Delete this session?" },
+            ja: { title: "👁️ スパイコントロール", create: "トラップを作成", update: "メディアを更新", btnUpdate: "全員を更新", scare: "怖がらせる 💀", back: "⬅ メニュー", history: "セッション履歴", delConfirm: "このセッションを削除しますか？" }
+        };
+
+        function setLang(lang) {
+            document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('t-title').innerText = i18n[lang].title;
+            document.getElementById('t-btn-create').innerText = i18n[lang].create;
+            document.getElementById('t-update-label').innerText = i18n[lang].update;
+            document.getElementById('t-btn-update').innerText = i18n[lang].btnUpdate;
+            document.getElementById('t-btn-back').innerText = i18n[lang].back;
+            document.getElementById('t-history').innerText = i18n[lang].history;
+            window.currentLang = lang;
+        }
+        window.currentLang = 'uk';
+
         window.onload = loadHistory;
 
         async function createLink() {
             const image = document.getElementById('imgUrl').value.trim();
             const sound = document.getElementById('sndUrl').value.trim();
-            
             const res = await fetch('/create', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ image, sound })
             });
             const data = await res.json();
-            
-            saveToHistory(data.id, data.createdAt);
+            saveToHistory(data.id);
             activateRoom(data.id);
-            loadHistory();
         }
 
         async function updateMedia() {
             if (!currentSessionId) return;
-
-            const newImage = document.getElementById('newImgUrl').value.trim();
-            const newSound = document.getElementById('newSndUrl').value.trim();
-
-            if (!newImage && !newSound) {
-                alert('Введіть хоча б одне нове значення');
-                return;
-            }
-
+            const image = document.getElementById('newImgUrl').value.trim();
+            const sound = document.getElementById('newSndUrl').value.trim();
+            
             const body = {};
-            if (newImage) body.image = newImage;
-            if (newSound) body.sound = newSound;
+            if (image) body.image = image;
+            if (sound) body.sound = sound;
 
-            const res = await fetch(`/update-session/${currentSessionId}`, {
+            await fetch(`/update-session/${currentSessionId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
-
-            const result = await res.json();
-
-            if (res.ok) {
-                alert('Пастку успішно оновлено для всіх жертв!');
-                document.getElementById('newImgUrl').value = '';
-                document.getElementById('newSndUrl').value = '';
-            } else {
-                alert('Помилка: ' + (result.error || 'Невідома помилка'));
-            }
+            alert('Updated!');
         }
 
         function activateRoom(id) {
@@ -125,12 +173,23 @@
             document.getElementById('setup-step').style.display = 'none';
             document.getElementById('history-panel').style.display = 'none';
             document.getElementById('control-panel').style.display = 'block';
-            
             const link = `${window.location.origin}/victim.html?id=${id}`;
             document.getElementById('victim-link').href = link;
             document.getElementById('victim-link').innerText = link;
-            
             socket.emit('join-room-admin', id);
+        }
+
+        async function deleteSession(id, event) {
+            event.stopPropagation();
+            if (!confirm(i18n[window.currentLang].delConfirm)) return;
+
+            // Запит на сервер для видалення (якщо сервер підтримує)
+            await fetch(`/delete-session/${id}`, { method: 'DELETE' }).catch(() => {});
+
+            let list = JSON.parse(localStorage.getItem('prank_rooms') || '[]');
+            list = list.filter(item => item.id !== id);
+            localStorage.setItem('prank_rooms', JSON.stringify(list));
+            loadHistory();
         }
 
         function trigger() {
@@ -139,68 +198,49 @@
 
         socket.on('update-victim-list', (users) => {
             const listDiv = document.getElementById('users-list');
-            const panel = document.getElementById('live-users-panel');
             const scareBtn = document.getElementById('scare-btn');
-            
-            panel.style.display = 'block';
-            if (users.length === 0) {
-                listDiv.innerHTML = '<div style="color: #555; font-style: italic;">Очікування жертви...</div>';
-                scareBtn.style.display = 'none';
-            } else {
+            if (users.length > 0) {
                 scareBtn.style.display = 'block';
+                listDiv.innerHTML = users.map(u => `<div style="font-size:10px; color:var(--neon); margin-top:5px;">● Online: ${u.device}</div>`).join('');
+            } else {
+                scareBtn.style.display = 'none';
                 listDiv.innerHTML = '';
-                
-                users.forEach(u => {
-                    const row = document.createElement('div');
-                    row.className = 'user-row';
-                    const shortIp = u.ip.split(',')[0];
-                    
-                    row.innerHTML = `
-                        <div>
-                            <span style="font-size:14px;">${u.device}</span><br>
-                            <span style="color:#666; font-size:10px;">IP: ${shortIp}</span>
-                        </div>
-                        <div class="user-online">● ONLINE</div>
-                    `;
-                    listDiv.appendChild(row);
-                });
             }
         });
 
-        socket.on('admin-alert', () => {
-            if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
-        });
-
-        function getSavedIds() { return JSON.parse(localStorage.getItem('prank_rooms') || '[]'); }
-        function saveToHistory(id, date) {
-            const list = getSavedIds();
-            list.unshift({ id, date });
-            if(list.length > 15) list.pop();
-            localStorage.setItem('prank_rooms', JSON.stringify(list));
+        function saveToHistory(id) {
+            const list = JSON.parse(localStorage.getItem('prank_rooms') || '[]');
+            if (!list.find(i => i.id === id)) {
+                list.unshift({ id, date: new Date().toLocaleString() });
+                localStorage.setItem('prank_rooms', JSON.stringify(list.slice(0, 20)));
+            }
         }
 
         async function loadHistory() {
-            const list = getSavedIds();
-            if(list.length === 0) return;
-            const idsOnly = list.map(i => i.id);
+            const list = JSON.parse(localStorage.getItem('prank_rooms') || '[]');
+            const container = document.getElementById('history-list');
+            container.innerHTML = '';
+            
+            if (list.length === 0) return;
+
             const res = await fetch('/check-status', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ ids: idsOnly })
-            });
+                body: JSON.stringify({ ids: list.map(i => i.id) })
+            }).catch(() => ({ json: () => [] }));
+            
             const statuses = await res.json();
-            const container = document.getElementById('history-list');
-            container.innerHTML = '';
-            statuses.forEach(room => {
-                const isActive = room.count > 0;
+
+            list.forEach(item => {
+                const status = statuses.find(s => s.id === item.id) || { count: 0 };
                 const div = document.createElement('div');
-                div.className = `history-item ${isActive ? 'active-room' : ''}`;
-                div.onclick = () => activateRoom(room.id);
+                div.className = 'history-item';
                 div.innerHTML = `
-                    <div style="display:flex; justify-content:space-between;">
-                        <span>ROOM ...${room.id.slice(0, 4)}</span>
-                        ${isActive ? `<span class="blink" style="color:#ff0055;">👁️ ${room.count} ONLINE</span>` : '<span style="color:#555;">Offline</span>'}
+                    <div class="history-info" onclick="activateRoom('${item.id}')">
+                        <span style="font-size:12px;">ID: ...${item.id.slice(-6)}</span>
+                        <span style="color:${status.count > 0 ? 'var(--neon)' : '#555'}; font-size:10px; margin-left:10px;">● ${status.count}</span>
                     </div>
+                    <button class="btn-delete" onclick="deleteSession('${item.id}', event)">🗑️</button>
                 `;
                 container.appendChild(div);
             });
