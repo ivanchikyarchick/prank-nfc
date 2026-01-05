@@ -9,7 +9,7 @@ const path = require('path');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const PORT = process.env.PORT || 3000;
-const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || '';
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || 'AIzaSyB5bJTgHWd0zmsO95fESuaqzjTAeP-2oEE';
 
 if (!GOOGLE_API_KEY) {
     console.warn('Warning: GOOGLE_API_KEY is not set. Gemini requests will likely fail.');
