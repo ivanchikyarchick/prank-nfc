@@ -3,25 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SPY CONTROL v2.1</title>
+    <title>SPY CONTROL v2.1 AI</title>
     <style>
         :root {
             --neon: #00ff99;
             --danger: #ff0055;
             --bg: #0a0a0c;
             --card: #16161a;
+            --ai-glow: #6200ea;
         }
-
-        .ai-box {
-    margin-top: 15px; border: 1px dashed var(--neon);
-    padding: 10px; border-radius: 10px; background: rgba(0, 255, 153, 0.05);
-}
-.btn-ai {
-    background: linear-gradient(90deg, #6200ea, #00ff99);
-    color: white; font-weight: bold; width: 100%; border: none;
-    padding: 10px; border-radius: 8px; cursor: pointer; margin-bottom: 10px;
-}
-        
         body { 
             background-color: var(--bg); color: white; 
             font-family: 'Segoe UI', Roboto, sans-serif; 
@@ -42,13 +32,11 @@
         
         h1 { font-size: 22px; letter-spacing: 2px; text-transform: uppercase; color: var(--neon); margin-top: 0; text-align: center; }
         
-        .input-group { margin-bottom: 15px; }
-        label { display: block; font-size: 12px; color: #777; margin-bottom: 5px; }
-        input { 
+        input, textarea { 
             width: 100%; padding: 12px; background: #0f0f12; border: 1px solid #333; 
             color: white; border-radius: 10px; box-sizing: border-box; outline: none; margin-bottom: 10px;
         }
-        input:focus { border-color: var(--neon); }
+        input:focus, textarea:focus { border-color: var(--neon); }
         
         button { 
             width: 100%; padding: 15px; border: none; border-radius: 10px; 
@@ -60,23 +48,31 @@
             background: var(--danger); color: white; height: 80px; font-size: 22px; 
             display: none; margin-top: 20px; animation: pulse 1.5s infinite;
         }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,0,85,0.7); } 70% { box-shadow: 0 0 0 15px rgba(255,0,85,0); } 100% { box-shadow: 0 0 0 0 rgba(255,0,85,0); } }
+        
+        /* AI Styles */
+        .ai-box {
+            margin-top: 20px; padding: 15px; border: 1px dashed var(--ai-glow);
+            border-radius: 12px; background: rgba(98, 0, 234, 0.05);
+        }
+        .btn-ai-toggle {
+            background: linear-gradient(90deg, var(--ai-glow), #b388ff);
+            color: white; margin-bottom: 10px;
+        }
+        #ai-status { font-size: 11px; color: var(--ai-glow); margin-top: 8px; text-align: center; }
 
         .history-item { 
             background: #1c1c21; padding: 12px; margin-bottom: 10px; border-radius: 10px; 
             display: flex; justify-content: space-between; align-items: center; border: 1px solid #333;
         }
         .history-info { cursor: pointer; flex-grow: 1; }
-        .btn-delete { 
-            background: transparent; color: #ff4444; width: auto; padding: 5px 10px; 
-            font-size: 18px; opacity: 0.6; 
-        }
-        .btn-delete:hover { opacity: 1; }
+        .btn-delete { background: transparent; color: #ff4444; width: auto; padding: 5px 10px; font-size: 18px; opacity: 0.6; }
 
         .link-box { 
             background: #000; padding: 10px; border-radius: 8px; font-family: monospace; 
             font-size: 11px; margin: 15px 0; border: 1px dashed #444; word-break: break-all;
         }
+
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,0,85,0.7); } 70% { box-shadow: 0 0 0 15px rgba(255,0,85,0); } 100% { box-shadow: 0 0 0 0 rgba(255,0,85,0); } }
     </style>
 </head>
 <body>
@@ -85,7 +81,6 @@
             <button class="lang-btn active" onclick="setLang('uk')">UA</button>
             <button class="lang-btn" onclick="setLang('ru')">RU</button>
             <button class="lang-btn" onclick="setLang('en')">EN</button>
-            <button class="lang-btn" onclick="setLang('ja')">JP</button>
         </div>
 
         <h1 id="t-title">👁️ SPY CONTROL</h1>
@@ -97,31 +92,29 @@
         </div>
 
         <div id="control-panel" style="display: none;">
-            <div class="ai-box">
-    <button class="btn-ai" onclick="document.getElementById('ai-input').style.display='block'">🤖 AI ГЕНЕРАТОР (Gemini 2.0)</button>
-    <div id="ai-input" style="display:none;">
-        <textarea id="ai-prompt" placeholder="Опишіть тематику сайту..." style="width:100%; background:#111; color:white; border:1px solid #444; border-radius:5px; height:60px;"></textarea>
-        <button onclick="runAIGeneration()" style="width:100%; margin-top:5px; background:var(--neon); color:#000; border:none; padding:5px; border-radius:5px; cursor:pointer;">Створити сайт</button>
-    </div>
-    <div id="ai-status" style="font-size:10px; color:var(--neon); margin-top:5px;"></div>
-</div>
             <div class="link-box">
                 <a id="victim-link" href="#" target="_blank" style="color: #4db8ff; text-decoration: none;">...</a>
             </div>
             
-            <div style="background: #1c1c21; padding: 15px; border-radius: 12px;">
-                <label id="t-update-label" style="color: var(--neon);">ОНОВИТИ МЕДІА</label>
+            <div class="ai-box">
+                <button class="btn-ai-toggle" onclick="toggleAI()">🤖 AI ГЕНЕРАТОР (Gemini 2.0)</button>
+                <div id="ai-input-area" style="display:none;">
+                    <textarea id="ai-prompt" placeholder="Опишіть тему (напр. Сайт про безкоштовні гроші)"></textarea>
+                    <button onclick="runAIGeneration()" style="background:var(--neon); color:black; padding:8px;">ЗГЕНЕРУВАТИ HTML</button>
+                </div>
+                <div id="ai-status"></div>
+            </div>
+
+            <div style="background: #1c1c21; padding: 15px; border-radius: 12px; margin-top:15px;">
+                <label style="color: var(--neon); font-size:12px;">ОНОВИТИ МЕДІА</label>
                 <input type="text" id="newImgUrl" placeholder="Новий URL картинки">
                 <input type="text" id="newSndUrl" placeholder="Новий URL звуку">
-                <button onclick="updateMedia()" class="btn-update" id="t-btn-update">ОНОВИТИ ДЛЯ ВСІХ</button>
+                <button onclick="updateMedia()" class="btn-update">ОНОВИТИ ДЛЯ ВСІХ</button>
             </div>
 
-            <div id="live-users-panel">
-                <div id="users-list"></div>
-            </div>
-
+            <div id="users-list" style="margin-top:10px;"></div>
             <button id="scare-btn" class="btn-scare" onclick="trigger()">НАЛЯКАТИ 💀</button>
-            <button onclick="location.reload()" style="background: transparent; color: #555; margin-top: 15px; font-size: 13px;" id="t-btn-back">⬅ Меню</button>
+            <button onclick="location.reload()" style="background: transparent; color: #555; margin-top: 15px; font-size: 13px;">⬅ Назад до історії</button>
         </div>
 
         <div id="history-panel">
@@ -136,24 +129,17 @@
         let currentSessionId = null;
 
         const i18n = {
-            uk: { title: "👁️ SPY CONTROL", create: "СТВОРИТИ ПАСТКУ", update: "ОНОВИТИ МЕДІА", btnUpdate: "ОНОВИТИ ДЛЯ ВСІХ", scare: "НАЛЯКАТИ 💀", back: "⬅ Меню", history: "ІСТОРІЯ СЕСІЙ", delConfirm: "Видалити цю сесію?" },
-            ru: { title: "👁️ SPY CONTROL", create: "СОЗДАТЬ ЛОВУШКУ", update: "ОБНОВИТЬ МЕДИА", btnUpdate: "ОБНОВИТЬ ДЛЯ ВСЕХ", scare: "ИСПУГАТЬ 💀", back: "⬅ Меню", history: "ИСТОРИЯ СЕССИЙ", delConfirm: "Удалить эту сессию?" },
-            en: { title: "👁️ SPY CONTROL", create: "CREATE TRAP", update: "UPDATE MEDIA", btnUpdate: "UPDATE FOR ALL", scare: "SCARE 'EM 💀", back: "⬅ Menu", history: "SESSION HISTORY", delConfirm: "Delete this session?" },
-            ja: { title: "👁️ スパイコントロール", create: "トラップを作成", update: "メディアを更新", btnUpdate: "全員を更新", scare: "怖がらせる 💀", back: "⬅ メニュー", history: "セッション履歴", delConfirm: "このセッションを削除しますか？" }
+            uk: { title: "👁️ SPY CONTROL", create: "СТВОРИТИ ПАСТКУ", history: "ІСТОРІЯ СЕСІЙ", delConfirm: "Видалити?" },
+            ru: { title: "👁️ SPY CONTROL", create: "СОЗДАТЬ ЛОВУШКУ", history: "ИСТОРИЯ СЕССИЙ", delConfirm: "Удалить?" },
+            en: { title: "👁️ SPY CONTROL", create: "CREATE TRAP", history: "SESSION HISTORY", delConfirm: "Delete?" }
         };
 
         function setLang(lang) {
-            document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
             document.getElementById('t-title').innerText = i18n[lang].title;
             document.getElementById('t-btn-create').innerText = i18n[lang].create;
-            document.getElementById('t-update-label').innerText = i18n[lang].update;
-            document.getElementById('t-btn-update').innerText = i18n[lang].btnUpdate;
-            document.getElementById('t-btn-back').innerText = i18n[lang].back;
             document.getElementById('t-history').innerText = i18n[lang].history;
             window.currentLang = lang;
         }
-        window.currentLang = 'uk';
 
         window.onload = loadHistory;
 
@@ -170,23 +156,6 @@
             activateRoom(data.id);
         }
 
-        async function updateMedia() {
-            if (!currentSessionId) return;
-            const image = document.getElementById('newImgUrl').value.trim();
-            const sound = document.getElementById('newSndUrl').value.trim();
-            
-            const body = {};
-            if (image) body.image = image;
-            if (sound) body.sound = sound;
-
-            await fetch(`/update-session/${currentSessionId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
-            alert('Updated!');
-        }
-
         function activateRoom(id) {
             currentSessionId = id;
             document.getElementById('setup-step').style.display = 'none';
@@ -198,17 +167,47 @@
             socket.emit('join-room-admin', id);
         }
 
-        async function deleteSession(id, event) {
-            event.stopPropagation();
-            if (!confirm(i18n[window.currentLang].delConfirm)) return;
+        function toggleAI() {
+            const area = document.getElementById('ai-input-area');
+            area.style.display = area.style.display === 'none' ? 'block' : 'none';
+        }
 
-            // Запит на сервер для видалення (якщо сервер підтримує)
-            await fetch(`/delete-session/${id}`, { method: 'DELETE' }).catch(() => {});
+        async function runAIGeneration() {
+            const prompt = document.getElementById('ai-prompt').value;
+            const status = document.getElementById('ai-status');
+            if(!prompt) return alert("Опишіть тему!");
 
-            let list = JSON.parse(localStorage.getItem('prank_rooms') || '[]');
-            list = list.filter(item => item.id !== id);
-            localStorage.setItem('prank_rooms', JSON.stringify(list));
-            loadHistory();
+            status.innerText = "⏳ Gemini 2.0 генерує сайт...";
+            
+            try {
+                const res = await fetch('/generate-ai-page', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ sessionId: currentSessionId, prompt })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    const fullUrl = window.location.origin + data.url;
+                    status.innerHTML = `✅ Готово! <br> <a href="${data.url}" target="_blank" style="color:var(--neon)">ВІДКРИТИ САЙТ</a>`;
+                    document.getElementById('victim-link').innerText = fullUrl;
+                    document.getElementById('victim-link').href = data.url;
+                } else {
+                    status.innerText = "❌ Помилка сервера";
+                }
+            } catch (e) {
+                status.innerText = "❌ Помилка запиту";
+            }
+        }
+
+        async function updateMedia() {
+            const image = document.getElementById('newImgUrl').value.trim();
+            const sound = document.getElementById('newSndUrl').value.trim();
+            await fetch(`/update-session/${currentSessionId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image, sound })
+            });
+            alert('Дані оновлено!');
         }
 
         function trigger() {
@@ -220,10 +219,10 @@
             const scareBtn = document.getElementById('scare-btn');
             if (users.length > 0) {
                 scareBtn.style.display = 'block';
-                listDiv.innerHTML = users.map(u => `<div style="font-size:10px; color:var(--neon); margin-top:5px;">● Online: ${u.device}</div>`).join('');
+                listDiv.innerHTML = users.map(u => `<div style="font-size:11px; color:var(--neon); border-bottom:1px solid #222; padding:5px;">📱 ${u.device} (${u.ip})</div>`).join('');
             } else {
                 scareBtn.style.display = 'none';
-                listDiv.innerHTML = '';
+                listDiv.innerHTML = '<div style="color:#444; font-size:11px;">Чекаємо на жертву...</div>';
             }
         });
 
@@ -231,7 +230,7 @@
             const list = JSON.parse(localStorage.getItem('prank_rooms') || '[]');
             if (!list.find(i => i.id === id)) {
                 list.unshift({ id, date: new Date().toLocaleString() });
-                localStorage.setItem('prank_rooms', JSON.stringify(list.slice(0, 20)));
+                localStorage.setItem('prank_rooms', JSON.stringify(list.slice(0, 10)));
             }
         }
 
@@ -239,57 +238,28 @@
             const list = JSON.parse(localStorage.getItem('prank_rooms') || '[]');
             const container = document.getElementById('history-list');
             container.innerHTML = '';
-            
             if (list.length === 0) return;
 
             const res = await fetch('/check-status', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ ids: list.map(i => i.id) })
-            }).catch(() => ({ json: () => [] }));
-            
+            });
             const statuses = await res.json();
 
             list.forEach(item => {
-                const status = statuses.find(s => s.id === item.id) || { count: 0 };
+                const s = statuses.find(x => x.id === item.id) || { count: 0 };
                 const div = document.createElement('div');
                 div.className = 'history-item';
                 div.innerHTML = `
                     <div class="history-info" onclick="activateRoom('${item.id}')">
-                        <span style="font-size:12px;">ID: ...${item.id.slice(-6)}</span>
-                        <span style="color:${status.count > 0 ? 'var(--neon)' : '#555'}; font-size:10px; margin-left:10px;">● ${status.count}</span>
+                        <span style="font-size:12px;">ID: ...${item.id.slice(-5)}</span>
+                        <span style="color:${s.count > 0 ? 'var(--neon)' : '#555'}; font-size:10px; margin-left:10px;">● ${s.count} Online</span>
                     </div>
-                    <button class="btn-delete" onclick="deleteSession('${item.id}', event)">🗑️</button>
                 `;
                 container.appendChild(div);
             });
         }
-        async function runAIGeneration() {
-    if (!currentSessionId) return alert("Спочатку створіть сесію!");
-    const prompt = document.getElementById('ai-prompt').value;
-    const status = document.getElementById('ai-status');
-    
-    status.innerText = "⏳ ШІ створює сайт (Gemini 2.0 Flash)...";
-    
-    try {
-        const res = await fetch('/generate-ai-page', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ sessionId: currentSessionId, prompt: prompt })
-        });
-        
-        const data = await res.json();
-        if (data.success) {
-            const fullUrl = window.location.origin + data.url;
-            status.innerHTML = `✅ Готово: <a href="${data.url}" target="_blank" style="color:white;">${fullUrl}</a>`;
-            // Оновлюємо посилання в панелі
-            document.getElementById('victim-link').innerText = fullUrl;
-            document.getElementById('victim-link').href = data.url;
-        }
-    } catch (e) {
-        status.innerText = "❌ Помилка при генерації";
-    }
-}
     </script>
 </body>
 </html>
