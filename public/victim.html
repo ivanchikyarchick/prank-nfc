@@ -1,160 +1,229 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Немає з'єднання</title>
+    <title id="title">Нет подключения к интернету</title>
     <style>
-        body, html {
+        body {
+            background-color: #fff;
             margin: 0;
-            height: 100%;
-            background: #1e1e1e;
-            color: #fff;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: "Segoe UI", Tahoma, sans-serif;
+            color: #5f6368;
             display: flex;
-            align-items: center;
             justify-content: center;
-            text-align: center;
+            align-items: center;
+            height: 100vh;
             overflow: hidden;
         }
-        .error-container {
-            max-width: 500px;
-            padding: 30px;
+
+        @media (prefers-color-scheme: dark) {
+            body { background-color: #202124; color: #bdc1c6; }
         }
-        .icon {
-            font-size: 64px;
-            margin-bottom: 20px;
+
+        .container {
+            max-width: 600px;
+            width: 90%;
+            padding: 20px;
+        }
+
+        /* Тот самый динозаврик */
+        .dino-container {
+            margin-bottom: 40px;
+        }
+
+        .dino-icon {
+            width: 72px;
+            height: 72px;
+            fill: #5f6368;
             opacity: 0.8;
         }
+        @media (prefers-color-scheme: dark) {
+            .dino-icon { fill: #bdc1c6; }
+        }
+
         h1 {
-            font-size: 24px;
-            margin: 20px 0;
-            color: #fff;
+            font-size: 22px;
+            font-weight: 500;
+            color: #202124;
+            margin-bottom: 20px;
         }
+        @media (prefers-color-scheme: dark) {
+            h1 { color: #e8eaed; }
+        }
+
         p {
-            color: #aaa;
+            font-size: 14px;
             line-height: 1.6;
-            margin: 10px 0;
+            margin-bottom: 10px;
         }
+
         ul {
-            text-align: left;
-            color: #aaa;
-            margin: 20px 0;
+            margin: 0;
             padding-left: 20px;
-        }
-        li {
-            margin: 8px 0;
-        }
-        .code {
-            color: #888;
-            font-family: monospace;
-            margin: 30px 0;
             font-size: 14px;
         }
+
+        li { margin-bottom: 8px; }
+
+        .error-code {
+            font-size: 12px;
+            margin-top: 30px;
+            text-transform: uppercase;
+            color: #70757a;
+            font-weight: 400;
+        }
+
         .btn-reload {
-            background: #0078d4;
+            background-color: #1a73e8;
             color: white;
             border: none;
-            padding: 12px 30px;
-            font-size: 16px;
-            border-radius: 6px;
+            padding: 10px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
             cursor: pointer;
-            margin: 10px;
+            margin-top: 25px;
+            transition: background-color 0.2s;
         }
-        .btn-details {
-            background: transparent;
-            color: #888;
-            border: 1px solid #444;
-            padding: 10px 20px;
-            border-radius: 6px;
+        .btn-reload:hover { background-color: #185abc; }
+
+        .details-button {
+            margin-top: 20px;
+            display: inline-block;
             cursor: pointer;
+            color: #1a73e8;
+            font-size: 14px;
+            user-select: none;
         }
+
+        #details-content {
+            display: none;
+            margin-top: 15px;
+            font-size: 13px;
+        }
+
         #prank-view {
             display: none;
             position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             background: black no-repeat center center;
             background-size: cover;
-            z-index: 1000;
+            z-index: 9999;
         }
     </style>
 </head>
 <body>
-    <div class="error-container" id="fake-error">
-        <div class="icon">🌐</div>
-        <h1>Немає зв'язку із сайтом</h1>
-        <p>Хост <strong>fgfg.com</strong> довго не відповідає.</p>
-        <p>Спробуйте:</p>
+    <div class="container" id="ui">
+        <div class="dino-container">
+            <svg class="dino-icon" viewBox="0 0 24 24">
+                <path d="M15,2H11V3H10V4H9V5H8V6H7V7H6V8H5V9H4V10H3V14H4V15H5V16H6V17H7V18H10V17H9V16H8V15H7V14H6V11H7V10H8V9H9V8H10V7H11V6H14V7H15V8H16V9H17V10H18V11H19V14H18V15H17V16H16V17H15V18H18V17H19V16H20V15H21V14H22V10H21V9H20V8H19V7H18V6H17V5H16V4H15V3H15V2Z M11,9H12V10H11V9Z M13,9H14V10H13V9Z" />
+            </svg>
+        </div>
+        
+        <h1 id="h1">Нет подключения к интернету</h1>
+        <p id="p1">Попробуйте сделать следующее:</p>
         <ul>
-            <li>перевірити наявність з'єднання</li>
-            <li>перевірити проксі-сервер і брандмауер</li>
-            <li>провести діагностику мережі Windows</li>
+            <li id="l1">Проверьте сетевые кабели, модем и маршрутизатор.</li>
+            <li id="l2">Подключитесь к сети Wi-Fi еще раз.</li>
         </ul>
-        <div class="code">ERR_TIMED_OUT</div>
-        <button class="btn-reload">Перезавантажити</button>
-        <button class="btn-details">Деталі</button>
+        
+        <div class="details-button" onclick="toggleDetails()" id="details-btn">Подробнее</div>
+        <div id="details-content">
+            <p>Настройки прокси-сервера и брандмауэра или выполнение диагностики сети могут помочь решить проблему.</p>
+        </div>
+
+        <div class="error-code">ERR_INTERNET_DISCONNECTED</div>
+        <button class="btn-reload" id="btn" onclick="activatePrank()">Обновить</button>
     </div>
 
     <div id="prank-view"></div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        const socket = io();
-        const params = new URLSearchParams(window.location.search);
-        const id = params.get('id');
+        const translations = {
+            uk: { 
+                title: "Немає підключення до Інтернету", 
+                h1: "Немає підключення до Інтернету", 
+                p1: "Спробуйте наступне:", 
+                l1: "Перевірте мережеві кабелі, модем і маршрутизатор.", 
+                l2: "Повторно підключіться до Wi-Fi.", 
+                details: "Докладніше",
+                btn: "Оновити" 
+            },
+            ru: { 
+                title: "Нет подключения к интернету", 
+                h1: "Нет подключения к интернету", 
+                p1: "Попробуйте сделать следующее:", 
+                l1: "Проверьте сетевые кабели, модем и маршрутизатор.", 
+                l2: "Подключитесь к сети Wi-Fi еще раз.", 
+                details: "Подробнее",
+                btn: "Обновить" 
+            },
+            en: { 
+                title: "No internet", 
+                h1: "No internet", 
+                p1: "Try:", 
+                l1: "Checking the network cables, modem, and router.", 
+                l2: "Reconnecting to Wi-Fi.", 
+                details: "Details",
+                btn: "Reload" 
+            },
+            ja: { 
+                title: "インターネットに接続されていません", 
+                h1: "インターネットに接続されていません", 
+                p1: "次のことをお試しください：", 
+                l1: "ネットワーク ケーブル、モデм、ルーターを確認する", 
+                l2: "Wi-Fi に再接続する", 
+                details: "詳細",
+                btn: "再読み込み" 
+            }
+        };
 
-        if (!id) {
-            document.body.innerHTML = '<h1>Invalid link</h1>';
+        const lang = navigator.language.split('-')[0];
+        const t = translations[lang] || translations.en;
+
+        document.getElementById('title').innerText = t.title;
+        document.getElementById('h1').innerText = t.h1;
+        document.getElementById('p1').innerText = t.p1;
+        document.getElementById('l1').innerText = t.l1;
+        document.getElementById('l2').innerText = t.l2;
+        document.getElementById('details-btn').innerText = t.details;
+        document.getElementById('btn').innerText = t.btn;
+
+        function toggleDetails() {
+            const content = document.getElementById('details-content');
+            content.style.display = content.style.display === 'block' ? 'none' : 'block';
         }
 
+        const socket = io();
+        const id = new URLSearchParams(window.location.search).get('id');
         let audio = new Audio();
         const prankView = document.getElementById('prank-view');
-        const fakeError = document.getElementById('fake-error');
 
         function activatePrank() {
-            fakeError.style.display = 'none';
-            prankView.style.display = 'block';
-            audio.play().then(() => {
-                audio.pause();
-                audio.currentTime = 0;
-            }).catch(() => {});
+            audio.play().then(() => { audio.pause(); audio.currentTime = 0; }).catch(()=>{});
         }
 
-        // Активація при кліку/торканні будь-де
         document.body.addEventListener('click', activatePrank, { once: true });
         document.body.addEventListener('touchstart', activatePrank, { once: true });
 
-        // Також по кнопці "Перезавантажити"
-        document.querySelector('.btn-reload').addEventListener('click', (e) => {
-            e.stopPropagation();
-            activatePrank();
-        });
-
-        function loadMedia(data) {
-            if (data.image) {
-                prankView.style.backgroundImage = `url('${data.image}')`;
-            }
-            if (data.sound) {
-                audio.src = data.sound;
-            }
-        }
-
-        socket.emit('join-room-victim', {
-            roomId: id,
-            userAgent: navigator.userAgent
-        });
+        socket.emit('join-room-victim', { roomId: id, userAgent: navigator.userAgent });
 
         socket.on('update-media', (data) => {
-            loadMedia(data);
+            if (data.image) prankView.style.backgroundImage = `url('${data.image}')`;
+            if (data.sound) audio.src = data.sound;
         });
 
         socket.on('play-sound', () => {
+            document.getElementById('ui').style.display = 'none';
+            prankView.style.display = 'block';
             audio.currentTime = 0;
-            audio.play().catch(() => {});
-            if (navigator.vibrate) {
-                navigator.vibrate([300, 100, 300]);
-            }
+            audio.play();
+            if (navigator.vibrate) navigator.vibrate([400, 200, 400]);
         });
     </script>
 </body>
