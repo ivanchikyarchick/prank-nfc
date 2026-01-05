@@ -1,16 +1,13 @@
-[file name]: admin (1).html
-[file content begin]
 <!DOCTYPE html>
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SPY CONTROL v2.2</title>
+    <title>SPY CONTROL v2.1</title>
     <style>
         :root {
             --neon: #00ff99;
             --danger: #ff0055;
-            --ai-color: #9d00ff;
             --bg: #0a0a0c;
             --card: #16161a;
         }
@@ -25,40 +22,28 @@
             padding: 25px; border-radius: 20px; border: 1px solid #333;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-        .top-bar { 
-            display: flex; justify-content: space-between; 
-            align-items: center; margin-bottom: 20px; flex-wrap: wrap;
-        }
-        .lang-bar { display: flex; gap: 8px; }
-        .lang-btn, .ai-btn { 
+        .lang-bar { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
+        .lang-btn { 
             background: #222; border: 1px solid #444; color: #aaa; 
             padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; transition: 0.3s;
         }
         .lang-btn.active { border-color: var(--neon); color: var(--neon); background: rgba(0,255,153,0.1); }
-        .ai-btn { 
-            background: rgba(157,0,255,0.1); border-color: var(--ai-color); color: var(--ai-color);
-            display: flex; align-items: center; gap: 5px;
-        }
-        .ai-btn:hover { background: rgba(157,0,255,0.2); }
         
         h1 { font-size: 22px; letter-spacing: 2px; text-transform: uppercase; color: var(--neon); margin-top: 0; text-align: center; }
         
         .input-group { margin-bottom: 15px; }
         label { display: block; font-size: 12px; color: #777; margin-bottom: 5px; }
-        input, textarea { 
+        input { 
             width: 100%; padding: 12px; background: #0f0f12; border: 1px solid #333; 
             color: white; border-radius: 10px; box-sizing: border-box; outline: none; margin-bottom: 10px;
-            font-family: inherit;
         }
-        input:focus, textarea:focus { border-color: var(--neon); }
-        textarea { min-height: 80px; resize: vertical; }
+        input:focus { border-color: var(--neon); }
         
         button { 
             width: 100%; padding: 15px; border: none; border-radius: 10px; 
             cursor: pointer; font-size: 15px; font-weight: bold; transition: 0.3s;
         }
         .btn-create { background: var(--neon); color: black; }
-        .btn-ai { background: var(--ai-color); color: white; }
         .btn-update { background: #333; color: white; font-size: 13px; }
         .btn-scare { 
             background: var(--danger); color: white; height: 80px; font-size: 22px; 
@@ -66,49 +51,6 @@
         }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,0,85,0.7); } 70% { box-shadow: 0 0 0 15px rgba(255,0,85,0); } 100% { box-shadow: 0 0 0 0 rgba(255,0,85,0); } }
 
-        .modal { 
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;
-        }
-        .modal-content { 
-            background: var(--card); padding: 30px; border-radius: 20px; 
-            width: 90%; max-width: 500px; border: 1px solid var(--ai-color);
-            box-shadow: 0 0 30px rgba(157,0,255,0.3);
-        }
-        .modal-header { 
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px;
-        }
-        .modal-title { color: var(--ai-color); font-size: 18px; }
-        .close-modal { 
-            background: transparent; border: none; color: #aaa; font-size: 24px; 
-            cursor: pointer; width: auto; padding: 0; 
-        }
-        
-        .link-box { 
-            background: #000; padding: 10px; border-radius: 8px; font-family: monospace; 
-            font-size: 11px; margin: 15px 0; border: 1px dashed #444; word-break: break-all;
-        }
-        .ai-link-box { border-color: var(--ai-color); background: rgba(157,0,255,0.05); }
-        
-        .ai-sites-list { 
-            margin-top: 20px; max-height: 200px; overflow-y: auto;
-            border: 1px solid #333; border-radius: 10px; padding: 10px;
-        }
-        .ai-site-item { 
-            background: #1c1c21; padding: 10px; margin-bottom: 8px; border-radius: 8px;
-            border-left: 3px solid var(--ai-color); display: flex; justify-content: space-between;
-            align-items: center;
-        }
-        .ai-site-info { flex-grow: 1; cursor: pointer; }
-        .ai-site-theme { color: var(--ai-color); font-size: 12px; }
-        .ai-site-date { color: #888; font-size: 10px; }
-        .btn-delete-ai { 
-            background: transparent; color: #ff4444; border: none; padding: 5px;
-            cursor: pointer; font-size: 14px; opacity: 0.6;
-        }
-        .btn-delete-ai:hover { opacity: 1; }
-        
         .history-item { 
             background: #1c1c21; padding: 12px; margin-bottom: 10px; border-radius: 10px; 
             display: flex; justify-content: space-between; align-items: center; border: 1px solid #333;
@@ -119,38 +61,20 @@
             font-size: 18px; opacity: 0.6; 
         }
         .btn-delete:hover { opacity: 1; }
-        
-        .loading { 
-            display: none; text-align: center; margin: 20px 0; color: var(--ai-color);
-            font-size: 14px;
-        }
-        .spinner {
-            border: 3px solid rgba(157,0,255,0.3);
-            border-top: 3px solid var(--ai-color);
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+
+        .link-box { 
+            background: #000; padding: 10px; border-radius: 8px; font-family: monospace; 
+            font-size: 11px; margin: 15px 0; border: 1px dashed #444; word-break: break-all;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="top-bar">
-            <div class="lang-bar">
-                <button class="lang-btn active" onclick="setLang('uk')">UA</button>
-                <button class="lang-btn" onclick="setLang('ru')">RU</button>
-                <button class="lang-btn" onclick="setLang('en')">EN</button>
-                <button class="lang-btn" onclick="setLang('ja')">JP</button>
-            </div>
-            <button class="ai-btn" onclick="openAIModal()">
-                <span>🤖</span> AI Сайт
-            </button>
+        <div class="lang-bar">
+            <button class="lang-btn active" onclick="setLang('uk')">UA</button>
+            <button class="lang-btn" onclick="setLang('ru')">RU</button>
+            <button class="lang-btn" onclick="setLang('en')">EN</button>
+            <button class="lang-btn" onclick="setLang('ja')">JP</button>
         </div>
 
         <h1 id="t-title">👁️ SPY CONTROL</h1>
@@ -187,82 +111,16 @@
         </div>
     </div>
 
-    <!-- AI Modal -->
-    <div id="aiModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">🤖 AI Генератор сайтів</h3>
-                <button class="close-modal" onclick="closeAIModal()">×</button>
-            </div>
-            
-            <p style="color: #aaa; font-size: 13px; margin-bottom: 20px;">
-                Опишіть тему для сайту (жахи, комедія, містика, техно, природа, музика, космос, спорт, тощо)
-            </p>
-            
-            <textarea id="aiTheme" placeholder="Наприклад: Страшний сайт з привидами та жахливими звуками..."></textarea>
-            
-            <input type="text" id="aiSoundUrl" placeholder="URL звуку (необов'язково)" value="https://www.myinstants.com/media/sounds/scream.mp3">
-            
-            <button class="btn-ai" onclick="generateAISite()" id="t-btn-ai-generate">
-                🚀 Згенерувати AI сайт
-            </button>
-            
-            <div class="loading" id="aiLoading">
-                <div class="spinner"></div>
-                <p>AI генерує унікальний сайт...</p>
-            </div>
-            
-            <div id="aiResult" style="display: none; margin-top: 20px;">
-                <div class="link-box ai-link-box">
-                    <a id="aiSiteLink" href="#" target="_blank" style="color: var(--ai-color); text-decoration: none;">...</a>
-                </div>
-                <button onclick="copyAILink()" style="background: #333; color: white; margin-top: 10px; font-size: 12px;">
-                    📋 Копіювати посилання
-                </button>
-            </div>
-            
-            <div class="ai-sites-list" id="aiSitesList">
-                <h4 style="color: #777; font-size: 12px; margin-bottom: 10px;">Ранее згенеровані сайти:</h4>
-                <!-- AI sites will be loaded here -->
-            </div>
-        </div>
-    </div>
-
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
         let currentSessionId = null;
-        let aiSites = [];
 
         const i18n = {
-            uk: { 
-                title: "👁️ SPY CONTROL", create: "СТВОРИТИ ПАСТКУ", update: "ОНОВИТИ МЕДІА", 
-                btnUpdate: "ОНОВИТИ ДЛЯ ВСІХ", scare: "НАЛЯКАТИ 💀", back: "⬅ Меню", 
-                history: "ІСТОРІЯ СЕСІЙ", delConfirm: "Видалити цю сесію?",
-                aiTitle: "🤖 AI Генератор сайтів", aiGenerate: "🚀 Згенерувати AI сайт",
-                aiDelete: "Видалити AI сайт?"
-            },
-            ru: { 
-                title: "👁️ SPY CONTROL", create: "СОЗДАТЬ ЛОВУШКУ", update: "ОБНОВИТЬ МЕДИА", 
-                btnUpdate: "ОБНОВИТЬ ДЛЯ ВСЕХ", scare: "ИСПУГАТЬ 💀", back: "⬅ Меню", 
-                history: "ИСТОРИЯ СЕССИЙ", delConfirm: "Удалить эту сессию?",
-                aiTitle: "🤖 AI Генератор сайтов", aiGenerate: "🚀 Сгенерировать AI сайт",
-                aiDelete: "Удалить AI сайт?"
-            },
-            en: { 
-                title: "👁️ SPY CONTROL", create: "CREATE TRAP", update: "UPDATE MEDIA", 
-                btnUpdate: "UPDATE FOR ALL", scare: "SCARE 'EM 💀", back: "⬅ Menu", 
-                history: "SESSION HISTORY", delConfirm: "Delete this session?",
-                aiTitle: "🤖 AI Website Generator", aiGenerate: "🚀 Generate AI Website",
-                aiDelete: "Delete AI website?"
-            },
-            ja: { 
-                title: "👁️ スパイコントロール", create: "トラップを作成", update: "メディアを更新", 
-                btnUpdate: "全員を更新", scare: "怖がらせる 💀", back: "⬅ メニュー", 
-                history: "セッション履歴", delConfirm: "このセッションを削除しますか？",
-                aiTitle: "🤖 AIウェブサイト生成", aiGenerate: "🚀 AIサイトを生成",
-                aiDelete: "AIサイトを削除しますか？"
-            }
+            uk: { title: "👁️ SPY CONTROL", create: "СТВОРИТИ ПАСТКУ", update: "ОНОВИТИ МЕДІА", btnUpdate: "ОНОВИТИ ДЛЯ ВСІХ", scare: "НАЛЯКАТИ 💀", back: "⬅ Меню", history: "ІСТОРІЯ СЕСІЙ", delConfirm: "Видалити цю сесію?" },
+            ru: { title: "👁️ SPY CONTROL", create: "СОЗДАТЬ ЛОВУШКУ", update: "ОБНОВИТЬ МЕДИА", btnUpdate: "ОБНОВИТЬ ДЛЯ ВСЕХ", scare: "ИСПУГАТЬ 💀", back: "⬅ Меню", history: "ИСТОРИЯ СЕССИЙ", delConfirm: "Удалить эту сессию?" },
+            en: { title: "👁️ SPY CONTROL", create: "CREATE TRAP", update: "UPDATE MEDIA", btnUpdate: "UPDATE FOR ALL", scare: "SCARE 'EM 💀", back: "⬅ Menu", history: "SESSION HISTORY", delConfirm: "Delete this session?" },
+            ja: { title: "👁️ スパイコントロール", create: "トラップを作成", update: "メディアを更新", btnUpdate: "全員を更新", scare: "怖がらせる 💀", back: "⬅ メニュー", history: "セッション履歴", delConfirm: "このセッションを削除しますか？" }
         };
 
         function setLang(lang) {
@@ -274,132 +132,11 @@
             document.getElementById('t-btn-update').innerText = i18n[lang].btnUpdate;
             document.getElementById('t-btn-back').innerText = i18n[lang].back;
             document.getElementById('t-history').innerText = i18n[lang].history;
-            document.getElementById('t-btn-ai-generate').innerText = i18n[lang].aiGenerate;
-            document.querySelector('.modal-title').innerText = i18n[lang].aiTitle;
             window.currentLang = lang;
         }
         window.currentLang = 'uk';
 
-        window.onload = function() {
-            loadHistory();
-            loadAISites();
-        };
-
-        function openAIModal() {
-            document.getElementById('aiModal').style.display = 'flex';
-        }
-
-        function closeAIModal() {
-            document.getElementById('aiModal').style.display = 'none';
-        }
-
-        async function generateAISite() {
-            const theme = document.getElementById('aiTheme').value.trim();
-            const soundUrl = document.getElementById('aiSoundUrl').value.trim();
-            
-            if (!theme || theme.length < 3) {
-                alert('Будь ласка, введіть тему (мінімум 3 символи)');
-                return;
-            }
-            
-            const loading = document.getElementById('aiLoading');
-            const result = document.getElementById('aiResult');
-            
-            loading.style.display = 'block';
-            result.style.display = 'none';
-            
-            try {
-                const response = await fetch('/generate-site', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ theme, soundUrl })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    const linkElement = document.getElementById('aiSiteLink');
-                    linkElement.href = data.directUrl;
-                    linkElement.innerText = data.directUrl;
-                    
-                    result.style.display = 'block';
-                    
-                    // Додаємо до списку
-                    loadAISites();
-                    
-                    // Очищаємо поля
-                    document.getElementById('aiTheme').value = '';
-                } else {
-                    alert('Помилка генерації: ' + (data.error || 'Невідома помилка'));
-                }
-            } catch (error) {
-                alert('Помилка підключення до сервера');
-                console.error(error);
-            } finally {
-                loading.style.display = 'none';
-            }
-        }
-
-        async function loadAISites() {
-            try {
-                const response = await fetch('/ai-sites');
-                aiSites = await response.json();
-                
-                const container = document.getElementById('aiSitesList');
-                const header = '<h4 style="color: #777; font-size: 12px; margin-bottom: 10px;">Ранее згенеровані сайти:</h4>';
-                
-                if (aiSites.length === 0) {
-                    container.innerHTML = header + '<p style="color: #555; font-size: 11px;">Немає згенерованих сайтів</p>';
-                    return;
-                }
-                
-                let html = header;
-                aiSites.forEach(site => {
-                    html += `
-                        <div class="ai-site-item">
-                            <div class="ai-site-info" onclick="window.open('${site.url}', '_blank')">
-                                <div class="ai-site-theme">${site.theme.substring(0, 30)}${site.theme.length > 30 ? '...' : ''}</div>
-                                <div class="ai-site-date">${site.createdAt}</div>
-                            </div>
-                            <button class="btn-delete-ai" onclick="deleteAISite('${site.id}', event)">
-                                🗑️
-                            </button>
-                        </div>
-                    `;
-                });
-                
-                container.innerHTML = html;
-            } catch (error) {
-                console.error('Error loading AI sites:', error);
-            }
-        }
-
-        async function deleteAISite(siteId, event) {
-            event.stopPropagation();
-            
-            if (!confirm(i18n[window.currentLang].aiDelete)) return;
-            
-            try {
-                const response = await fetch(`/ai-site/${siteId}`, {
-                    method: 'DELETE'
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    loadAISites();
-                }
-            } catch (error) {
-                console.error('Error deleting AI site:', error);
-            }
-        }
-
-        function copyAILink() {
-            const link = document.getElementById('aiSiteLink').href;
-            navigator.clipboard.writeText(link)
-                .then(() => alert('Посилання скопійовано!'))
-                .catch(() => alert('Помилка копіювання'));
-        }
+        window.onload = loadHistory;
 
         async function createLink() {
             const image = document.getElementById('imgUrl').value.trim();
@@ -508,12 +245,6 @@
                 container.appendChild(div);
             });
         }
-
-        // Закриття модального вікна по кліку на фон
-        document.getElementById('aiModal').addEventListener('click', function(e) {
-            if (e.target === this) closeAIModal();
-        });
     </script>
 </body>
 </html>
-[file content end]
