@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SPY CONTROL v4.5 Ultra</title>
+    <title>SPY CONTROL v4.6 Pro</title>
     <style>
         :root {
             --neon: #00ffcc;
@@ -12,7 +12,7 @@
             --bg-dark: #050507;
             --card-bg: rgba(20, 20, 25, 0.9);
             --text-color: #e0e0e0;
-            --disabled: #444;
+            --disabled: #333;
         }
         body { 
             background-color: var(--bg-dark); color: var(--text-color); 
@@ -38,12 +38,10 @@
         h1 { font-size: 22px; text-transform: uppercase; text-align: center; color: var(--neon); letter-spacing: 2px; margin-bottom: 20px; }
 
         .input-box { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 15px; margin-bottom: 10px; border: 1px solid #222; }
-        .input-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .input-header label { font-size: 11px; font-weight: bold; color: var(--neon-secondary); }
         
         input[type="text"] { 
             width: 100%; padding: 12px; background: #000; border: 1px solid #333; 
-            color: white; border-radius: 8px; box-sizing: border-box; font-size: 13px; margin-top: 5px;
+            color: white; border-radius: 8px; box-sizing: border-box; font-size: 13px; margin-top: 5px; margin-bottom: 5px;
         }
 
         button.main-btn { 
@@ -56,15 +54,17 @@
         /* Кнопка напугать */
         .btn-scare { 
             background: var(--disabled); 
-            color: #777; 
+            color: #555; 
             height: 80px; 
             font-size: 22px; 
             cursor: not-allowed;
+            opacity: 0.6;
         }
         .btn-scare.ready { 
             background: var(--danger); 
             color: white; 
             cursor: pointer; 
+            opacity: 1;
             animation: pulse 2s infinite; 
         }
         
@@ -72,7 +72,6 @@
 
         .link-box { background: #000; padding: 12px; border-radius: 10px; border: 1px dashed #444; margin: 15px 0; word-break: break-all; font-size: 12px; }
         
-        /* История */
         .history-item { 
             display: flex; justify-content: space-between; align-items: center;
             background: #111; padding: 10px; border-radius: 10px; margin-bottom: 5px; cursor: pointer; 
@@ -80,9 +79,8 @@
         .history-item:hover { background: #1a1a1a; border-left: 2px solid var(--neon); }
         .del-btn { 
             color: var(--danger); background: rgba(255,0,0,0.1); border: 1px solid rgba(255,0,0,0.2); 
-            font-size: 14px; cursor: pointer; padding: 4px 10px; border-radius: 5px; margin-left: 10px;
+            font-size: 14px; cursor: pointer; padding: 4px 10px; border-radius: 5px;
         }
-        .del-btn:hover { background: var(--danger); color: white; }
     </style>
 </head>
 <body>
@@ -114,9 +112,10 @@
             <div class="link-box"><a id="victim-link" href="#" target="_blank" style="color: var(--neon-secondary);">...</a></div>
             
             <div class="input-box" style="border-color: var(--neon);">
-                <label id="t-update-title" style="font-size:10px; color:var(--neon); display:block; margin-bottom:5px;">ОНОВИТИ (URL):</label>
+                <label id="t-update-title" style="font-size:10px; color:var(--neon); display:block; margin-bottom:5px;">ОНОВИТИ МЕДІА (URL):</label>
                 <input type="text" id="updImgUrl" placeholder="Нове зображення URL">
-                <button class="main-btn btn-update" onclick="updateMedia()" id="t-btn-update">ОНОВИТИ</button>
+                <input type="text" id="updSndUrl" placeholder="Новий звук URL (.mp3)">
+                <button class="main-btn btn-update" onclick="updateMedia()" id="t-btn-update">ОНОВИТИ ВСЕ</button>
             </div>
 
             <div id="users-list"></div>
@@ -162,8 +161,7 @@
         async function createLink() {
             const img = document.getElementById('imgUrl').value.trim();
             const snd = document.getElementById('sndUrl').value.trim();
-
-            if(!img) return alert("URL Image!");
+            if(!img) return alert("Image URL is required!");
 
             const res = await fetch('/create', {
                 method: 'POST',
@@ -178,14 +176,20 @@
         async function updateMedia() {
             if(!currentSessionId) return;
             const img = document.getElementById('updImgUrl').value.trim();
-            if(!img) return;
+            const snd = document.getElementById('updSndUrl').value.trim();
+            
+            let updateData = {};
+            if(img) updateData.image = img;
+            if(snd) updateData.sound = snd;
+
+            if(Object.keys(updateData).length === 0) return alert("Enter URL to update!");
 
             await fetch(`/update-session/${currentSessionId}`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ image: img })
+                body: JSON.stringify(updateData)
             });
-            alert("OK");
+            alert("Updated!");
         }
 
         function activateRoom(id) {
@@ -229,7 +233,7 @@
             let h = JSON.parse(localStorage.getItem('spy_h') || '[]');
             h = h.filter(i => i !== id);
             localStorage.setItem('spy_h', JSON.stringify(h));
-            loadHistory(); // Обновляем список сразу
+            loadHistory();
         }
 
         function trigger() { 
