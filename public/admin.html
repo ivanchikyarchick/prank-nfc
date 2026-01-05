@@ -1,9 +1,10 @@
+```html
 <!DOCTYPE html>
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SPY CONTROL v4.6 Pro</title>
+    <title>SPY CONTROL v4.5 Ultra</title>
     <style>
         :root {
             --neon: #00ffcc;
@@ -12,7 +13,7 @@
             --bg-dark: #050507;
             --card-bg: rgba(20, 20, 25, 0.9);
             --text-color: #e0e0e0;
-            --disabled: #333;
+            --disabled: #444;
         }
         body { 
             background-color: var(--bg-dark); color: var(--text-color); 
@@ -38,10 +39,12 @@
         h1 { font-size: 22px; text-transform: uppercase; text-align: center; color: var(--neon); letter-spacing: 2px; margin-bottom: 20px; }
 
         .input-box { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 15px; margin-bottom: 10px; border: 1px solid #222; }
+        .input-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .input-header label { font-size: 11px; font-weight: bold; color: var(--neon-secondary); }
         
         input[type="text"] { 
             width: 100%; padding: 12px; background: #000; border: 1px solid #333; 
-            color: white; border-radius: 8px; box-sizing: border-box; font-size: 13px; margin-top: 5px; margin-bottom: 5px;
+            color: white; border-radius: 8px; box-sizing: border-box; font-size: 13px; margin-top: 5px;
         }
 
         button.main-btn { 
@@ -54,17 +57,15 @@
         /* Кнопка напугать */
         .btn-scare { 
             background: var(--disabled); 
-            color: #555; 
+            color: #777; 
             height: 80px; 
             font-size: 22px; 
             cursor: not-allowed;
-            opacity: 0.6;
         }
         .btn-scare.ready { 
             background: var(--danger); 
             color: white; 
             cursor: pointer; 
-            opacity: 1;
             animation: pulse 2s infinite; 
         }
         
@@ -72,6 +73,7 @@
 
         .link-box { background: #000; padding: 12px; border-radius: 10px; border: 1px dashed #444; margin: 15px 0; word-break: break-all; font-size: 12px; }
         
+        /* История */
         .history-item { 
             display: flex; justify-content: space-between; align-items: center;
             background: #111; padding: 10px; border-radius: 10px; margin-bottom: 5px; cursor: pointer; 
@@ -79,8 +81,16 @@
         .history-item:hover { background: #1a1a1a; border-left: 2px solid var(--neon); }
         .del-btn { 
             color: var(--danger); background: rgba(255,0,0,0.1); border: 1px solid rgba(255,0,0,0.2); 
-            font-size: 14px; cursor: pointer; padding: 4px 10px; border-radius: 5px;
+            font-size: 14px; cursor: pointer; padding: 4px 10px; border-radius: 5px; margin-left: 10px;
         }
+        .del-btn:hover { background: var(--danger); color: white; }
+
+        .toggle { display:flex; gap:8px; justify-content:center; margin-bottom:12px; }
+        .small { font-size:12px; color:#999; margin-top:6px; }
+        .files-list { margin-top:8px; }
+        .file-row { display:flex; justify-content:space-between; align-items:center; background:#0d0d0d; padding:6px 8px; border-radius:8px; margin-bottom:6px; font-size:13px; }
+        .file-row a { color:var(--neon-secondary); text-decoration:none; }
+        .file-actions button { margin-left:6px; }
     </style>
 </head>
 <body>
@@ -95,14 +105,35 @@
         <h1 id="t-title">👁️ SPY CONTROL</h1>
 
         <div id="setup-step">
-            <div class="input-box">
-                <label id="t-l-img" style="font-size: 11px; font-weight: bold; color: var(--neon-secondary);">ЗОБРАЖЕННЯ (URL)</label>
-                <input type="text" id="imgUrl" placeholder="https://site.com/image.jpg">
+            <div class="toggle">
+                <label><input type="radio" name="mode" value="links" checked onchange="onModeChange()"> Посилання</label>
+                <label><input type="radio" name="mode" value="files" onchange="onModeChange()"> Файли (uploads)</label>
             </div>
 
-            <div class="input-box">
-                <label id="t-l-snd" style="font-size: 11px; font-weight: bold; color: var(--neon-secondary);">ЗВУК (URL .MP3)</label>
-                <input type="text" id="sndUrl" value="https://www.myinstants.com/media/sounds/scream.mp3">
+            <div id="links-ui">
+                <div class="input-box">
+                    <label id="t-l-img" style="font-size: 11px; font-weight: bold; color: var(--neon-secondary);">ЗОБРАЖЕННЯ (URL)</label>
+                    <input type="text" id="imgUrl" placeholder="https://site.com/image.jpg">
+                </div>
+
+                <div class="input-box">
+                    <label id="t-l-snd" style="font-size: 11px; font-weight: bold; color: var(--neon-secondary);">ЗВУК (URL .MP3)</label>
+                    <input type="text" id="sndUrl" value="https://www.myinstants.com/media/sounds/scream.mp3">
+                </div>
+            </div>
+
+            <div id="files-ui" style="display:none;">
+                <div class="input-box">
+                    <label style="font-size:11px; color:var(--neon-secondary);">ЗАВАНТАЖИТИ ЗОБРАЖЕННЯ (макс 10)</label>
+                    <input type="file" id="fileImages" accept="image/*" multiple>
+                    <div class="small">Підтримується: jpg, png, webp і т.д.</div>
+                </div>
+
+                <div class="input-box">
+                    <label style="font-size:11px; color:var(--neon-secondary);">ЗАВАНТАЖИТИ ЗВУКИ (макс 10)</label>
+                    <input type="file" id="fileSounds" accept="audio/*" multiple>
+                    <div class="small">Підтримується: mp3, wav і т.д.</div>
+                </div>
             </div>
 
             <button class="main-btn btn-create" onclick="createLink()" id="t-btn-create">СТВОРИТИ ПАСТКУ</button>
@@ -112,10 +143,22 @@
             <div class="link-box"><a id="victim-link" href="#" target="_blank" style="color: var(--neon-secondary);">...</a></div>
             
             <div class="input-box" style="border-color: var(--neon);">
-                <label id="t-update-title" style="font-size:10px; color:var(--neon); display:block; margin-bottom:5px;">ОНОВИТИ МЕДІА (URL):</label>
+                <label id="t-update-title" style="font-size:10px; color:var(--neon); display:block; margin-bottom:5px;">ОНОВИТИ (URL):</label>
                 <input type="text" id="updImgUrl" placeholder="Нове зображення URL">
-                <input type="text" id="updSndUrl" placeholder="Новий звук URL (.mp3)">
-                <button class="main-btn btn-update" onclick="updateMedia()" id="t-btn-update">ОНОВИТИ ВСЕ</button>
+                <button class="main-btn btn-update" onclick="updateMedia()" id="t-btn-update">ОНОВИТИ</button>
+            </div>
+
+            <div id="files-management" style="margin-top:10px;">
+                <div style="display:flex; gap:8px; margin-bottom:8px;">
+                    <input type="file" id="moreImages" accept="image/*" multiple>
+                    <button class="main-btn" style="width:auto; padding:10px;" onclick="uploadMoreImages()">ДОДАТИ ЗОБРАЖЕННЯ</button>
+                </div>
+                <div style="display:flex; gap:8px; margin-bottom:8px;">
+                    <input type="file" id="moreSounds" accept="audio/*" multiple>
+                    <button class="main-btn" style="width:auto; padding:10px;" onclick="uploadMoreSounds()">ДОДАТИ ЗВУКИ</button>
+                </div>
+                <div id="uploaded-images" class="files-list"></div>
+                <div id="uploaded-sounds" class="files-list"></div>
             </div>
 
             <div id="users-list"></div>
@@ -158,38 +201,62 @@
             window.curL = l;
         }
 
-        async function createLink() {
-            const img = document.getElementById('imgUrl').value.trim();
-            const snd = document.getElementById('sndUrl').value.trim();
-            if(!img) return alert("Image URL is required!");
+        function onModeChange() {
+            const mode = document.querySelector('input[name="mode"]:checked').value;
+            document.getElementById('links-ui').style.display = (mode === 'links') ? 'block' : 'none';
+            document.getElementById('files-ui').style.display = (mode === 'files') ? 'block' : 'none';
+        }
 
-            const res = await fetch('/create', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ image: img, sound: snd })
-            });
-            const data = await res.json();
-            saveHistory(data.id);
-            activateRoom(data.id);
+        async function createLink() {
+            const mode = document.querySelector('input[name="mode"]:checked').value;
+            if (mode === 'links') {
+                const img = document.getElementById('imgUrl').value.trim();
+                const snd = document.getElementById('sndUrl').value.trim();
+
+                if(!img) return alert("URL Image!");
+
+                const res = await fetch('/create', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ image: img, sound: snd })
+                });
+                const data = await res.json();
+                saveHistory(data.id);
+                activateRoom(data.id);
+            } else {
+                // files mode
+                const imgs = document.getElementById('fileImages').files;
+                const snds = document.getElementById('fileSounds').files;
+                if (imgs.length === 0 && snds.length === 0) return alert("Please select at least one file");
+
+                if (imgs.length > 10 || snds.length > 10) return alert("Max 10 images and 10 sounds");
+
+                const fd = new FormData();
+                for (let i=0;i<imgs.length;i++) fd.append('images', imgs[i]);
+                for (let i=0;i<snds.length;i++) fd.append('sounds', snds[i]);
+
+                const res = await fetch('/create-upload', { method: 'POST', body: fd });
+                if (!res.ok) {
+                    const err = await res.json();
+                    return alert(err.error || 'Upload failed');
+                }
+                const data = await res.json();
+                saveHistory(data.id);
+                activateRoom(data.id);
+            }
         }
 
         async function updateMedia() {
             if(!currentSessionId) return;
             const img = document.getElementById('updImgUrl').value.trim();
-            const snd = document.getElementById('updSndUrl').value.trim();
-            
-            let updateData = {};
-            if(img) updateData.image = img;
-            if(snd) updateData.sound = snd;
-
-            if(Object.keys(updateData).length === 0) return alert("Enter URL to update!");
+            if(!img) return;
 
             await fetch(`/update-session/${currentSessionId}`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(updateData)
+                body: JSON.stringify({ image: img })
             });
-            alert("Updated!");
+            alert("OK");
         }
 
         function activateRoom(id) {
@@ -201,6 +268,7 @@
             document.getElementById('victim-link').href = link;
             document.getElementById('victim-link').innerText = link;
             socket.emit('join-room-admin', id);
+            loadSessionFiles();
         }
 
         function saveHistory(id) {
@@ -233,7 +301,7 @@
             let h = JSON.parse(localStorage.getItem('spy_h') || '[]');
             h = h.filter(i => i !== id);
             localStorage.setItem('spy_h', JSON.stringify(h));
-            loadHistory();
+            loadHistory(); // Обновляем список сразу
         }
 
         function trigger() { 
@@ -255,6 +323,85 @@
             }
         });
 
+        async function loadSessionFiles() {
+            if(!currentSessionId) return;
+            const res = await fetch(`/session/${currentSessionId}`);
+            if (!res.ok) return;
+            const s = await res.json();
+            const imgs = s.imagesFiles || [];
+            const snds = s.soundsFiles || [];
+
+            const imgContainer = document.getElementById('uploaded-images');
+            const sndContainer = document.getElementById('uploaded-sounds');
+            imgContainer.innerHTML = '<strong style="color:#777">Зображення:</strong>';
+            sndContainer.innerHTML = '<strong style="color:#777">Звуки:</strong>';
+
+            imgs.forEach(f => {
+                const row = document.createElement('div');
+                row.className = 'file-row';
+                row.innerHTML = `<div><a href="${f.url}" target="_blank">${f.originalname}</a> <span style="color:#666; font-size:11px;">${f.uploadedAt}</span></div>
+                    <div class="file-actions">
+                        <button onclick="deleteFile('${f.filename}','image')" class="del-btn">✕</button>
+                    </div>`;
+                imgContainer.appendChild(row);
+            });
+
+            snds.forEach(f => {
+                const row = document.createElement('div');
+                row.className = 'file-row';
+                row.innerHTML = `<div><a href="${f.url}" target="_blank">${f.originalname}</a> <span style="color:#666; font-size:11px;">${f.uploadedAt}</span></div>
+                    <div class="file-actions">
+                        <button onclick="deleteFile('${f.filename}','sound')" class="del-btn">✕</button>
+                    </div>`;
+                sndContainer.appendChild(row);
+            });
+        }
+
+        async function uploadMoreImages() {
+            if(!currentSessionId) return alert('No session');
+            const files = document.getElementById('moreImages').files;
+            if (!files || files.length === 0) return alert('No files');
+            const fd = new FormData();
+            for (let i=0;i<files.length;i++) fd.append('images', files[i]);
+            const res = await fetch(`/session/${currentSessionId}/upload-images`, { method: 'POST', body: fd });
+            if (!res.ok) {
+                const err = await res.json();
+                return alert(err.error || 'Upload failed');
+            }
+            await loadSessionFiles();
+            document.getElementById('moreImages').value = '';
+        }
+
+        async function uploadMoreSounds() {
+            if(!currentSessionId) return alert('No session');
+            const files = document.getElementById('moreSounds').files;
+            if (!files || files.length === 0) return alert('No files');
+            const fd = new FormData();
+            for (let i=0;i<files.length;i++) fd.append('sounds', files[i]);
+            const res = await fetch(`/session/${currentSessionId}/upload-sounds`, { method: 'POST', body: fd });
+            if (!res.ok) {
+                const err = await res.json();
+                return alert(err.error || 'Upload failed');
+            }
+            await loadSessionFiles();
+            document.getElementById('moreSounds').value = '';
+        }
+
+        async function deleteFile(filename, type) {
+            if(!currentSessionId) return;
+            if(!confirm('Видалити файл з сервера?')) return;
+            const res = await fetch(`/session/${currentSessionId}/file`, {
+                method: 'DELETE',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ filename, type: (type === 'sound' ? 'sound' : 'image') })
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                return alert(err.error || 'Delete failed');
+            }
+            await loadSessionFiles();
+        }
+
         window.onload = () => {
             setLang(localStorage.getItem('spy_lang') || 'uk');
             loadHistory();
@@ -262,3 +409,4 @@
     </script>
 </body>
 </html>
+```
