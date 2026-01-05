@@ -9,32 +9,38 @@ app.use(express.json());
 
 app.get('/', (req, res) => res.redirect('/admin.html'));
 
-// Структура даних
-const sessions = {}; 
-// {id: { sound, image, createdAt, lastActiveAt: timestamp, totalVictims: number }}
+const sessions = {}; // Головний об'єкт сесій
+const activeVictims = {};
 
-const activeVictims = {}; 
-// {socketId: {roomId, device, ip, joinedAt}}
-
-// Створення нової кімнати
+// Створення нової кімнати + дані про творця
 app.post('/create', (req, res) => {
     const { sound = '', image = '' } = req.body;
     const id = uuidv4();
     const createdAt = new Date().toLocaleString('uk-UA');
     const now = Date.now();
 
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown';
+    const shortIp = ip.split(',')[0].trim();
+
     sessions[id] = {
         sound: sound.trim(),
         image: image.trim(),
         createdAt,
         lastActiveAt: now,
-        totalVictims: 0
+        totalVictims: 0,
+        creator: {
+            ip: shortIp,
+            device: parseDevice(userAgent),
+            userAgent: userAgent.substring(0, 100),
+            createdTimestamp: now
+        }
     };
 
     res.json({ id, createdAt });
 });
 
-// ОНОВЛЕННЯ медіа
+// Оновлення медіа
 app.post('/update-session/:id', (req, res) => {
     const id = req.params.id;
     const { sound, image } = req.body;
@@ -46,7 +52,6 @@ app.post('/update-session/:id', (req, res) => {
     if (sound !== undefined && sound !== '') sessions[id].sound = sound.trim();
     if (image !== undefined && image !== '') sessions[id].image = image.trim();
 
-    // Оновлюємо час активності
     sessions[id].lastActiveAt = Date.now();
 
     io.to(id).emit('update-media', {
@@ -57,7 +62,7 @@ app.post('/update-session/:id', (req, res) => {
     res.json({ success: true, session: sessions[id] });
 });
 
-// Отримання однієї сесії
+// Одна сесія (для сумісності)
 app.get('/session/:id', (req, res) => {
     const session = sessions[req.params.id];
     if (session) {
@@ -71,7 +76,7 @@ app.get('/session/:id', (req, res) => {
     }
 });
 
-// === НОВЕ: Отримання ВСІХ сесій з статистикою ===
+// ВСІ сесії з деталями та творцем
 app.get('/sessions', (req, res) => {
     const result = Object.keys(sessions).map(id => {
         const s = sessions[id];
@@ -80,21 +85,20 @@ app.get('/sessions', (req, res) => {
         return {
             id,
             createdAt: s.createdAt,
-            lastActiveAt: s.lastActiveAt, // timestamp
+            lastActiveAt: s.lastActiveAt,
             totalVictims: s.totalVictims,
             onlineCount,
             sound: s.sound || '',
-            image: s.image || ''
+            image: s.image || '',
+            creator: s.creator || { ip: 'Unknown', device: 'Unknown', userAgent: 'Unknown' }
         };
     });
 
-    // Сортуємо за останньою активністю (найсвіжіші зверху)
     result.sort((a, b) => b.lastActiveAt - a.lastActiveAt);
-
     res.json(result);
 });
 
-// === НОВЕ: Видалення сесії ===
+// Видалення сесії
 app.delete('/session/:id', (req, res) => {
     const id = req.params.id;
     if (sessions[id]) {
@@ -105,7 +109,7 @@ app.delete('/session/:id', (req, res) => {
     }
 });
 
-// Статус для історії (сумісність з admin.html)
+// Сумісність з admin.html
 app.post('/check-status', (req, res) => {
     const { ids } = req.body;
     const result = ids.map(id => {
@@ -144,7 +148,6 @@ io.on('connection', (socket) => {
             joinedAt: new Date().toLocaleTimeString()
         };
 
-        // Оновлюємо статистику сесії
         if (sessions[roomId]) {
             sessions[roomId].totalVictims += 1;
             sessions[roomId].lastActiveAt = Date.now();
@@ -153,7 +156,6 @@ io.on('connection', (socket) => {
         sendVictimList(roomId);
         io.to(roomId).emit('admin-alert', { msg: 'NEW VICTIM!' });
 
-        // Надсилаємо медіа новій жертві
         if (sessions[roomId]) {
             socket.emit('update-media', {
                 sound: sessions[roomId].sound || '',
@@ -193,6 +195,5 @@ function parseDevice(ua) {
 const PORT = 3000;
 http.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);
-    console.log(`Admin: http://localhost:${PORT}/admin.html`);
-    console.log(`Watch: http://localhost:${PORT}/watch.html`);
+    console.log(`Admin: /admin.html | Watch: /watch.html | Victim: /victim.html?id=...`);
 });
