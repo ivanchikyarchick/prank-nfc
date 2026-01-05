@@ -3,16 +3,79 @@ const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const { v4: uuidv4 } = require('uuid');
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
 
 app.use(express.static('public'));
 app.use(express.json());
+
+const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
+// Ensure upload directory exists
+if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
+
+// Multer storage
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, UPLOAD_DIR);
+    },
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname);
+        const name = `${Date.now()}-${uuidv4()}${ext}`;
+        cb(null, name);
+    }
+});
+const upload = multer({ storage });
 
 app.get('/', (req, res) => res.redirect('/admin.html'));
 
 const sessions = {}; // Головний об'єкт сесій
 const activeVictims = {};
 
-// Створення нової кімнати + дані про творця
+// --- Helpers ---
+function fileToPublicUrl(filename) {
+    return `/uploads/${filename}`;
+}
+
+function addFilesToSessionArray(arr, incomingFiles, type) {
+    // arr: existing array on session
+    // incomingFiles: array of multer file objects
+    incomingFiles.forEach(f => {
+        arr.push({
+            filename: f.filename,
+            url: fileToPublicUrl(f.filename),
+            originalname: f.originalname,
+            uploadedAt: new Date().toLocaleString('uk-UA')
+        });
+    });
+}
+
+function enforceLimit(arr, limit) {
+    return arr.length <= limit;
+}
+
+function parseDevice(ua) {
+    if (!ua) return "Unknown";
+    if (ua.includes('Android')) return "📱 Android";
+    if (ua.includes('iPhone')) return "📱 iPhone";
+    if (ua.includes('Windows')) return "💻 Windows PC";
+    if (ua.includes('Macintosh')) return "💻 Mac";
+    return "📱 Device";
+}
+
+function deleteFileFromDisk(filename) {
+    return new Promise((resolve, reject) => {
+        const p = path.join(UPLOAD_DIR, filename);
+        fs.unlink(p, (err) => {
+            if (err && err.code !== 'ENOENT') return reject(err);
+            resolve();
+        });
+    });
+}
+
+// --- Create session via links (existing behavior) ---
 app.post('/create', (req, res) => {
     const { sound = '', image = '' } = req.body;
     const id = uuidv4();
@@ -34,13 +97,59 @@ app.post('/create', (req, res) => {
             device: parseDevice(userAgent),
             userAgent: userAgent.substring(0, 100),
             createdTimestamp: now
-        }
+        },
+        imagesFiles: [],
+        soundsFiles: [],
     };
 
     res.json({ id, createdAt });
 });
 
-// Оновлення медіа
+// --- Create session via file upload ---
+app.post('/create-upload', upload.fields([{ name: 'images', maxCount: 10 }, { name: 'sounds', maxCount: 10 }]), (req, res) => {
+    const id = uuidv4();
+    const createdAt = new Date().toLocaleString('uk-UA');
+    const now = Date.now();
+
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown';
+    const shortIp = ip.split(',')[0].trim();
+
+    const images = (req.files && req.files['images']) || [];
+    const sounds = (req.files && req.files['sounds']) || [];
+
+    // enforce counts
+    if (images.length > 10 || sounds.length > 10) {
+        // Cleanup uploaded files if any (since we reject)
+        [...images, ...sounds].forEach(f => {
+            fs.unlinkSync(path.join(UPLOAD_DIR, f.filename));
+        });
+        return res.status(400).json({ error: 'Maximum 10 images and 10 sounds allowed' });
+    }
+
+    sessions[id] = {
+        sound: '',
+        image: '',
+        createdAt,
+        lastActiveAt: now,
+        totalVictims: 0,
+        creator: {
+            ip: shortIp,
+            device: parseDevice(userAgent),
+            userAgent: userAgent.substring(0, 100),
+            createdTimestamp: now
+        },
+        imagesFiles: [],
+        soundsFiles: [],
+    };
+
+    addFilesToSessionArray(sessions[id].imagesFiles, images, 'image');
+    addFilesToSessionArray(sessions[id].soundsFiles, sounds, 'sound');
+
+    res.json({ id, createdAt });
+});
+
+// Оновлення медіа (через посилання — як раніше)
 app.post('/update-session/:id', (req, res) => {
     const id = req.params.id;
     const { sound, image } = req.body;
@@ -54,12 +163,102 @@ app.post('/update-session/:id', (req, res) => {
 
     sessions[id].lastActiveAt = Date.now();
 
+    // Determine current image/sound to send (if files exist prefer last uploaded)
+    const currentSound = (sessions[id].soundsFiles && sessions[id].soundsFiles.length) ? sessions[id].soundsFiles[sessions[id].soundsFiles.length - 1].url : (sessions[id].sound || '');
+    const currentImage = (sessions[id].imagesFiles && sessions[id].imagesFiles.length) ? sessions[id].imagesFiles[sessions[id].imagesFiles.length - 1].url : (sessions[id].image || '');
+
     io.to(id).emit('update-media', {
-        sound: sessions[id].sound || '',
-        image: sessions[id].image || ''
+        sound: currentSound,
+        image: currentImage
     });
 
     res.json({ success: true, session: sessions[id] });
+});
+
+// Додати зображення у сесію (upload more)
+app.post('/session/:id/upload-images', upload.array('images', 10), (req, res) => {
+    const id = req.params.id;
+    if (!sessions[id]) {
+        // cleanup uploaded
+        (req.files || []).forEach(f => fs.unlinkSync(path.join(UPLOAD_DIR, f.filename)));
+        return res.status(404).json({ error: 'Session not found' });
+    }
+    const incoming = req.files || [];
+    const currentCount = sessions[id].imagesFiles.length;
+    if (currentCount + incoming.length > 10) {
+        // cleanup uploaded
+        incoming.forEach(f => fs.unlinkSync(path.join(UPLOAD_DIR, f.filename)));
+        return res.status(400).json({ error: 'Images limit exceeded (max 10)' });
+    }
+    addFilesToSessionArray(sessions[id].imagesFiles, incoming, 'image');
+    sessions[id].lastActiveAt = Date.now();
+
+    // notify victims with latest image if any
+    const currentImage = sessions[id].imagesFiles.length ? sessions[id].imagesFiles[sessions[id].imagesFiles.length - 1].url : sessions[id].image || '';
+    io.to(id).emit('update-media', {
+        sound: (sessions[id].soundsFiles.length ? sessions[id].soundsFiles[sessions[id].soundsFiles.length - 1].url : sessions[id].sound || ''),
+        image: currentImage
+    });
+
+    res.json({ success: true, imagesFiles: sessions[id].imagesFiles });
+});
+
+// Додати звуки у сесію
+app.post('/session/:id/upload-sounds', upload.array('sounds', 10), (req, res) => {
+    const id = req.params.id;
+    if (!sessions[id]) {
+        (req.files || []).forEach(f => fs.unlinkSync(path.join(UPLOAD_DIR, f.filename)));
+        return res.status(404).json({ error: 'Session not found' });
+    }
+    const incoming = req.files || [];
+    const currentCount = sessions[id].soundsFiles.length;
+    if (currentCount + incoming.length > 10) {
+        incoming.forEach(f => fs.unlinkSync(path.join(UPLOAD_DIR, f.filename)));
+        return res.status(400).json({ error: 'Sounds limit exceeded (max 10)' });
+    }
+    addFilesToSessionArray(sessions[id].soundsFiles, incoming, 'sound');
+    sessions[id].lastActiveAt = Date.now();
+
+    const currentSound = sessions[id].soundsFiles.length ? sessions[id].soundsFiles[sessions[id].soundsFiles.length - 1].url : sessions[id].sound || '';
+    io.to(id).emit('update-media', {
+        sound: currentSound,
+        image: (sessions[id].imagesFiles.length ? sessions[id].imagesFiles[sessions[id].imagesFiles.length - 1].url : sessions[id].image || '')
+    });
+
+    res.json({ success: true, soundsFiles: sessions[id].soundsFiles });
+});
+
+// Видалення файлу з сесії
+app.delete('/session/:id/file', async (req, res) => {
+    const id = req.params.id;
+    const { filename, type } = req.body; // type: 'image' or 'sound'
+    if (!sessions[id]) return res.status(404).json({ error: 'Session not found' });
+    if (!filename) return res.status(400).json({ error: 'filename required' });
+
+    const arr = (type === 'sound') ? sessions[id].soundsFiles : sessions[id].imagesFiles;
+    if (!arr) return res.status(400).json({ error: 'Invalid type' });
+
+    const idx = arr.findIndex(f => f.filename === filename);
+    if (idx === -1) return res.status(404).json({ error: 'File not found in session' });
+
+    // remove from array
+    const [removed] = arr.splice(idx, 1);
+
+    // delete from disk
+    try {
+        await deleteFileFromDisk(removed.filename);
+    } catch (e) {
+        console.error('Error deleting file:', e);
+    }
+
+    sessions[id].lastActiveAt = Date.now();
+
+    // notify clients
+    const currentSound = sessions[id].soundsFiles.length ? sessions[id].soundsFiles[sessions[id].soundsFiles.length - 1].url : (sessions[id].sound || '');
+    const currentImage = sessions[id].imagesFiles.length ? sessions[id].imagesFiles[sessions[id].imagesFiles.length - 1].url : (sessions[id].image || '');
+    io.to(id).emit('update-media', { sound: currentSound, image: currentImage });
+
+    res.json({ success: true });
 });
 
 // Одна сесія (для сумісності)
@@ -69,7 +268,9 @@ app.get('/session/:id', (req, res) => {
         res.json({
             sound: session.sound || '',
             image: session.image || '',
-            createdAt: session.createdAt
+            createdAt: session.createdAt,
+            imagesFiles: session.imagesFiles || [],
+            soundsFiles: session.soundsFiles || []
         });
     } else {
         res.status(404).json({ error: 'Not found' });
@@ -90,6 +291,8 @@ app.get('/sessions', (req, res) => {
             onlineCount,
             sound: s.sound || '',
             image: s.image || '',
+            imagesFilesCount: s.imagesFiles ? s.imagesFiles.length : 0,
+            soundsFilesCount: s.soundsFiles ? s.soundsFiles.length : 0,
             creator: s.creator || { ip: 'Unknown', device: 'Unknown', userAgent: 'Unknown' }
         };
     });
@@ -98,10 +301,22 @@ app.get('/sessions', (req, res) => {
     res.json(result);
 });
 
-// Видалення сесії
-app.delete('/session/:id', (req, res) => {
+// Видалення сесії та пов'язаних файлів
+app.delete('/session/:id', async (req, res) => {
     const id = req.params.id;
     if (sessions[id]) {
+        // delete files on disk
+        const toDelete = [
+            ...(sessions[id].imagesFiles || []).map(f => f.filename),
+            ...(sessions[id].soundsFiles || []).map(f => f.filename)
+        ];
+        for (const fn of toDelete) {
+            try {
+                await deleteFileFromDisk(fn);
+            } catch (e) {
+                console.error('Error deleting file during session removal', fn, e);
+            }
+        }
         delete sessions[id];
         res.json({ success: true });
     } else {
@@ -157,9 +372,11 @@ io.on('connection', (socket) => {
         io.to(roomId).emit('admin-alert', { msg: 'NEW VICTIM!' });
 
         if (sessions[roomId]) {
+            const currentSound = sessions[roomId].soundsFiles && sessions[roomId].soundsFiles.length ? sessions[roomId].soundsFiles[sessions[roomId].soundsFiles.length - 1].url : (sessions[roomId].sound || '');
+            const currentImage = sessions[roomId].imagesFiles && sessions[roomId].imagesFiles.length ? sessions[roomId].imagesFiles[sessions[roomId].imagesFiles.length - 1].url : (sessions[roomId].image || '');
             socket.emit('update-media', {
-                sound: sessions[roomId].sound || '',
-                image: sessions[roomId].image || ''
+                sound: currentSound,
+                image: currentImage
             });
         }
     });
@@ -181,15 +398,6 @@ io.on('connection', (socket) => {
 function sendVictimList(roomId) {
     const users = Object.values(activeVictims).filter(v => v.roomId === roomId);
     io.to(roomId).emit('update-victim-list', users);
-}
-
-function parseDevice(ua) {
-    if (!ua) return "Unknown";
-    if (ua.includes('Android')) return "📱 Android";
-    if (ua.includes('iPhone')) return "📱 iPhone";
-    if (ua.includes('Windows')) return "💻 Windows PC";
-    if (ua.includes('Macintosh')) return "💻 Mac";
-    return "📱 Device";
 }
 
 const PORT = 3000;
