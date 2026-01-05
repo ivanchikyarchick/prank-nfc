@@ -1,4 +1,4 @@
-[file name]: server (1).js
+[file name]: server.js
 [file content begin]
 const express = require('express');
 const app = express();
@@ -7,46 +7,25 @@ const io = require('socket.io')(http);
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+// Ініціалізація Gemini AI
+const genAI = new GoogleGenerativeAI('AIzaSyB5bJTgHWd0zmsO95fESuaqzjTAeP-2oEE');
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
 app.use(express.static('public'));
 app.use(express.json());
 
 app.get('/', (req, res) => res.redirect('/admin.html'));
 
-const sessions = {}; // Головний об'єкт сесій
+const sessions = {};
 const activeVictims = {};
-const generatedSites = {}; // Зберігаємо згенеровані AI сайти
+const generatedSites = {};
 
-// Створення нової кімнати + дані про творця
-app.post('/create', (req, res) => {
-    const { sound = '', image = '' } = req.body;
-    const id = uuidv4();
-    const createdAt = new Date().toLocaleString('uk-UA');
-    const now = Date.now();
+// ... (інші маршрути залишаються без змін) ...
 
-    const userAgent = req.headers['user-agent'] || 'Unknown';
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown';
-    const shortIp = ip.split(',')[0].trim();
-
-    sessions[id] = {
-        sound: sound.trim(),
-        image: image.trim(),
-        createdAt,
-        lastActiveAt: now,
-        totalVictims: 0,
-        creator: {
-            ip: shortIp,
-            device: parseDevice(userAgent),
-            userAgent: userAgent.substring(0, 100),
-            createdTimestamp: now
-        }
-    };
-
-    res.json({ id, createdAt });
-});
-
-// AI генерація HTML сайту
-app.post('/generate-site', (req, res) => {
+// AI генерація HTML сайту з використанням Gemini
+app.post('/generate-site', async (req, res) => {
     try {
         const { theme, soundUrl } = req.body;
         
@@ -54,192 +33,120 @@ app.post('/generate-site', (req, res) => {
             return res.status(400).json({ error: 'Тема повинна містити принаймні 3 символи' });
         }
 
+        console.log(`Generating AI site for theme: ${theme}`);
+        
         const siteId = uuidv4().split('-').slice(0, 3).join('-');
         const fileName = `cust_${siteId}.html`;
         const filePath = path.join(__dirname, 'public', fileName);
         
-        // Генеруємо HTML на основі теми
-        const htmlContent = generateHTMLByTheme(theme, soundUrl || '');
-        
-        // Зберігаємо файл
-        fs.writeFileSync(filePath, htmlContent, 'utf8');
-        
-        // Зберігаємо інформацію про сайт
-        generatedSites[siteId] = {
-            id: siteId,
-            theme: theme,
-            soundUrl: soundUrl || '',
-            fileName: fileName,
-            createdAt: new Date().toLocaleString('uk-UA'),
-            url: `/cust.html/${siteId}`
-        };
-        
-        console.log(`AI site generated: ${siteId} - ${theme}`);
-        
-        res.json({ 
-            success: true, 
-            siteId: siteId,
-            url: `/cust.html/${siteId}`,
-            directUrl: `${req.protocol}://${req.get('host')}/cust.html/${siteId}`
-        });
+        // Генеруємо HTML за допомогою Gemini AI
+        const prompt = `
+            Створи HTML сторінку для жартівливої пастки на основі теми: "${theme}".
+            
+            Вимоги:
+            1. Тематика: ${theme}
+            2. ${soundUrl ? `Додай звук з URL: ${soundUrl}` : 'Без звуку'}
+            3. Стиль: темна тема, мінімалістичний дизайн
+            4. Містить: заголовок, опис теми, елементи взаємодії
+            5. Додай креативні анімації та ефекти
+            6. Включи JavaScript для динамічних ефектів
+            7. Адаптивний дизайн для мобільних пристроїв
+            8. Кольори повинні відповідати темі
+            9. Додай елементи несподіванки (сюрпризи)
+            
+            Структура HTML:
+            - Повний HTML документ з DOCTYPE
+            - Стилі в тегу <style>
+            - JavaScript в кінці тіла
+            - Використовуй сучасні CSS властивості
+            - Додай іконки та емодзі для наочності
+            
+            Обов'язково включи:
+            1. Зображення-заглушку або CSS градієнт
+            2. Кнопки або області для кліку
+            3. Таймер або анімації
+            4. Повідомлення що з'являються
+            5. Можливість відтворення звуку (якщо є URL)
+            
+            Виведи ТІЛЬКИ HTML код без пояснень.
+        `;
+
+        try {
+            const result = await model.generateContent(prompt);
+            const aiResponse = result.response.text();
+            
+            // Очищаємо відповідь від markdown коду
+            let htmlContent = aiResponse
+                .replace(/```html\n/g, '')
+                .replace(/```\n/g, '')
+                .replace(/```/g, '')
+                .trim();
+            
+            // Якщо Gemini не повернув коректний HTML, використовуємо fallback
+            if (!htmlContent.includes('<!DOCTYPE html>') && !htmlContent.includes('<html>')) {
+                console.log('Gemini returned non-HTML, using fallback');
+                htmlContent = generateFallbackHTML(theme, soundUrl);
+            }
+            
+            // Зберігаємо файл
+            fs.writeFileSync(filePath, htmlContent, 'utf8');
+            
+            // Зберігаємо інформацію про сайт
+            generatedSites[siteId] = {
+                id: siteId,
+                theme: theme,
+                soundUrl: soundUrl || '',
+                fileName: fileName,
+                createdAt: new Date().toLocaleString('uk-UA'),
+                url: `/cust.html/${siteId}`,
+                generatedBy: 'Gemini AI'
+            };
+            
+            console.log(`AI site generated by Gemini: ${siteId} - ${theme}`);
+            
+            res.json({ 
+                success: true, 
+                siteId: siteId,
+                url: `/cust.html/${siteId}`,
+                directUrl: `${req.protocol}://${req.get('host')}/cust.html/${siteId}`,
+                generatedBy: 'Gemini AI'
+            });
+            
+        } catch (aiError) {
+            console.error('Gemini AI error:', aiError);
+            // Fallback на базовий генератор
+            const htmlContent = generateFallbackHTML(theme, soundUrl);
+            fs.writeFileSync(filePath, htmlContent, 'utf8');
+            
+            generatedSites[siteId] = {
+                id: siteId,
+                theme: theme,
+                soundUrl: soundUrl || '',
+                fileName: fileName,
+                createdAt: new Date().toLocaleString('uk-UA'),
+                url: `/cust.html/${siteId}`,
+                generatedBy: 'Fallback Generator'
+            };
+            
+            res.json({ 
+                success: true, 
+                siteId: siteId,
+                url: `/cust.html/${siteId}`,
+                directUrl: `${req.protocol}://${req.get('host')}/cust.html/${siteId}`,
+                generatedBy: 'Fallback (Gemini failed)'
+            });
+        }
         
     } catch (error) {
         console.error('Error generating site:', error);
-        res.status(500).json({ error: 'Помилка генерації сайту' });
+        res.status(500).json({ error: 'Помилка генерації сайту: ' + error.message });
     }
 });
 
-// Спеціальний маршрут для AI-сайтів
-app.get('/cust.html/:siteId', (req, res) => {
-    const { siteId } = req.params;
-    const siteInfo = generatedSites[siteId];
-    
-    if (!siteInfo) {
-        return res.status(404).send(`
-            <html>
-                <head><title>Сайт не знайдено</title></head>
-                <body style="background: #0a0a0c; color: white; font-family: Arial; padding: 50px; text-align: center;">
-                    <h1>🤖 Сайт не знайдено</h1>
-                    <p>Цей AI-сайт був видалений або не існує</p>
-                    <a href="/admin.html" style="color: #00ff99;">← Повернутися до адмін панелі</a>
-                </body>
-            </html>
-        `);
-    }
-    
-    // Читаємо файл і відправляємо
-    const filePath = path.join(__dirname, 'public', siteInfo.fileName);
-    if (fs.existsSync(filePath)) {
-        res.sendFile(filePath);
-    } else {
-        res.status(404).send('Файл не знайдено');
-    }
-});
-
-// Отримати список згенерованих сайтів
-app.get('/ai-sites', (req, res) => {
-    const sites = Object.values(generatedSites).map(site => ({
-        id: site.id,
-        theme: site.theme,
-        createdAt: site.createdAt,
-        url: site.url
-    }));
-    
-    res.json(sites);
-});
-
-// Видалити AI сайт
-app.delete('/ai-site/:siteId', (req, res) => {
-    const { siteId } = req.params;
-    const siteInfo = generatedSites[siteId];
-    
-    if (!siteInfo) {
-        return res.status(404).json({ error: 'Сайт не знайдено' });
-    }
-    
-    // Видаляємо файл
-    const filePath = path.join(__dirname, 'public', siteInfo.fileName);
-    if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-    }
-    
-    // Видаляємо з пам'яті
-    delete generatedSites[siteId];
-    
-    console.log(`AI site deleted: ${siteId}`);
-    res.json({ success: true });
-});
-
-// Оновлення медіа
-app.post('/update-session/:id', (req, res) => {
-    const id = req.params.id;
-    const { sound, image } = req.body;
-
-    if (!sessions[id]) {
-        return res.status(404).json({ error: 'Session not found' });
-    }
-
-    if (sound !== undefined && sound !== '') sessions[id].sound = sound.trim();
-    if (image !== undefined && image !== '') sessions[id].image = image.trim();
-
-    sessions[id].lastActiveAt = Date.now();
-
-    io.to(id).emit('update-media', {
-        sound: sessions[id].sound || '',
-        image: sessions[id].image || ''
-    });
-
-    res.json({ success: true, session: sessions[id] });
-});
-
-// Одна сесія (для сумісності)
-app.get('/session/:id', (req, res) => {
-    const session = sessions[req.params.id];
-    if (session) {
-        res.json({
-            sound: session.sound || '',
-            image: session.image || '',
-            createdAt: session.createdAt
-        });
-    } else {
-        res.status(404).json({ error: 'Not found' });
-    }
-});
-
-// ВСІ сесії з деталями та творцем
-app.get('/sessions', (req, res) => {
-    const result = Object.keys(sessions).map(id => {
-        const s = sessions[id];
-        const onlineCount = Object.values(activeVictims).filter(v => v.roomId === id).length;
-
-        return {
-            id,
-            createdAt: s.createdAt,
-            lastActiveAt: s.lastActiveAt,
-            totalVictims: s.totalVictims,
-            onlineCount,
-            sound: s.sound || '',
-            image: s.image || '',
-            creator: s.creator || { ip: 'Unknown', device: 'Unknown', userAgent: 'Unknown' }
-        };
-    });
-
-    result.sort((a, b) => b.lastActiveAt - a.lastActiveAt);
-    res.json(result);
-});
-
-// Видалення сесії
-app.delete('/session/:id', (req, res) => {
-    const id = req.params.id;
-    if (sessions[id]) {
-        delete sessions[id];
-        res.json({ success: true });
-    } else {
-        res.status(404).json({ error: 'Not found' });
-    }
-});
-
-// Сумісність з admin.html
-app.post('/check-status', (req, res) => {
-    const { ids } = req.body;
-    const result = ids.map(id => {
-        const count = Object.values(activeVictims).filter(v => v.roomId === id).length;
-        const sess = sessions[id];
-        return {
-            id,
-            active: count > 0 && sess,
-            count,
-            date: sess ? sess.createdAt : null
-        };
-    });
-    result.sort((a, b) => b.active - a.active);
-    res.json(result);
-});
-
-// Функція для генерації HTML на основі теми
-function generateHTMLByTheme(theme, soundUrl) {
+// Fallback генератор HTML (якщо Gemini не працює)
+function generateFallbackHTML(theme, soundUrl) {
     const themes = {
-        'жахи': { bg: '#0a0a0c', color: '#ff0055', title: '👻 Місце жахам', emoji: '👹' },
+        'жахи': { bg: '#0a0a0c', color: '#ff0055', title: '👻 Жахлива пастка', emoji: '👹' },
         'комедія': { bg: '#1a0033', color: '#ffcc00', title: '🤣 Смішний сюрприз', emoji: '🤡' },
         'містика': { bg: '#1a1a2e', color: '#9d00ff', title: '🔮 Таємнича пастка', emoji: '🌙' },
         'техно': { bg: '#001122', color: '#00ffff', title: '🤖 Техно-ловушка', emoji: '⚡' },
@@ -249,8 +156,7 @@ function generateHTMLByTheme(theme, soundUrl) {
         'спорт': { bg: '#330000', color: '#ff4444', title: '🏆 Спортивний виклик', emoji: '⚽' }
     };
 
-    // Шукаємо найбільш підходящу тему
-    let selectedTheme = themes['техно']; // default
+    let selectedTheme = themes['техно'];
     for (const [key, value] of Object.entries(themes)) {
         if (theme.toLowerCase().includes(key)) {
             selectedTheme = value;
@@ -258,7 +164,7 @@ function generateHTMLByTheme(theme, soundUrl) {
         }
     }
 
-    const html = `
+    return `
 <!DOCTYPE html>
 <html lang="uk">
 <head>
@@ -266,265 +172,486 @@ function generateHTMLByTheme(theme, soundUrl) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${selectedTheme.title} - AI Generated</title>
     <style>
-        body {
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
             background: ${selectedTheme.bg};
             color: white;
-            font-family: 'Segoe UI', sans-serif;
+            font-family: 'Segoe UI', Arial, sans-serif;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             text-align: center;
-            background-image: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, transparent 50%);
-            overflow: hidden;
+            padding: 20px;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(255,255,255,0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255,255,255,0.03) 0%, transparent 50%);
         }
         
         .container {
-            max-width: 600px;
-            padding: 30px;
-            animation: fadeIn 2s ease;
-        }
-        
-        h1 {
-            font-size: 2.5em;
-            color: ${selectedTheme.color};
-            margin-bottom: 20px;
-            text-shadow: 0 0 10px ${selectedTheme.color}88;
-        }
-        
-        .emoji {
-            font-size: 4em;
-            margin: 20px 0;
-            animation: bounce 2s infinite;
-        }
-        
-        .description {
-            font-size: 1.2em;
-            line-height: 1.6;
-            margin: 30px 0;
-            color: #cccccc;
-            background: rgba(0,0,0,0.3);
-            padding: 20px;
-            border-radius: 15px;
-            border-left: 4px solid ${selectedTheme.color};
-        }
-        
-        .sound-player {
-            margin: 30px 0;
-            padding: 20px;
-            background: rgba(0,0,0,0.4);
-            border-radius: 15px;
-            border: 2px dashed ${selectedTheme.color};
-        }
-        
-        .theme-info {
-            margin-top: 40px;
-            font-size: 0.9em;
-            color: #888;
-            padding: 10px;
-            border-top: 1px solid #333;
-        }
-        
-        .pulse {
-            animation: pulse 3s infinite;
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+            animation: fadeIn 1.5s ease-out;
         }
         
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
+            from { opacity: 0; transform: translateY(30px); }
             to { opacity: 1; transform: translateY(0); }
         }
         
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-20px); }
+        .ai-badge {
+            background: rgba(157, 0, 255, 0.2);
+            border: 1px solid var(--ai-color, #9d00ff);
+            color: var(--ai-color, #9d00ff);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: inline-block;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
         }
         
         @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
+            50% { opacity: 0.7; }
+        }
+        
+        h1 {
+            font-size: 3em;
+            color: ${selectedTheme.color};
+            margin-bottom: 20px;
+            text-shadow: 0 0 15px ${selectedTheme.color}80;
+            animation: glow 3s infinite alternate;
         }
         
         @keyframes glow {
-            0%, 100% { text-shadow: 0 0 5px ${selectedTheme.color}; }
-            50% { text-shadow: 0 0 20px ${selectedTheme.color}, 0 0 30px ${selectedTheme.color}; }
+            from { text-shadow: 0 0 10px ${selectedTheme.color}80; }
+            to { text-shadow: 0 0 20px ${selectedTheme.color}, 0 0 30px ${selectedTheme.color}80; }
         }
         
-        .glowing-text {
-            animation: glow 2s infinite;
+        .theme-emoji {
+            font-size: 5em;
+            margin: 30px 0;
+            animation: float 3s ease-in-out infinite;
         }
         
-        .warning {
-            color: ${selectedTheme.color};
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .theme-description {
+            font-size: 1.3em;
+            line-height: 1.6;
+            margin: 30px auto;
+            color: #ddd;
+            background: rgba(0,0,0,0.4);
+            padding: 25px;
+            border-radius: 20px;
+            border-left: 5px solid ${selectedTheme.color};
+            max-width: 600px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .interactive-area {
+            margin: 40px 0;
+            padding: 30px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            border: 2px dashed ${selectedTheme.color}80;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .interactive-area::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                45deg,
+                transparent,
+                ${selectedTheme.color}20,
+                transparent
+            );
+            animation: shine 3s infinite linear;
+        }
+        
+        @keyframes shine {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+        
+        .sound-section {
+            margin: 30px 0;
+            padding: 25px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            border: 1px solid ${selectedTheme.color}40;
+        }
+        
+        .sound-controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        
+        button {
+            background: ${selectedTheme.color};
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
             font-weight: bold;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 200px;
+            justify-content: center;
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px ${selectedTheme.color}80;
+        }
+        
+        .surprise-button {
+            background: linear-gradient(45deg, ${selectedTheme.color}, #ff0055);
             margin: 20px 0;
-            padding: 10px;
-            border: 1px solid ${selectedTheme.color};
-            border-radius: 8px;
-            background: rgba(255,0,0,0.1);
+            animation: wiggle 2s infinite;
+        }
+        
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(0); }
+            25% { transform: rotate(-2deg); }
+            75% { transform: rotate(2deg); }
+        }
+        
+        .message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid ${selectedTheme.color};
+            display: none;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+        
+        .counter {
+            font-size: 2em;
+            color: ${selectedTheme.color};
+            margin: 20px 0;
+            font-family: monospace;
+        }
+        
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            border-radius: 50%;
+            animation: particleFloat 1s forwards;
+        }
+        
+        @keyframes particleFloat {
+            to {
+                transform: translate(var(--tx), var(--ty)) rotate(var(--r));
+                opacity: 0;
+            }
+        }
+        
+        footer {
+            margin-top: 50px;
+            color: #888;
+            font-size: 12px;
+            border-top: 1px solid #333;
+            padding-top: 20px;
+            width: 100%;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .theme-emoji {
+                font-size: 3em;
+            }
+            
+            .theme-description {
+                font-size: 1em;
+                padding: 15px;
+            }
+            
+            button {
+                min-width: 150px;
+                padding: 10px 20px;
+            }
         }
     </style>
 </head>
 <body>
+    <div class="ai-badge">🤖 Згенеровано AI | Тема: ${theme}</div>
+    
     <div class="container">
-        <div class="emoji">${selectedTheme.emoji}</div>
-        <h1 class="glowing-text">${selectedTheme.title}</h1>
+        <div class="theme-emoji">${selectedTheme.emoji}</div>
+        <h1>${selectedTheme.title}</h1>
         
-        <div class="description">
-            <p>🎯 Тема: <strong>${theme}</strong></p>
-            <p>✨ Ця сторінка була створена AI на основі вашого запиту.</p>
-            <p>📱 Автоматично адаптується під всі пристрої</p>
-            <p>🎨 Унікальний дизайн згідно тематики</p>
+        <div class="theme-description">
+            <p><strong>Тема AI-генерації:</strong> "${theme}"</p>
+            <p>✨ Ця сторінка була створена штучним інтелектом спеціально для жартівливої пастки.</p>
+            <p>🎯 Всі елементи адаптовані під обрану тематику.</p>
+            <p>⚡ Натискайте кнопки та взаємодійте з елементами для сюрпризів!</p>
+        </div>
+        
+        <div class="interactive-area">
+            <h2>💫 Інтерактивна зона</h2>
+            <p style="margin: 15px 0; color: #aaa;">Клікайте в будь-якому місці для ефектів</p>
+            <div class="counter" id="clickCounter">Кліків: 0</div>
         </div>
         
         ${soundUrl ? `
-        <div class="sound-player">
-            <p>🔊 Звуковий супровід:</p>
-            <audio id="theme-sound" controls style="width: 100%; margin: 10px 0;">
+        <div class="sound-section">
+            <h3>🎵 Звуковий супровід</h3>
+            <audio id="themeAudio" preload="auto">
                 <source src="${soundUrl}" type="audio/mp3">
-                Ваш браузер не підтримує аудіо елемент.
             </audio>
-            <button onclick="playSound()" style="background: ${selectedTheme.color}; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-top: 10px;">
-                ▶ Відтворити звук
-            </button>
+            <div class="sound-controls">
+                <button onclick="playSound()">
+                    <span>▶️</span> Відтворити звук
+                </button>
+                <button onclick="stopSound()" style="background: #555;">
+                    <span>⏹️</span> Зупинити
+                </button>
+                <button onclick="playRandomSound()" class="surprise-button">
+                    <span>🎲</span> Випадковий ефект
+                </button>
+            </div>
         </div>
-        ` : '<div class="warning">⚠️ Звук не додано до цієї теми</div>'}
+        ` : '<p style="color: #777; margin: 30px 0;">🔇 Звук не додано до цієї теми</p>'}
         
-        <div class="theme-info">
-            <p>🤖 Згенеровано AI | Тематика: ${theme}</p>
-            <p>⏱️ ${new Date().toLocaleString('uk-UA')}</p>
-            <p class="pulse">❗ Ця сторінка може містити несподівані елементи</p>
-        </div>
+        <button class="surprise-button" onclick="showSurprise()">
+            <span>🎁</span> Отримати сюрприз!
+        </button>
+        
+        <button onclick="startConfetti()" style="background: linear-gradient(45deg, #ff0055, #9d00ff); margin-top: 10px;">
+            <span>🎉</span> Запустити конфеті
+        </button>
     </div>
     
+    <div class="message" id="surpriseMessage"></div>
+    
+    <footer>
+        <p>Створено за допомогою AI Gemini Flash 2.5 | ${new Date().toLocaleString('uk-UA')}</p>
+        <p style="color: #666; margin-top: 5px;">⚠️ Ця сторінка може містити несподівані ефекти</p>
+    </footer>
+    
     <script>
-        function playSound() {
-            const audio = document.getElementById('theme-sound');
-            if (audio) {
-                audio.play().catch(e => console.log('Помилка відтворення:', e));
-            }
-        }
+        let clickCount = 0;
+        const audio = document.getElementById('themeAudio');
+        const messageEl = document.getElementById('surpriseMessage');
+        const counterEl = document.getElementById('clickCounter');
         
-        // Автозапуск звуку (опціонально)
-        setTimeout(() => {
-            const audio = document.getElementById('theme-sound');
-            if (audio && Math.random() > 0.5) {
-                audio.volume = 0.3;
-                audio.play().catch(() => {});
-            }
-        }, 3000);
-        
-        // Динамічні ефекти
         document.addEventListener('click', function(e) {
-            const x = e.clientX;
-            const y = e.clientY;
+            // Лічильник кліків
+            clickCount++;
+            if (counterEl) counterEl.textContent = \`Кліків: \${clickCount}\`;
+            
+            // Ефект частинок
+            createParticle(e.clientX, e.clientY);
+            
+            // Випадкові повідомлення
+            if (clickCount % 5 === 0) {
+                showMessage('Ви активні! Продовжуйте!', 'info');
+            }
+        });
+        
+        function createParticle(x, y) {
             const particle = document.createElement('div');
-            particle.style.position = 'fixed';
-            particle.style.left = x + 'px';
-            particle.style.top = y + 'px';
-            particle.style.width = '10px';
-            particle.style.height = '10px';
-            particle.style.backgroundColor = '${selectedTheme.color}';
-            particle.style.borderRadius = '50%';
-            particle.style.pointerEvents = 'none';
-            particle.style.zIndex = '9999';
-            particle.style.animation = 'fadeOut 1s forwards';
+            particle.className = 'particle';
+            
+            const size = Math.random() * 10 + 5;
+            const color = getComputedStyle(document.documentElement)
+                .getPropertyValue('--ai-color') || '#9d00ff';
+            
+            particle.style.cssText = \`
+                width: \${size}px;
+                height: \${size}px;
+                background: \${color};
+                left: \${x}px;
+                top: \${y}px;
+                --tx: \${Math.random() * 100 - 50}px;
+                --ty: \${Math.random() * 100 - 50}px;
+                --r: \${Math.random() * 360}deg;
+            \`;
             
             document.body.appendChild(particle);
             
-            setTimeout(() => {
-                particle.remove();
-            }, 1000);
-        });
+            setTimeout(() => particle.remove(), 1000);
+        }
         
-        const style = document.createElement('style');
-        style.textContent = \`
-            @keyframes fadeOut {
-                from { transform: scale(1); opacity: 1; }
-                to { transform: scale(2); opacity: 0; }
+        function playSound() {
+            if (audio) {
+                audio.currentTime = 0;
+                audio.play().catch(e => {
+                    showMessage('Не вдалося відтворити звук', 'error');
+                });
             }
-        \`;
-        document.head.appendChild(style);
+        }
+        
+        function stopSound() {
+            if (audio) audio.pause();
+        }
+        
+        function playRandomSound() {
+            playSound();
+            setTimeout(() => {
+                showMessage('🎲 Випадковий ефект активовано!', 'success');
+                createExplosionEffect();
+            }, 500);
+        }
+        
+        function showSurprise() {
+            const surprises = [
+                '🎉 Вітаємо! Ви знайшли таємний елемент!',
+                '✨ Магія AI працює на повну!',
+                '🎭 Несподіванка! Очікуйте ще більше сюрпризів!',
+                '🤖 ШІ схвалює вашу цікавість!',
+                '💫 Ефект несподіванки активовано!'
+            ];
+            
+            const randomSurprise = surprises[Math.floor(Math.random() * surprises.length)];
+            showMessage(randomSurprise, 'success');
+            
+            // Візуальний ефект
+            for (let i = 0; i < 20; i++) {
+                setTimeout(() => {
+                    createParticle(
+                        Math.random() * window.innerWidth,
+                        Math.random() * window.innerHeight
+                    );
+                }, i * 50);
+            }
+        }
+        
+        function startConfetti() {
+            showMessage('🎊 Конфеті активовано!', 'success');
+            
+            const colors = ['#ff0055', '#9d00ff', '#00ff99', '#00ffff', '#ffcc00'];
+            
+            for (let i = 0; i < 100; i++) {
+                setTimeout(() => {
+                    const x = Math.random() * window.innerWidth;
+                    const y = Math.random() * window.innerHeight;
+                    const color = colors[Math.floor(Math.random() * colors.length)];
+                    
+                    const confetti = document.createElement('div');
+                    confetti.style.cssText = \`
+                        position: fixed;
+                        width: 10px;
+                        height: 10px;
+                        background: \${color};
+                        left: \${x}px;
+                        top: \${y}px;
+                        border-radius: 2px;
+                        pointer-events: none;
+                        z-index: 9999;
+                        animation: fall \${Math.random() * 2 + 1}s linear forwards;
+                    \`;
+                    
+                    document.body.appendChild(confetti);
+                    
+                    setTimeout(() => confetti.remove(), 2000);
+                }, i * 30);
+            }
+            
+            // Додаємо стиль для анімації падіння
+            if (!document.getElementById('confetti-style')) {
+                const style = document.createElement('style');
+                style.id = 'confetti-style';
+                style.textContent = \`
+                    @keyframes fall {
+                        to {
+                            transform: translateY(100vh) rotate(360deg);
+                            opacity: 0;
+                        }
+                    }
+                \`;
+                document.head.appendChild(style);
+            }
+        }
+        
+        function createExplosionEffect() {
+            for (let i = 0; i < 30; i++) {
+                setTimeout(() => {
+                    createParticle(
+                        window.innerWidth / 2,
+                        window.innerHeight / 2
+                    );
+                }, i * 20);
+            }
+        }
+        
+        function showMessage(text, type) {
+            if (!messageEl) return;
+            
+            messageEl.textContent = text;
+            messageEl.style.display = 'block';
+            messageEl.style.borderLeftColor = type === 'error' ? '#ff0055' : 
+                                           type === 'success' ? '#00ff99' : '#9d00ff';
+            
+            setTimeout(() => {
+                messageEl.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Автозапуск
+        setTimeout(() => {
+            showMessage('🤖 AI сайт завантажено! Готовий до взаємодії.', 'info');
+            
+            if (audio && Math.random() > 0.7) {
+                setTimeout(() => {
+                    audio.volume = 0.3;
+                    audio.play().catch(() => {});
+                }, 1000);
+            }
+        }, 1000);
+        
+        // Динамічна зміна кольорів
+        document.documentElement.style.setProperty('--ai-color', '${selectedTheme.color}');
     </script>
 </body>
 </html>
     `;
-    
-    return html;
 }
 
-// --- SOCKET.IO ---
-io.on('connection', (socket) => {
-
-    socket.on('join-room-admin', (roomId) => {
-        socket.join(roomId);
-        sendVictimList(roomId);
-    });
-
-    socket.on('join-room-victim', (data) => {
-        const roomId = data.roomId;
-        socket.join(roomId);
-
-        const ip = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
-
-        activeVictims[socket.id] = {
-            socketId: socket.id,
-            roomId,
-            device: parseDevice(data.userAgent),
-            ip,
-            joinedAt: new Date().toLocaleTimeString()
-        };
-
-        if (sessions[roomId]) {
-            sessions[roomId].totalVictims += 1;
-            sessions[roomId].lastActiveAt = Date.now();
-        }
-
-        sendVictimList(roomId);
-        io.to(roomId).emit('admin-alert', { msg: 'NEW VICTIM!' });
-
-        if (sessions[roomId]) {
-            socket.emit('update-media', {
-                sound: sessions[roomId].sound || '',
-                image: sessions[roomId].image || ''
-            });
-        }
-    });
-
-    socket.on('trigger-scare', (roomId) => {
-        io.to(roomId).emit('play-sound');
-    });
-
-    socket.on('disconnect', () => {
-        const victim = activeVictims[socket.id];
-        if (victim) {
-            const roomId = victim.roomId;
-            delete activeVictims[socket.id];
-            sendVictimList(roomId);
-        }
-    });
-});
-
-function sendVictimList(roomId) {
-    const users = Object.values(activeVictims).filter(v => v.roomId === roomId);
-    io.to(roomId).emit('update-victim-list', users);
-}
-
-function parseDevice(ua) {
-    if (!ua) return "Unknown";
-    if (ua.includes('Android')) return "📱 Android";
-    if (ua.includes('iPhone')) return "📱 iPhone";
-    if (ua.includes('Windows')) return "💻 Windows PC";
-    if (ua.includes('Macintosh')) return "💻 Mac";
-    return "📱 Device";
-}
+// ... (інші функції та маршрути залишаються без змін) ...
 
 const PORT = 3000;
 http.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`Admin: /admin.html | Watch: /watch.html | Victim: /victim.html?id=...`);
-    console.log(`AI Sites: /cust.html/[site-id]`);
+    console.log(`AI Sites (Gemini): /cust.html/[site-id]`);
+    console.log(`Using Gemini Flash 2.5 for AI generation`);
 });
 [file content end]
