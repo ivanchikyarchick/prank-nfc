@@ -1,16 +1,18 @@
+[file name]: admin (1).html
+[file content begin]
 <!DOCTYPE html>
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SPY CONTROL v2.1 AI</title>
+    <title>SPY CONTROL v2.2</title>
     <style>
         :root {
             --neon: #00ff99;
             --danger: #ff0055;
+            --ai-color: #9d00ff;
             --bg: #0a0a0c;
             --card: #16161a;
-            --ai-glow: #6200ea;
         }
         body { 
             background-color: var(--bg); color: white; 
@@ -23,79 +25,206 @@
             padding: 25px; border-radius: 20px; border: 1px solid #333;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-        h1 { font-size: 22px; letter-spacing: 2px; text-transform: uppercase; color: var(--neon); text-align: center; margin-bottom: 25px; }
+        .top-bar { 
+            display: flex; justify-content: space-between; 
+            align-items: center; margin-bottom: 20px; flex-wrap: wrap;
+        }
+        .lang-bar { display: flex; gap: 8px; }
+        .lang-btn, .ai-btn { 
+            background: #222; border: 1px solid #444; color: #aaa; 
+            padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; transition: 0.3s;
+        }
+        .lang-btn.active { border-color: var(--neon); color: var(--neon); background: rgba(0,255,153,0.1); }
+        .ai-btn { 
+            background: rgba(157,0,255,0.1); border-color: var(--ai-color); color: var(--ai-color);
+            display: flex; align-items: center; gap: 5px;
+        }
+        .ai-btn:hover { background: rgba(157,0,255,0.2); }
         
+        h1 { font-size: 22px; letter-spacing: 2px; text-transform: uppercase; color: var(--neon); margin-top: 0; text-align: center; }
+        
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 12px; color: #777; margin-bottom: 5px; }
         input, textarea { 
             width: 100%; padding: 12px; background: #0f0f12; border: 1px solid #333; 
             color: white; border-radius: 10px; box-sizing: border-box; outline: none; margin-bottom: 10px;
+            font-family: inherit;
         }
         input:focus, textarea:focus { border-color: var(--neon); }
+        textarea { min-height: 80px; resize: vertical; }
         
         button { 
-            width: 100%; padding: 14px; border: none; border-radius: 10px; 
-            cursor: pointer; font-size: 14px; font-weight: bold; transition: 0.3s;
+            width: 100%; padding: 15px; border: none; border-radius: 10px; 
+            cursor: pointer; font-size: 15px; font-weight: bold; transition: 0.3s;
         }
-
-        /* AI Section */
-        .ai-container {
-            border: 1px dashed var(--ai-glow); border-radius: 15px;
-            padding: 15px; background: rgba(98, 0, 234, 0.05); margin-bottom: 20px;
-        }
-        .btn-ai-main { background: var(--ai-glow); color: white; margin-bottom: 10px; }
-        #ai-status { font-size: 11px; color: #b388ff; text-align: center; margin-top: 10px; }
-
-        /* Control Panel */
         .btn-create { background: var(--neon); color: black; }
+        .btn-ai { background: var(--ai-color); color: white; }
+        .btn-update { background: #333; color: white; font-size: 13px; }
         .btn-scare { 
-            background: var(--danger); color: white; height: 70px; font-size: 20px; 
-            display: none; margin-top: 15px; animation: pulse 1.5s infinite;
+            background: var(--danger); color: white; height: 80px; font-size: 22px; 
+            display: none; margin-top: 20px; animation: pulse 1.5s infinite;
         }
-        .link-box { 
-            background: #000; padding: 12px; border-radius: 8px; font-family: monospace; 
-            font-size: 11px; margin: 15px 0; border: 1px solid #333; word-break: break-all;
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,0,85,0.7); } 70% { box-shadow: 0 0 0 15px rgba(255,0,85,0); } 100% { box-shadow: 0 0 0 0 rgba(255,0,85,0); } }
+
+        .modal { 
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;
         }
-        .history-item { 
-            background: #1c1c21; padding: 12px; margin-bottom: 8px; border-radius: 10px; 
-            display: flex; justify-content: space-between; align-items: center; border: 1px solid #333;
+        .modal-content { 
+            background: var(--card); padding: 30px; border-radius: 20px; 
+            width: 90%; max-width: 500px; border: 1px solid var(--ai-color);
+            box-shadow: 0 0 30px rgba(157,0,255,0.3);
+        }
+        .modal-header { 
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px;
+        }
+        .modal-title { color: var(--ai-color); font-size: 18px; }
+        .close-modal { 
+            background: transparent; border: none; color: #aaa; font-size: 24px; 
+            cursor: pointer; width: auto; padding: 0; 
         }
         
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,0,85,0.7); } 70% { box-shadow: 0 0 0 12px rgba(255,0,85,0); } 100% { box-shadow: 0 0 0 0 rgba(255,0,85,0); } }
+        .link-box { 
+            background: #000; padding: 10px; border-radius: 8px; font-family: monospace; 
+            font-size: 11px; margin: 15px 0; border: 1px dashed #444; word-break: break-all;
+        }
+        .ai-link-box { border-color: var(--ai-color); background: rgba(157,0,255,0.05); }
+        
+        .ai-sites-list { 
+            margin-top: 20px; max-height: 200px; overflow-y: auto;
+            border: 1px solid #333; border-radius: 10px; padding: 10px;
+        }
+        .ai-site-item { 
+            background: #1c1c21; padding: 10px; margin-bottom: 8px; border-radius: 8px;
+            border-left: 3px solid var(--ai-color); display: flex; justify-content: space-between;
+            align-items: center;
+        }
+        .ai-site-info { flex-grow: 1; cursor: pointer; }
+        .ai-site-theme { color: var(--ai-color); font-size: 12px; }
+        .ai-site-date { color: #888; font-size: 10px; }
+        .btn-delete-ai { 
+            background: transparent; color: #ff4444; border: none; padding: 5px;
+            cursor: pointer; font-size: 14px; opacity: 0.6;
+        }
+        .btn-delete-ai:hover { opacity: 1; }
+        
+        .history-item { 
+            background: #1c1c21; padding: 12px; margin-bottom: 10px; border-radius: 10px; 
+            display: flex; justify-content: space-between; align-items: center; border: 1px solid #333;
+        }
+        .history-info { cursor: pointer; flex-grow: 1; }
+        .btn-delete { 
+            background: transparent; color: #ff4444; width: auto; padding: 5px 10px; 
+            font-size: 18px; opacity: 0.6; 
+        }
+        .btn-delete:hover { opacity: 1; }
+        
+        .loading { 
+            display: none; text-align: center; margin: 20px 0; color: var(--ai-color);
+            font-size: 14px;
+        }
+        .spinner {
+            border: 3px solid rgba(157,0,255,0.3);
+            border-top: 3px solid var(--ai-color);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>👁️ SPY ADMIN AI</h1>
-
-        <div class="ai-container">
-            <button class="btn-ai-main" onclick="toggleAI()">🤖 ГЕНЕРУВАТИ САЙТ (Gemini 2.0)</button>
-            <div id="ai-form" style="display: none;">
-                <textarea id="ai-prompt" placeholder="Опишіть тематику сайту (напр. Розіграш iPhone 15, сайт банку, страшний квест)"></textarea>
-                <button onclick="runAIGeneration()" style="background: var(--neon); color: #000;">ЗАПУСТИТИ ШІ</button>
+        <div class="top-bar">
+            <div class="lang-bar">
+                <button class="lang-btn active" onclick="setLang('uk')">UA</button>
+                <button class="lang-btn" onclick="setLang('ru')">RU</button>
+                <button class="lang-btn" onclick="setLang('en')">EN</button>
+                <button class="lang-btn" onclick="setLang('ja')">JP</button>
             </div>
-            <div id="ai-status"></div>
+            <button class="ai-btn" onclick="openAIModal()">
+                <span>🤖</span> AI Сайт
+            </button>
         </div>
 
+        <h1 id="t-title">👁️ SPY CONTROL</h1>
+        
         <div id="setup-step">
-            <input type="text" id="imgUrl" placeholder="URL Картинки (необов'язково)">
+            <input type="text" id="imgUrl" placeholder="URL Картинки">
             <input type="text" id="sndUrl" placeholder="URL Звуку (.mp3)" value="https://www.myinstants.com/media/sounds/scream.mp3">
-            <button class="btn-create" onclick="createLink()">СТВОРИТИ ПАСТКУ ВРУЧНУ</button>
+            <button class="btn-create" onclick="createLink()" id="t-btn-create">СТВОРИТИ ПАСТКУ</button>
         </div>
 
         <div id="control-panel" style="display: none;">
             <div class="link-box">
-                <div style="color: #666; margin-bottom: 5px;">ПОСИЛАННЯ ДЛЯ ЖЕРТВИ:</div>
-                <a id="victim-link" href="#" target="_blank" style="color: var(--neon); text-decoration: none;">...</a>
+                <a id="victim-link" href="#" target="_blank" style="color: #4db8ff; text-decoration: none;">...</a>
             </div>
             
-            <div id="users-list" style="margin-bottom: 10px;"></div>
+            <div style="background: #1c1c21; padding: 15px; border-radius: 12px;">
+                <label id="t-update-label" style="color: var(--neon);">ОНОВИТИ МЕДІА</label>
+                <input type="text" id="newImgUrl" placeholder="Новий URL картинки">
+                <input type="text" id="newSndUrl" placeholder="Новий URL звуку">
+                <button onclick="updateMedia()" class="btn-update" id="t-btn-update">ОНОВИТИ ДЛЯ ВСІХ</button>
+            </div>
+
+            <div id="live-users-panel">
+                <div id="users-list"></div>
+            </div>
+
             <button id="scare-btn" class="btn-scare" onclick="trigger()">НАЛЯКАТИ 💀</button>
-            
-            <button onclick="location.reload()" style="background: #222; margin-top: 15px; font-size: 12px;">⬅ НАЗАД ДО ІСТОРІЇ</button>
+            <button onclick="location.reload()" style="background: transparent; color: #555; margin-top: 15px; font-size: 13px;" id="t-btn-back">⬅ Меню</button>
         </div>
 
         <div id="history-panel">
-            <h3 style="color: #444; font-size: 12px; margin-top: 20px;">ОСТАННІ СЕСІЇ</h3>
+            <h3 id="t-history" style="color: #555; font-size: 14px; margin-top: 30px;">ІСТОРІЯ СЕСІЙ</h3>
             <div id="history-list"></div>
+        </div>
+    </div>
+
+    <!-- AI Modal -->
+    <div id="aiModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">🤖 AI Генератор сайтів</h3>
+                <button class="close-modal" onclick="closeAIModal()">×</button>
+            </div>
+            
+            <p style="color: #aaa; font-size: 13px; margin-bottom: 20px;">
+                Опишіть тему для сайту (жахи, комедія, містика, техно, природа, музика, космос, спорт, тощо)
+            </p>
+            
+            <textarea id="aiTheme" placeholder="Наприклад: Страшний сайт з привидами та жахливими звуками..."></textarea>
+            
+            <input type="text" id="aiSoundUrl" placeholder="URL звуку (необов'язково)" value="https://www.myinstants.com/media/sounds/scream.mp3">
+            
+            <button class="btn-ai" onclick="generateAISite()" id="t-btn-ai-generate">
+                🚀 Згенерувати AI сайт
+            </button>
+            
+            <div class="loading" id="aiLoading">
+                <div class="spinner"></div>
+                <p>AI генерує унікальний сайт...</p>
+            </div>
+            
+            <div id="aiResult" style="display: none; margin-top: 20px;">
+                <div class="link-box ai-link-box">
+                    <a id="aiSiteLink" href="#" target="_blank" style="color: var(--ai-color); text-decoration: none;">...</a>
+                </div>
+                <button onclick="copyAILink()" style="background: #333; color: white; margin-top: 10px; font-size: 12px;">
+                    📋 Копіювати посилання
+                </button>
+            </div>
+            
+            <div class="ai-sites-list" id="aiSitesList">
+                <h4 style="color: #777; font-size: 12px; margin-bottom: 10px;">Ранее згенеровані сайти:</h4>
+                <!-- AI sites will be loaded here -->
+            </div>
         </div>
     </div>
 
@@ -103,12 +232,173 @@
     <script>
         const socket = io();
         let currentSessionId = null;
+        let aiSites = [];
 
-        window.onload = loadHistory;
+        const i18n = {
+            uk: { 
+                title: "👁️ SPY CONTROL", create: "СТВОРИТИ ПАСТКУ", update: "ОНОВИТИ МЕДІА", 
+                btnUpdate: "ОНОВИТИ ДЛЯ ВСІХ", scare: "НАЛЯКАТИ 💀", back: "⬅ Меню", 
+                history: "ІСТОРІЯ СЕСІЙ", delConfirm: "Видалити цю сесію?",
+                aiTitle: "🤖 AI Генератор сайтів", aiGenerate: "🚀 Згенерувати AI сайт",
+                aiDelete: "Видалити AI сайт?"
+            },
+            ru: { 
+                title: "👁️ SPY CONTROL", create: "СОЗДАТЬ ЛОВУШКУ", update: "ОБНОВИТЬ МЕДИА", 
+                btnUpdate: "ОБНОВИТЬ ДЛЯ ВСЕХ", scare: "ИСПУГАТЬ 💀", back: "⬅ Меню", 
+                history: "ИСТОРИЯ СЕССИЙ", delConfirm: "Удалить эту сессию?",
+                aiTitle: "🤖 AI Генератор сайтов", aiGenerate: "🚀 Сгенерировать AI сайт",
+                aiDelete: "Удалить AI сайт?"
+            },
+            en: { 
+                title: "👁️ SPY CONTROL", create: "CREATE TRAP", update: "UPDATE MEDIA", 
+                btnUpdate: "UPDATE FOR ALL", scare: "SCARE 'EM 💀", back: "⬅ Menu", 
+                history: "SESSION HISTORY", delConfirm: "Delete this session?",
+                aiTitle: "🤖 AI Website Generator", aiGenerate: "🚀 Generate AI Website",
+                aiDelete: "Delete AI website?"
+            },
+            ja: { 
+                title: "👁️ スパイコントロール", create: "トラップを作成", update: "メディアを更新", 
+                btnUpdate: "全員を更新", scare: "怖がらせる 💀", back: "⬅ メニュー", 
+                history: "セッション履歴", delConfirm: "このセッションを削除しますか？",
+                aiTitle: "🤖 AIウェブサイト生成", aiGenerate: "🚀 AIサイトを生成",
+                aiDelete: "AIサイトを削除しますか？"
+            }
+        };
 
-        function toggleAI() {
-            const form = document.getElementById('ai-form');
-            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        function setLang(lang) {
+            document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('t-title').innerText = i18n[lang].title;
+            document.getElementById('t-btn-create').innerText = i18n[lang].create;
+            document.getElementById('t-update-label').innerText = i18n[lang].update;
+            document.getElementById('t-btn-update').innerText = i18n[lang].btnUpdate;
+            document.getElementById('t-btn-back').innerText = i18n[lang].back;
+            document.getElementById('t-history').innerText = i18n[lang].history;
+            document.getElementById('t-btn-ai-generate').innerText = i18n[lang].aiGenerate;
+            document.querySelector('.modal-title').innerText = i18n[lang].aiTitle;
+            window.currentLang = lang;
+        }
+        window.currentLang = 'uk';
+
+        window.onload = function() {
+            loadHistory();
+            loadAISites();
+        };
+
+        function openAIModal() {
+            document.getElementById('aiModal').style.display = 'flex';
+        }
+
+        function closeAIModal() {
+            document.getElementById('aiModal').style.display = 'none';
+        }
+
+        async function generateAISite() {
+            const theme = document.getElementById('aiTheme').value.trim();
+            const soundUrl = document.getElementById('aiSoundUrl').value.trim();
+            
+            if (!theme || theme.length < 3) {
+                alert('Будь ласка, введіть тему (мінімум 3 символи)');
+                return;
+            }
+            
+            const loading = document.getElementById('aiLoading');
+            const result = document.getElementById('aiResult');
+            
+            loading.style.display = 'block';
+            result.style.display = 'none';
+            
+            try {
+                const response = await fetch('/generate-site', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ theme, soundUrl })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const linkElement = document.getElementById('aiSiteLink');
+                    linkElement.href = data.directUrl;
+                    linkElement.innerText = data.directUrl;
+                    
+                    result.style.display = 'block';
+                    
+                    // Додаємо до списку
+                    loadAISites();
+                    
+                    // Очищаємо поля
+                    document.getElementById('aiTheme').value = '';
+                } else {
+                    alert('Помилка генерації: ' + (data.error || 'Невідома помилка'));
+                }
+            } catch (error) {
+                alert('Помилка підключення до сервера');
+                console.error(error);
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        async function loadAISites() {
+            try {
+                const response = await fetch('/ai-sites');
+                aiSites = await response.json();
+                
+                const container = document.getElementById('aiSitesList');
+                const header = '<h4 style="color: #777; font-size: 12px; margin-bottom: 10px;">Ранее згенеровані сайти:</h4>';
+                
+                if (aiSites.length === 0) {
+                    container.innerHTML = header + '<p style="color: #555; font-size: 11px;">Немає згенерованих сайтів</p>';
+                    return;
+                }
+                
+                let html = header;
+                aiSites.forEach(site => {
+                    html += `
+                        <div class="ai-site-item">
+                            <div class="ai-site-info" onclick="window.open('${site.url}', '_blank')">
+                                <div class="ai-site-theme">${site.theme.substring(0, 30)}${site.theme.length > 30 ? '...' : ''}</div>
+                                <div class="ai-site-date">${site.createdAt}</div>
+                            </div>
+                            <button class="btn-delete-ai" onclick="deleteAISite('${site.id}', event)">
+                                🗑️
+                            </button>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+            } catch (error) {
+                console.error('Error loading AI sites:', error);
+            }
+        }
+
+        async function deleteAISite(siteId, event) {
+            event.stopPropagation();
+            
+            if (!confirm(i18n[window.currentLang].aiDelete)) return;
+            
+            try {
+                const response = await fetch(`/ai-site/${siteId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    loadAISites();
+                }
+            } catch (error) {
+                console.error('Error deleting AI site:', error);
+            }
+        }
+
+        function copyAILink() {
+            const link = document.getElementById('aiSiteLink').href;
+            navigator.clipboard.writeText(link)
+                .then(() => alert('Посилання скопійовано!'))
+                .catch(() => alert('Помилка копіювання'));
         }
 
         async function createLink() {
@@ -124,55 +414,45 @@
             activateRoom(data.id);
         }
 
-        async function runAIGeneration() {
-            const prompt = document.getElementById('ai-prompt').value;
-            const status = document.getElementById('ai-status');
-            if(!prompt) return alert("Введіть опис!");
+        async function updateMedia() {
+            if (!currentSessionId) return;
+            const image = document.getElementById('newImgUrl').value.trim();
+            const sound = document.getElementById('newSndUrl').value.trim();
+            
+            const body = {};
+            if (image) body.image = image;
+            if (sound) body.sound = sound;
 
-            status.innerText = "⏳ Gemini 2.0 генерує код...";
-
-            // Якщо сесії ще немає, створюємо її
-            if (!currentSessionId) {
-                const res = await fetch('/create', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ image: '', sound: document.getElementById('sndUrl').value })
-                });
-                const data = await res.json();
-                currentSessionId = data.id;
-                saveToHistory(currentSessionId);
-            }
-
-            try {
-                const res = await fetch('/generate-ai-page', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ sessionId: currentSessionId, prompt })
-                });
-                const data = await res.json();
-                if(data.success) {
-                    status.innerHTML = `✅ Готово! <br><a href="${data.url}" target="_blank" style="color:var(--neon)">ВІДКРИТИ САЙТ</a>`;
-                    activateRoom(currentSessionId, data.url);
-                } else {
-                    status.innerText = "❌ Помилка: " + data.error;
-                }
-            } catch (e) {
-                status.innerText = "❌ Сервер не відповідає";
-            }
+            await fetch(`/update-session/${currentSessionId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            alert('Updated!');
         }
 
-        function activateRoom(id, customPath = null) {
+        function activateRoom(id) {
             currentSessionId = id;
             document.getElementById('setup-step').style.display = 'none';
             document.getElementById('history-panel').style.display = 'none';
             document.getElementById('control-panel').style.display = 'block';
-            
-            const path = customPath || `/victim.html?id=${id}`;
-            const link = window.location.origin + path;
-            document.getElementById('victim-link').href = path;
+            const link = `${window.location.origin}/victim.html?id=${id}`;
+            document.getElementById('victim-link').href = link;
             document.getElementById('victim-link').innerText = link;
-            
             socket.emit('join-room-admin', id);
+        }
+
+        async function deleteSession(id, event) {
+            event.stopPropagation();
+            if (!confirm(i18n[window.currentLang].delConfirm)) return;
+
+            // Запит на сервер для видалення (якщо сервер підтримує)
+            await fetch(`/delete-session/${id}`, { method: 'DELETE' }).catch(() => {});
+
+            let list = JSON.parse(localStorage.getItem('prank_rooms') || '[]');
+            list = list.filter(item => item.id !== id);
+            localStorage.setItem('prank_rooms', JSON.stringify(list));
+            loadHistory();
         }
 
         function trigger() {
@@ -184,33 +464,56 @@
             const scareBtn = document.getElementById('scare-btn');
             if (users.length > 0) {
                 scareBtn.style.display = 'block';
-                listDiv.innerHTML = users.map(u => `<div style="color:var(--neon); font-size:12px; padding:5px; border-bottom:1px solid #222;">📱 ${u.device} (${u.ip})</div>`).join('');
+                listDiv.innerHTML = users.map(u => `<div style="font-size:10px; color:var(--neon); margin-top:5px;">● Online: ${u.device}</div>`).join('');
             } else {
                 scareBtn.style.display = 'none';
-                listDiv.innerHTML = '<div style="color:#444; font-size:12px;">Очікування підключень...</div>';
+                listDiv.innerHTML = '';
             }
         });
 
         function saveToHistory(id) {
-            let list = JSON.parse(localStorage.getItem('prank_rooms') || '[]');
+            const list = JSON.parse(localStorage.getItem('prank_rooms') || '[]');
             if (!list.find(i => i.id === id)) {
                 list.unshift({ id, date: new Date().toLocaleString() });
-                localStorage.setItem('prank_rooms', JSON.stringify(list.slice(0, 10)));
+                localStorage.setItem('prank_rooms', JSON.stringify(list.slice(0, 20)));
             }
         }
 
         async function loadHistory() {
             const list = JSON.parse(localStorage.getItem('prank_rooms') || '[]');
             const container = document.getElementById('history-list');
+            container.innerHTML = '';
+            
             if (list.length === 0) return;
 
+            const res = await fetch('/check-status', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ ids: list.map(i => i.id) })
+            }).catch(() => ({ json: () => [] }));
+            
+            const statuses = await res.json();
+
             list.forEach(item => {
+                const status = statuses.find(s => s.id === item.id) || { count: 0 };
                 const div = document.createElement('div');
                 div.className = 'history-item';
-                div.innerHTML = `<div style="cursor:pointer" onclick="activateRoom('${item.id}')">🆔 ...${item.id.slice(-6)} <span style="color:#555; font-size:10px;">${item.date}</span></div>`;
+                div.innerHTML = `
+                    <div class="history-info" onclick="activateRoom('${item.id}')">
+                        <span style="font-size:12px;">ID: ...${item.id.slice(-6)}</span>
+                        <span style="color:${status.count > 0 ? 'var(--neon)' : '#555'}; font-size:10px; margin-left:10px;">● ${status.count}</span>
+                    </div>
+                    <button class="btn-delete" onclick="deleteSession('${item.id}', event)">🗑️</button>
+                `;
                 container.appendChild(div);
             });
         }
+
+        // Закриття модального вікна по кліку на фон
+        document.getElementById('aiModal').addEventListener('click', function(e) {
+            if (e.target === this) closeAIModal();
+        });
     </script>
 </body>
 </html>
+[file content end]
