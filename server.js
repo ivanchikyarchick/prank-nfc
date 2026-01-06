@@ -11,12 +11,12 @@ app.use(express.static('public'));
 app.use(express.json());
 
 const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
-// Ensure upload directory exists
+// Переконуємось, що папка для завантажень існує
 if (!fs.existsSync(UPLOAD_DIR)) {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
-// Multer storage
+// Налаштування Multer (збереження файлів)
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, UPLOAD_DIR);
@@ -40,8 +40,6 @@ function fileToPublicUrl(filename) {
 }
 
 function addFilesToSessionArray(arr, incomingFiles, type) {
-    // arr: existing array on session
-    // incomingFiles: array of multer file objects
     incomingFiles.forEach(f => {
         arr.push({
             filename: f.filename,
@@ -50,10 +48,6 @@ function addFilesToSessionArray(arr, incomingFiles, type) {
             uploadedAt: new Date().toLocaleString('uk-UA')
         });
     });
-}
-
-function enforceLimit(arr, limit) {
-    return arr.length <= limit;
 }
 
 function parseDevice(ua) {
@@ -75,7 +69,7 @@ function deleteFileFromDisk(filename) {
     });
 }
 
-// --- Create session via links (existing behavior) ---
+// --- Створення сесії через посилання ---
 app.post('/create', (req, res) => {
     const { sound = '', image = '' } = req.body;
     const id = uuidv4();
@@ -105,7 +99,7 @@ app.post('/create', (req, res) => {
     res.json({ id, createdAt });
 });
 
-// --- Create session via file upload ---
+// --- Створення сесії із завантаженням файлів ---
 app.post('/create-upload', upload.fields([{ name: 'images', maxCount: 10 }, { name: 'sounds', maxCount: 10 }]), (req, res) => {
     const id = uuidv4();
     const createdAt = new Date().toLocaleString('uk-UA');
@@ -118,9 +112,8 @@ app.post('/create-upload', upload.fields([{ name: 'images', maxCount: 10 }, { na
     const images = (req.files && req.files['images']) || [];
     const sounds = (req.files && req.files['sounds']) || [];
 
-    // enforce counts
+    // Перевірка кількості
     if (images.length > 10 || sounds.length > 10) {
-        // Cleanup uploaded files if any (since we reject)
         [...images, ...sounds].forEach(f => {
             fs.unlinkSync(path.join(UPLOAD_DIR, f.filename));
         });
@@ -149,7 +142,7 @@ app.post('/create-upload', upload.fields([{ name: 'images', maxCount: 10 }, { na
     res.json({ id, createdAt });
 });
 
-// Оновлення медіа (через посилання — як раніше)
+// Оновлення медіа (Посилання)
 app.post('/update-session/:id', (req, res) => {
     const id = req.params.id;
     const { sound, image } = req.body;
@@ -163,7 +156,6 @@ app.post('/update-session/:id', (req, res) => {
 
     sessions[id].lastActiveAt = Date.now();
 
-    // Determine current image/sound to send (if files exist prefer last uploaded)
     const currentSound = (sessions[id].soundsFiles && sessions[id].soundsFiles.length) ? sessions[id].soundsFiles[sessions[id].soundsFiles.length - 1].url : (sessions[id].sound || '');
     const currentImage = (sessions[id].imagesFiles && sessions[id].imagesFiles.length) ? sessions[id].imagesFiles[sessions[id].imagesFiles.length - 1].url : (sessions[id].image || '');
 
@@ -175,25 +167,22 @@ app.post('/update-session/:id', (req, res) => {
     res.json({ success: true, session: sessions[id] });
 });
 
-// Додати зображення у сесію (upload more)
+// Додати зображення у сесію
 app.post('/session/:id/upload-images', upload.array('images', 10), (req, res) => {
     const id = req.params.id;
     if (!sessions[id]) {
-        // cleanup uploaded
         (req.files || []).forEach(f => fs.unlinkSync(path.join(UPLOAD_DIR, f.filename)));
         return res.status(404).json({ error: 'Session not found' });
     }
     const incoming = req.files || [];
     const currentCount = sessions[id].imagesFiles.length;
     if (currentCount + incoming.length > 10) {
-        // cleanup uploaded
         incoming.forEach(f => fs.unlinkSync(path.join(UPLOAD_DIR, f.filename)));
         return res.status(400).json({ error: 'Images limit exceeded (max 10)' });
     }
     addFilesToSessionArray(sessions[id].imagesFiles, incoming, 'image');
     sessions[id].lastActiveAt = Date.now();
 
-    // notify victims with latest image if any
     const currentImage = sessions[id].imagesFiles.length ? sessions[id].imagesFiles[sessions[id].imagesFiles.length - 1].url : sessions[id].image || '';
     io.to(id).emit('update-media', {
         sound: (sessions[id].soundsFiles.length ? sessions[id].soundsFiles[sessions[id].soundsFiles.length - 1].url : sessions[id].sound || ''),
@@ -231,7 +220,7 @@ app.post('/session/:id/upload-sounds', upload.array('sounds', 10), (req, res) =>
 // Видалення файлу з сесії
 app.delete('/session/:id/file', async (req, res) => {
     const id = req.params.id;
-    const { filename, type } = req.body; // type: 'image' or 'sound'
+    const { filename, type } = req.body;
     if (!sessions[id]) return res.status(404).json({ error: 'Session not found' });
     if (!filename) return res.status(400).json({ error: 'filename required' });
 
@@ -241,10 +230,8 @@ app.delete('/session/:id/file', async (req, res) => {
     const idx = arr.findIndex(f => f.filename === filename);
     if (idx === -1) return res.status(404).json({ error: 'File not found in session' });
 
-    // remove from array
     const [removed] = arr.splice(idx, 1);
 
-    // delete from disk
     try {
         await deleteFileFromDisk(removed.filename);
     } catch (e) {
@@ -253,7 +240,6 @@ app.delete('/session/:id/file', async (req, res) => {
 
     sessions[id].lastActiveAt = Date.now();
 
-    // notify clients
     const currentSound = sessions[id].soundsFiles.length ? sessions[id].soundsFiles[sessions[id].soundsFiles.length - 1].url : (sessions[id].sound || '');
     const currentImage = sessions[id].imagesFiles.length ? sessions[id].imagesFiles[sessions[id].imagesFiles.length - 1].url : (sessions[id].image || '');
     io.to(id).emit('update-media', { sound: currentSound, image: currentImage });
@@ -261,7 +247,7 @@ app.delete('/session/:id/file', async (req, res) => {
     res.json({ success: true });
 });
 
-// Одна сесія (для сумісності)
+// Отримати дані однієї сесії
 app.get('/session/:id', (req, res) => {
     const session = sessions[req.params.id];
     if (session) {
@@ -277,12 +263,11 @@ app.get('/session/:id', (req, res) => {
     }
 });
 
-// ВСІ сесії з деталями та творцем
+// Список всіх сесій (для моніторингу)
 app.get('/sessions', (req, res) => {
     const result = Object.keys(sessions).map(id => {
         const s = sessions[id];
         const onlineCount = Object.values(activeVictims).filter(v => v.roomId === id).length;
-
         return {
             id,
             createdAt: s.createdAt,
@@ -296,16 +281,14 @@ app.get('/sessions', (req, res) => {
             creator: s.creator || { ip: 'Unknown', device: 'Unknown', userAgent: 'Unknown' }
         };
     });
-
     result.sort((a, b) => b.lastActiveAt - a.lastActiveAt);
     res.json(result);
 });
 
-// Видалення сесії та пов'язаних файлів
+// Видалення сесії
 app.delete('/session/:id', async (req, res) => {
     const id = req.params.id;
     if (sessions[id]) {
-        // delete files on disk
         const toDelete = [
             ...(sessions[id].imagesFiles || []).map(f => f.filename),
             ...(sessions[id].soundsFiles || []).map(f => f.filename)
@@ -324,7 +307,7 @@ app.delete('/session/:id', async (req, res) => {
     }
 });
 
-// Сумісність з admin.html
+// Перевірка статусу (для admin.html)
 app.post('/check-status', (req, res) => {
     const { ids } = req.body;
     const result = ids.map(id => {
@@ -341,14 +324,23 @@ app.post('/check-status', (req, res) => {
     res.json(result);
 });
 
-// --- SOCKET.IO ---
+// --- SOCKET.IO (ЗВИЧАЙНИЙ І БОМБАРДУВАННЯ) ---
 io.on('connection', (socket) => {
 
+    // 1. Вхід Адміна
     socket.on('join-room-admin', (roomId) => {
         socket.join(roomId);
         sendVictimList(roomId);
     });
 
+    // 2. БОМБАРДУВАННЯ (РЕДІРЕКТ)
+    socket.on('trigger-redirect', (data) => {
+        const { roomId, url } = data;
+        // Відправляємо всім у кімнаті команду на перехід
+        io.to(roomId).emit('force-redirect', { url });
+    });
+
+    // 3. Вхід Жертви
     socket.on('join-room-victim', (data) => {
         const roomId = data.roomId;
         socket.join(roomId);
@@ -371,6 +363,7 @@ io.on('connection', (socket) => {
         sendVictimList(roomId);
         io.to(roomId).emit('admin-alert', { msg: 'NEW VICTIM!' });
 
+        // Якщо в сесії є файли, відправляємо їх жертві одразу
         if (sessions[roomId]) {
             const currentSound = sessions[roomId].soundsFiles && sessions[roomId].soundsFiles.length ? sessions[roomId].soundsFiles[sessions[roomId].soundsFiles.length - 1].url : (sessions[roomId].sound || '');
             const currentImage = sessions[roomId].imagesFiles && sessions[roomId].imagesFiles.length ? sessions[roomId].imagesFiles[sessions[roomId].imagesFiles.length - 1].url : (sessions[roomId].image || '');
@@ -381,10 +374,12 @@ io.on('connection', (socket) => {
         }
     });
 
+    // 4. Скрімер
     socket.on('trigger-scare', (roomId) => {
         io.to(roomId).emit('play-sound');
     });
 
+    // 5. Відключення
     socket.on('disconnect', () => {
         const victim = activeVictims[socket.id];
         if (victim) {
