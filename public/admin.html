@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SPY CONTROL v4.5 Ultra</title>
+    <title>SPY CONTROL v5.2 Stable</title>
     <style>
         :root {
             --neon: #00ffcc;
             --neon-secondary: #00aaff;
             --danger: #ff3366;
             --bg-dark: #050507;
-            --card-bg: rgba(20, 20, 25, 0.9);
+            --card-bg: rgba(20, 20, 25, 0.95);
             --text-color: #e0e0e0;
-            --disabled: #444;
+            --disabled: #333;
         }
         body { 
             background-color: var(--bg-dark); color: var(--text-color); 
@@ -27,6 +27,7 @@
             border: 1px solid rgba(0, 255, 204, 0.15);
             backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
             box-sizing: border-box;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
         .lang-bar { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
         .lang-btn { 
@@ -37,14 +38,43 @@
 
         h1 { font-size: 22px; text-transform: uppercase; text-align: center; color: var(--neon); letter-spacing: 2px; margin-bottom: 20px; }
 
-        .input-box { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 15px; margin-bottom: 10px; border: 1px solid #222; }
-        .input-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .input-header label { font-size: 11px; font-weight: bold; color: var(--neon-secondary); }
+        .input-box { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 15px; margin-bottom: 10px; border: 1px solid #222; position: relative; }
         
         input[type="text"] { 
             width: 100%; padding: 12px; background: #000; border: 1px solid #333; 
-            color: white; border-radius: 8px; box-sizing: border-box; font-size: 13px; margin-top: 5px;
+            color: white; border-radius: 8px; box-sizing: border-box; font-size: 13px; margin-top: 5px; margin-bottom: 5px;
         }
+
+        .input-wrapper {
+            display: flex; gap: 8px; align-items: center; position: relative;
+        }
+
+        .sound-menu-btn {
+            background: #222; border: 1px solid var(--neon-secondary); color: var(--neon-secondary);
+            border-radius: 8px; min-width: 42px; height: 42px; display: flex;
+            justify-content: center; align-items: center; cursor: pointer; font-size: 20px; margin-top: 2px;
+        }
+        .sound-menu-btn:hover { background: #333; }
+
+        .sound-dropdown {
+            display: none; position: absolute; top: 55px; right: 0; width: 100%;
+            background: #111; border: 1px solid var(--neon-secondary); border-radius: 10px;
+            z-index: 100; max-height: 250px; overflow-y: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+        .sound-dropdown.show { display: block; }
+        
+        .sound-item {
+            padding: 10px; border-bottom: 1px solid #222; font-size: 12px; cursor: pointer;
+            color: #ccc; display: flex; justify-content: space-between; align-items: center;
+        }
+        .sound-item:hover { background: var(--neon-secondary); color: #000; }
+        
+        /* Кнопка предпрослушки */
+        .preview-btn {
+            font-size: 10px; padding: 2px 6px; border: 1px solid #555; border-radius: 4px; 
+            background: black; color: white; margin-left: 10px;
+        }
+        .preview-btn:hover { background: white; color: black; }
 
         button.main-btn { 
             width: 100%; padding: 15px; border: none; border-radius: 12px; font-weight: bold;
@@ -53,18 +83,12 @@
         .btn-create { background: var(--neon); color: black; }
         .btn-update { background: #222; color: var(--neon); font-size: 12px; border: 1px solid var(--neon); }
         
-        /* Кнопка напугать */
         .btn-scare { 
-            background: var(--disabled); 
-            color: #777; 
-            height: 80px; 
-            font-size: 22px; 
-            cursor: not-allowed;
+            background: var(--disabled); color: #555; height: 80px; font-size: 22px; 
+            cursor: not-allowed; opacity: 0.6;
         }
         .btn-scare.ready { 
-            background: var(--danger); 
-            color: white; 
-            cursor: pointer; 
+            background: var(--danger); color: white; cursor: pointer; opacity: 1;
             animation: pulse 2s infinite; 
         }
         
@@ -72,7 +96,6 @@
 
         .link-box { background: #000; padding: 12px; border-radius: 10px; border: 1px dashed #444; margin: 15px 0; word-break: break-all; font-size: 12px; }
         
-        /* История */
         .history-item { 
             display: flex; justify-content: space-between; align-items: center;
             background: #111; padding: 10px; border-radius: 10px; margin-bottom: 5px; cursor: pointer; 
@@ -80,9 +103,8 @@
         .history-item:hover { background: #1a1a1a; border-left: 2px solid var(--neon); }
         .del-btn { 
             color: var(--danger); background: rgba(255,0,0,0.1); border: 1px solid rgba(255,0,0,0.2); 
-            font-size: 14px; cursor: pointer; padding: 4px 10px; border-radius: 5px; margin-left: 10px;
+            font-size: 14px; cursor: pointer; padding: 4px 10px; border-radius: 5px;
         }
-        .del-btn:hover { background: var(--danger); color: white; }
     </style>
 </head>
 <body>
@@ -104,7 +126,11 @@
 
             <div class="input-box">
                 <label id="t-l-snd" style="font-size: 11px; font-weight: bold; color: var(--neon-secondary);">ЗВУК (URL .MP3)</label>
-                <input type="text" id="sndUrl" value="https://www.myinstants.com/media/sounds/scream.mp3">
+                <div class="input-wrapper">
+                    <input type="text" id="sndUrl" value="https://soundbible.com/grab.php?id=1549&type=mp3">
+                    <div class="sound-menu-btn" onclick="toggleSoundMenu('create')">☰</div>
+                    <div id="sound-dropdown-create" class="sound-dropdown"></div>
+                </div>
             </div>
 
             <button class="main-btn btn-create" onclick="createLink()" id="t-btn-create">СТВОРИТИ ПАСТКУ</button>
@@ -114,9 +140,16 @@
             <div class="link-box"><a id="victim-link" href="#" target="_blank" style="color: var(--neon-secondary);">...</a></div>
             
             <div class="input-box" style="border-color: var(--neon);">
-                <label id="t-update-title" style="font-size:10px; color:var(--neon); display:block; margin-bottom:5px;">ОНОВИТИ (URL):</label>
+                <label id="t-update-title" style="font-size:10px; color:var(--neon); display:block; margin-bottom:5px;">ОНОВИТИ МЕДІА (URL):</label>
                 <input type="text" id="updImgUrl" placeholder="Нове зображення URL">
-                <button class="main-btn btn-update" onclick="updateMedia()" id="t-btn-update">ОНОВИТИ</button>
+                
+                <div class="input-wrapper">
+                    <input type="text" id="updSndUrl" placeholder="Новий звук URL (.mp3)">
+                    <div class="sound-menu-btn" onclick="toggleSoundMenu('update')">☰</div>
+                    <div id="sound-dropdown-update" class="sound-dropdown"></div>
+                </div>
+
+                <button class="main-btn btn-update" onclick="updateMedia()" id="t-btn-update">ОНОВИТИ ВСЕ</button>
             </div>
 
             <div id="users-list"></div>
@@ -132,10 +165,82 @@
         </div>
     </div>
 
+    <audio id="preview-audio"></audio>
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
         let currentSessionId = null;
+
+        const sounds = [
+            { name: "Сафонов Оплатить", url: "https://www.myinstants.com/media/sounds/safonov-oplatit.mp3" },
+            { name: "Песенка power", url: "https://www.myinstants.com/media/sounds/power_2.mp3" },
+            { name: "Чугун", url: "https://www.myinstants.com/media/sounds/chugun.mp3" },
+            { name: "ПорнХаб", url: "https://www.myinstants.com/media/sounds/pornkhab_zv3cqBm.mp3" },
+            { name: "Крякалка ДПС", url: "https://www.myinstants.com/media/sounds/kriakalka-dps-no-2.mp3" },
+            { name: "ЁБ*ЫЙ В РООТ", url: "https://www.myinstants.com/media/sounds/iobanyi-v-rot.mp3" },
+            { name: "Выстрел из пистолета", url: "https://www.myinstants.com/media/sounds/vystrel-iz-pistoleta-tfu.mp3" },
+            { name: "го го го го", url: "https://www.myinstants.com/media/sounds/go-go-go-go.mp3" },
+            { name: "Дядя Саша пашол нафик", url: "https://www.myinstants.com/media/sounds/diadia-sasha-pashol-nafik-peredelka.mp3" },
+            { name: "Расстрелять", url: "https://www.myinstants.com/media/sounds/rasstreliat.mp3" },
+            { name: "Братиииш", url: "https://www.myinstants.com/media/sounds/bratiiish.mp3" },
+            { name: "Громкие стоны", url: "https://www.myinstants.com/media/sounds/shkola.mp3" },
+            { name: "Gugugaga", url: "https://www.myinstants.com/media/sounds/the-boss-baby-gugugaga.mp3" },
+            { name: "Пердёж", url: "https://www.myinstants.com/media/sounds/perdezh-700.mp3" },
+            { name: "Gey", url: "https://www.myinstants.com/media/sounds/gey.mp3" },
+            { name: "Визг свиньи", url: "https://www.myinstants.com/media/sounds/vizg-svini.mp3" },
+            { name: "Кимпиньтяо", url: "https://www.myinstants.com/media/sounds/kimpintiao_mN8pkFE.mp3" },
+            { name: "Гудок поезда", url: "https://www.myinstants.com/media/sounds/gudok-poezda.mp3" },
+        ];
+
+        function previewSound(url, e) {
+            e.stopPropagation();
+            const p = document.getElementById('preview-audio');
+            p.src = url;
+            p.volume = 0.5;
+            p.play().catch(err => alert("Ошибка воспроизведения. Ссылка недоступна."));
+        }
+
+        function renderSoundMenu(containerId, inputId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            sounds.forEach(sound => {
+                const item = document.createElement('div');
+                item.className = 'sound-item';
+                // Текст + кнопка Play
+                item.innerHTML = `
+                    <span onclick="selectSound('${inputId}', '${sound.url}', '${containerId}')" style="flex-grow:1">${sound.name}</span> 
+                    <button class="preview-btn" onclick="previewSound('${sound.url}', event)">▶</button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function selectSound(inputId, url, containerId) {
+            document.getElementById(inputId).value = url;
+            document.getElementById(containerId).classList.remove('show');
+        }
+
+        renderSoundMenu('sound-dropdown-create', 'sndUrl');
+        renderSoundMenu('sound-dropdown-update', 'updSndUrl');
+
+        function toggleSoundMenu(type) {
+            const createMenu = document.getElementById('sound-dropdown-create');
+            const updateMenu = document.getElementById('sound-dropdown-update');
+            if (type === 'create') {
+                updateMenu.classList.remove('show');
+                createMenu.classList.toggle('show');
+            } else if (type === 'update') {
+                createMenu.classList.remove('show');
+                updateMenu.classList.toggle('show');
+            }
+        }
+
+        window.onclick = function(event) {
+            if (!event.target.closest('.sound-menu-btn') && !event.target.closest('.preview-btn')) {
+                document.querySelectorAll('.sound-dropdown').forEach(m => m.classList.remove('show'));
+            }
+        }
 
         const i18n = {
             uk: { title: "👁️ SPY CONTROL", create: "СТВОРИТИ ПАСТКУ", img: "ЗОБРАЖЕННЯ", snd: "ЗВУК", update: "ОНОВИТИ", utitle: "ОНОВИТИ МЕДІА:", back: "⬅ МЕНЮ", hist: "ІСТОРІЯ", del: "Видалити?" },
@@ -159,33 +264,66 @@
             window.curL = l;
         }
 
+        function generateShortId() {
+            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+            let result = '';
+            for (let i = 0; i < 6; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
         async function createLink() {
             const img = document.getElementById('imgUrl').value.trim();
             const snd = document.getElementById('sndUrl').value.trim();
+            if(!img) return alert("Image URL is required!");
 
-            if(!img) return alert("URL Image!");
+            const shortId = generateShortId();
 
-            const res = await fetch('/create', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ image: img, sound: snd })
-            });
-            const data = await res.json();
-            saveHistory(data.id);
-            activateRoom(data.id);
+            try {
+                const res = await fetch('/create', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ image: img, sound: snd, customId: shortId })
+                });
+                
+                let id;
+                if(res.ok) {
+                    const data = await res.json();
+                    id = data.id || shortId; 
+                } else {
+                    id = shortId;
+                }
+                
+                saveHistory(id);
+                activateRoom(id);
+            } catch (e) {
+                saveHistory(shortId);
+                activateRoom(shortId);
+            }
         }
 
         async function updateMedia() {
             if(!currentSessionId) return;
             const img = document.getElementById('updImgUrl').value.trim();
-            if(!img) return;
+            const snd = document.getElementById('updSndUrl').value.trim();
+            
+            let updateData = {};
+            if(img) updateData.image = img;
+            if(snd) updateData.sound = snd;
 
-            await fetch(`/update-session/${currentSessionId}`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ image: img })
-            });
-            alert("OK");
+            if(Object.keys(updateData).length === 0) return alert("Enter URL to update!");
+
+            try {
+                await fetch(`/update-session/${currentSessionId}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(updateData)
+                });
+                alert("Updated!");
+            } catch (e) {
+                alert("Error updating: " + e);
+            }
         }
 
         function activateRoom(id) {
@@ -193,9 +331,11 @@
             document.getElementById('setup-step').style.display = 'none';
             document.getElementById('control-panel').style.display = 'block';
             document.getElementById('history-panel').style.display = 'none';
+            
             const link = `${window.location.origin}/victim.html?id=${id}`;
             document.getElementById('victim-link').href = link;
             document.getElementById('victim-link').innerText = link;
+            
             socket.emit('join-room-admin', id);
         }
 
@@ -216,7 +356,7 @@
                 const d = document.createElement('div');
                 d.className = 'history-item';
                 d.innerHTML = `
-                    <span style="flex-grow:1" onclick="activateRoom('${id}')">ID: ${id.slice(0,10)}...</span>
+                    <span style="flex-grow:1" onclick="activateRoom('${id}')">ID: ${id.slice(0,8)}...</span>
                     <button class="del-btn" onclick="delH('${id}', event)">✕</button>
                 `;
                 list.appendChild(d);
@@ -229,7 +369,7 @@
             let h = JSON.parse(localStorage.getItem('spy_h') || '[]');
             h = h.filter(i => i !== id);
             localStorage.setItem('spy_h', JSON.stringify(h));
-            loadHistory(); // Обновляем список сразу
+            loadHistory();
         }
 
         function trigger() { 
