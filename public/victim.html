@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title id="title">Нет подключения к интернету</title>
     <style>
         body {
@@ -15,6 +15,7 @@
             align-items: center;
             height: 100vh;
             overflow: hidden;
+            user-select: none;
         }
 
         @media (prefers-color-scheme: dark) {
@@ -28,90 +29,52 @@
         }
 
         /* Тот самый динозаврик */
-        .dino-container {
-            margin-bottom: 40px;
-        }
+        .dino-container { margin-bottom: 40px; }
 
         .dino-icon {
-            width: 72px;
-            height: 72px;
-            fill: #5f6368;
-            opacity: 0.8;
+            width: 72px; height: 72px; fill: #5f6368; opacity: 0.8;
         }
         @media (prefers-color-scheme: dark) {
             .dino-icon { fill: #bdc1c6; }
         }
 
         h1 {
-            font-size: 22px;
-            font-weight: 500;
-            color: #202124;
-            margin-bottom: 20px;
+            font-size: 22px; font-weight: 500; color: #202124; margin-bottom: 20px;
         }
         @media (prefers-color-scheme: dark) {
             h1 { color: #e8eaed; }
         }
 
-        p {
-            font-size: 14px;
-            line-height: 1.6;
-            margin-bottom: 10px;
-        }
-
-        ul {
-            margin: 0;
-            padding-left: 20px;
-            font-size: 14px;
-        }
-
+        p { font-size: 14px; line-height: 1.6; margin-bottom: 10px; }
+        ul { margin: 0; padding-left: 20px; font-size: 14px; }
         li { margin-bottom: 8px; }
 
         .error-code {
-            font-size: 12px;
-            margin-top: 30px;
-            text-transform: uppercase;
-            color: #70757a;
-            font-weight: 400;
+            font-size: 12px; margin-top: 30px; text-transform: uppercase;
+            color: #70757a; font-weight: 400;
         }
 
         .btn-reload {
-            background-color: #1a73e8;
-            color: white;
-            border: none;
-            padding: 10px 24px;
-            border-radius: 4px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            margin-top: 25px;
+            background-color: #1a73e8; color: white; border: none;
+            padding: 10px 24px; border-radius: 4px; font-size: 14px;
+            font-weight: 500; cursor: pointer; margin-top: 25px;
             transition: background-color 0.2s;
         }
         .btn-reload:hover { background-color: #185abc; }
 
         .details-button {
-            margin-top: 20px;
-            display: inline-block;
-            cursor: pointer;
-            color: #1a73e8;
-            font-size: 14px;
-            user-select: none;
+            margin-top: 20px; display: inline-block; cursor: pointer;
+            color: #1a73e8; font-size: 14px;
         }
 
-        #details-content {
-            display: none;
-            margin-top: 15px;
-            font-size: 13px;
-        }
+        #details-content { display: none; margin-top: 15px; font-size: 13px; }
 
+        /* Пранк-шар */
         #prank-view {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
             background: black no-repeat center center;
-            background-size: cover;
+            background-size: cover; /* Важливо для зображень */
             z-index: 9999;
         }
     </style>
@@ -144,42 +107,27 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
+        // --- TRANSLATIONS ---
         const translations = {
             uk: { 
-                title: "Немає підключення до Інтернету", 
-                h1: "Немає підключення до Інтернету", 
-                p1: "Спробуйте наступне:", 
-                l1: "Перевірте мережеві кабелі, модем і маршрутизатор.", 
-                l2: "Повторно підключіться до Wi-Fi.", 
-                details: "Докладніше",
-                btn: "Оновити" 
+                title: "Немає підключення до Інтернету", h1: "Немає підключення до Інтернету", 
+                p1: "Спробуйте наступне:", l1: "Перевірте мережеві кабелі, модем і маршрутизатор.", 
+                l2: "Повторно підключіться до Wi-Fi.", details: "Докладніше", btn: "Оновити" 
             },
             ru: { 
-                title: "Нет подключения к интернету", 
-                h1: "Нет подключения к интернету", 
-                p1: "Попробуйте сделать следующее:", 
-                l1: "Проверьте сетевые кабели, модем и маршрутизатор.", 
-                l2: "Подключитесь к сети Wi-Fi еще раз.", 
-                details: "Подробнее",
-                btn: "Обновить" 
+                title: "Нет подключения к интернету", h1: "Нет подключения к интернету", 
+                p1: "Попробуйте сделать следующее:", l1: "Проверьте сетевые кабели, модем и маршрутизатор.", 
+                l2: "Подключитесь к сети Wi-Fi еще раз.", details: "Подробнее", btn: "Обновить" 
             },
             en: { 
-                title: "No internet", 
-                h1: "No internet", 
-                p1: "Try:", 
-                l1: "Checking the network cables, modem, and router.", 
-                l2: "Reconnecting to Wi-Fi.", 
-                details: "Details",
-                btn: "Reload" 
+                title: "No internet", h1: "No internet", p1: "Try:", 
+                l1: "Checking the network cables, modem, and router.", l2: "Reconnecting to Wi-Fi.", 
+                details: "Details", btn: "Reload" 
             },
             ja: { 
-                title: "インターネットに接続されていません", 
-                h1: "インターネットに接続されていません", 
-                p1: "次のことをお試しください：", 
-                l1: "ネットワーク ケーブル、モデм、ルーターを確認する", 
-                l2: "Wi-Fi に再接続する", 
-                details: "詳細",
-                btn: "再読み込み" 
+                title: "インターネットに接続されていません", h1: "インターネットに接続されていません", 
+                p1: "次のことをお試しください：", l1: "ネットワーク ケーブル、モデм、ルーターを確認する", 
+                l2: "Wi-Fi に再接続する", details: "詳細", btn: "再読み込み" 
             }
         };
 
@@ -199,32 +147,56 @@
             content.style.display = content.style.display === 'block' ? 'none' : 'block';
         }
 
+        // --- SOCKET LOGIC ---
         const socket = io();
         const id = new URLSearchParams(window.location.search).get('id');
         let audio = new Audio();
         const prankView = document.getElementById('prank-view');
 
+        // Unlock audio context on first interaction
         function activatePrank() {
-            audio.play().then(() => { audio.pause(); audio.currentTime = 0; }).catch(()=>{});
+            audio.play().then(() => { 
+                audio.pause(); 
+                audio.currentTime = 0; 
+            }).catch(()=>{});
         }
-
         document.body.addEventListener('click', activatePrank, { once: true });
         document.body.addEventListener('touchstart', activatePrank, { once: true });
 
-        socket.emit('join-room-victim', { roomId: id, userAgent: navigator.userAgent });
-
-        socket.on('update-media', (data) => {
-            if (data.image) prankView.style.backgroundImage = `url('${data.image}')`;
-            if (data.sound) audio.src = data.sound;
+        // Join Room
+        socket.emit('join-room-victim', { 
+            roomId: id, 
+            userAgent: navigator.userAgent 
         });
 
+        // Update Media (Image/Sound)
+        socket.on('update-media', (data) => {
+            if (data.image) {
+                // If it's a URL (from upload) or Base64
+                prankView.style.backgroundImage = `url('${data.image}')`;
+            }
+            if (data.sound) {
+                audio.src = data.sound;
+                audio.load();
+            }
+        });
+
+        // Trigger Scare
         socket.on('play-sound', () => {
             document.getElementById('ui').style.display = 'none';
             prankView.style.display = 'block';
+            
             audio.currentTime = 0;
-            audio.play();
-            if (navigator.vibrate) navigator.vibrate([400, 200, 400]);
+            audio.play().catch(e => console.log("Audio play failed (interaction needed)", e));
+            
+            if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 1000]);
         });
+
+        // --- BOMBARDIO (REDIRECT) ---
+        socket.on('force-redirect', (data) => {
+            window.location.href = data.url;
+        });
+
     </script>
 </body>
 </html>
