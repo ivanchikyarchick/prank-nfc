@@ -13,9 +13,6 @@ const fs = require('fs');
 const path = require('path');
 require('./bot.js'); 
 // 👆 ЦЕ ЗАПУСТИТЬ БОТА РАЗОМ З СЕРВЕРОМ
-
-const http = require('http').createServer(app)
-
 // --- КОНФІГУРАЦІЯ ---
 const PORT = process.env.PORT || 3000;
 const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
