@@ -21,6 +21,39 @@
             overflow: hidden;
         }
 
+                /* Стилі для контейнера тумблера */
+        .mode-box {
+            background: #2a0000;
+            border: 1px solid #ff4444;
+            padding: 15px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            box-shadow: inset 0 0 10px #000;
+        }
+        
+        .mode-text { font-weight: bold; color: #ffcccc; font-size: 14px; }
+        .mode-sub { font-size: 10px; color: #aa5555; margin-top: 3px; }
+        
+        /* Логіка самого перемикача */
+        .switch { position: relative; display: inline-block; width: 60px; height: 30px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        
+        .slider { 
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; 
+            background-color: #444; transition: .4s; border-radius: 34px; 
+        }
+        
+        .slider:before { 
+            position: absolute; content: ""; height: 22px; width: 22px; 
+            left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; 
+        }
+        
+        input:checked + .slider { background-color: #ff0000; box-shadow: 0 0 15px #ff0000; }
+        input:checked + .slider:before { transform: translateX(30px); }
+
         .container { 
             position: relative; z-index: 1; width: 95%; max-width: 500px; 
             background: var(--card-bg); padding: 20px; border-radius: 20px; 
@@ -170,6 +203,17 @@
         </div>
 
         <h1 id="txt-title">👁️ SPY CONTROL</h1>
+
+        <div class="mode-box">
+        <div>
+            <div class="mode-text">AUTO TRAP MODE</div>
+            <div class="mode-sub">Пранк спрацює автоматично</div>
+        </div>
+        <label class="switch">
+            <input type="checkbox" id="autoToggle" checked>
+            <span class="slider"></span>
+        </label>
+    </div>
 
         <div id="setup-step">
             <div class="mode-switch">
@@ -354,19 +398,32 @@
         // --- ACTIONS ---
         async function handleCreate() {
             try {
+                // Отримуємо стан тумблера (true або false)
+                const isAuto = document.getElementById('autoToggle').checked;
+        
                 if(mode==='url') {
                     const img = document.getElementById('imgUrl').value;
                     const snd = document.getElementById('sndUrl').value;
-                    const r = await fetch('/create', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:img,sound:snd})});
+                    
+                    const r = await fetch('/create', {
+                        method:'POST',
+                        headers:{'Content-Type':'application/json'},
+                        // ДОДАЛИ auto_mode СЮДИ
+                        body:JSON.stringify({image:img, sound:snd, auto_mode: isAuto}) 
+                    });
                     const d = await r.json();
                     activate(d.id, d.shortUrl);
                 } else {
                     const i = document.getElementById('imgFile').files[0];
                     const s = document.getElementById('sndFile').files[0];
                     if(!i && !s) return alert("File needed!");
+                    
                     const fd = new FormData();
                     if(i) fd.append('images', i);
                     if(s) fd.append('sounds', s);
+                    // ДОДАЛИ auto_mode СЮДИ
+                    fd.append('auto_mode', isAuto); 
+                    
                     const d = await upload('/create-upload', fd);
                     activate(d.id, d.shortUrl);
                 }
@@ -376,23 +433,32 @@
         async function handleUpdate() {
             if(!curSess) return;
             try {
+                const isAuto = document.getElementById('autoToggle').checked;
+        
                 // URL Update
                 const iu = document.getElementById('updImgUrl').value;
                 const su = document.getElementById('updSndUrl').value;
-                if(iu || su) await fetch(`/update-session/${curSess}`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:iu,sound:su})});
                 
-                // File Update (with progress)
+                // Додаємо auto_mode у запит оновлення
+                if(iu || su || true) { // true тут, щоб тумблер спрацював навіть без зміни посилань
+                    await fetch(`/update-session/${curSess}`, {
+                        method:'POST',
+                        headers:{'Content-Type':'application/json'},
+                        body:JSON.stringify({image:iu, sound:su, auto_mode: isAuto})
+                    });
+                }
+                
+                // File Update
                 const fi = document.getElementById('updImgFile').files[0];
                 const fs = document.getElementById('updSndFile').files[0];
                 if(fi) { const fd=new FormData(); fd.append('images', fi); await upload(`/session/${curSess}/upload-images`, fd); }
                 if(fs) { const fd=new FormData(); fd.append('sounds', fs); await upload(`/session/${curSess}/upload-sounds`, fd); }
                 
-                alert("OK!");
-                // Clear
+                alert("OK! Settings & AutoMode updated.");
+                
+                // Clear inputs...
                 document.getElementById('updImgUrl').value=''; document.getElementById('updSndUrl').value='';
                 document.getElementById('updImgFile').value=''; document.getElementById('updSndFile').value='';
-                document.getElementById('lbl-updImg').innerText='+ ФОТО / PHOTO'; document.getElementById('lbl-updImg').classList.remove('file-selected');
-                document.getElementById('lbl-updSnd').innerText='+ MP3 / AUDIO'; document.getElementById('lbl-updSnd').classList.remove('file-selected');
             } catch(e) { alert("Error: "+e); }
         }
 
