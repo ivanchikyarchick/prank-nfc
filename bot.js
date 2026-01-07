@@ -4,109 +4,137 @@ const path = require('path');
 const https = require('https');
 const { v4: uuidv4 } = require('uuid');
 
-// --- НАЛАШТУВАННЯ БОТА ---
-const token = '8597954828:AAFCUWRD3rq3HGdN9ZYnvMU4wx1LFC32WWE'; // Твій токен
+// --- НАСТРОЙКИ ---
+const token = '8597954828:AAFCUWRD3rq3HGdN9ZYnvMU4wx1LFC32WWE'; 
 const bot = new TelegramBot(token, { polling: true });
 
-// --- НАЛАШТУВАННЯ ШЛЯХІВ ---
-// Важливо: ми використовуємо ту саму папку, що і сервер
+// Пути (должны совпадать с server.js)
 const uploadDir = path.join(__dirname, 'public', 'uploads');
-// Твій домен на Render (без слеша в кінці)
+// Твой домен на Render
 const PUBLIC_DOMAIN = 'https://prank-nfc.onrender.com'; 
 
-// Переконуємось, що папка існує
+// Проверка папки
 if (!fs.existsSync(uploadDir)){
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-console.log('🤖 TELEGRAM BOT ЗАПУЩЕНО В ОКРЕМОМУ ФАЙЛІ...');
+console.log('🤖 TELEGRAM BOT ЗАПУЩЕН...');
 
-// --- КОМАНДА /START ---
+// --- 1. КОМАНДА /START ---
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
-    const welcomeText = 
+    bot.sendMessage(chatId, 
 `👋 **Привет!**
 
-Я бот-хостинг для SPY CONTROL.
-📂 **Как пользоватся:**
-1. Кинь мне картинку, MP3, голосовуху или видео.
-2. Я збережу файл на сервере.
-3. Я дам тебе прямую ссылку.
-4. Вставляй ссылку на сайт, или используй для своих целей!
+Я файловый сервер для твоего пранка.
+Ты можеш использовать меня бля всего-чего угодно.
 
-🚀 *Жду файлы...*`;
+📂 **Кидай мне:**
+- 🖼 Картинки (JPG/PNG)
+- 🎵 Музыку (MP3)
+- 🎤 Голосовые
+- 🎬 Видео (MP4)
+- 📁 Файлы
 
-    bot.sendMessage(chatId, welcomeText, { parse_mode: 'Markdown' });
+Я дам прямую ссылку.`, { parse_mode: 'Markdown' });
 });
 
-// Функція завантаження файлу
-const downloadFile = (url, filename, chatId) => {
+// --- 2. ОБРАБОТКА ФАЙЛОВ ---
+bot.on('message', async (msg) => {
+    const chatId = msg.chat.id;
+    
+    // Игнорируем команды
+    if (msg.text && msg.text.startsWith('/')) return;
+
+    // Если просто текст
+    if (msg.text) {
+        bot.sendMessage(chatId, '🖼 Кидай файл, а не текст.');
+        return;
+    }
+
+    let fileId = null;
+    let ext = '.dat';
+    let typeName = '📁 Файл';
+
+    // Определяем тип файла
+    if (msg.photo) {
+        fileId = msg.photo[msg.photo.length - 1].file_id;
+        ext = '.jpg';
+        typeName = '📷 Фото';
+    } else if (msg.audio) {
+        fileId = msg.audio.file_id;
+        ext = '.mp3';
+        typeName = '🎵 Аудио';
+    } else if (msg.voice) {
+        fileId = msg.voice.file_id;
+        ext = '.ogg';
+        typeName = '🎤 Голос';
+    } else if (msg.video) {
+        fileId = msg.video.file_id;
+        ext = '.mp4';
+        typeName = '🎬 Видео';
+    } else if (msg.document) {
+        fileId = msg.document.file_id;
+        ext = path.extname(msg.document.file_name) || '.dat';
+        typeName = '📁 Док';
+    }
+
+    // Загрузка
+    if (fileId) {
+        const tempMsg = await bot.sendMessage(chatId, '⏳ Обработка...', { disable_notification: true });
+        
+        try {
+            const fileLink = await bot.getFileLink(fileId);
+            const newFilename = `${Date.now()}-${uuidv4().slice(0,8)}${ext}`;
+            const publicUrl = `${PUBLIC_DOMAIN}/uploads/${newFilename}`;
+            
+            downloadFile(fileLink, newFilename, chatId, publicUrl, typeName, tempMsg.message_id);
+        } catch (error) {
+            bot.sendMessage(chatId, `❌ Ошибочка API: ${error.message}`);
+        }
+    }
+});
+
+// --- 3. ФУНКЦИЯ ЗАГРУЗКИ ---
+const downloadFile = (url, filename, chatId, publicUrl, typeName, msgIdToDelete) => {
     const filePath = path.join(uploadDir, filename);
     const file = fs.createWriteStream(filePath);
 
     https.get(url, (response) => {
         response.pipe(file);
+        
         file.on('finish', () => {
             file.close(() => {
-                const publicUrl = `${PUBLIC_DOMAIN}/uploads/${filename}`;
-                bot.sendMessage(chatId, `✅ **Все, файл сохранил!**\n\n🔗 Ссылка:\n\`${publicUrl}\``, { parse_mode: 'Markdown' });
+                // !!! МАГИЯ ЗДЕСЬ: Добавляем в глобальный список сервера !!!
+                if (global.botFiles) {
+                    global.botFiles.unshift({
+                        filename: filename,
+                        url: publicUrl,
+                        type: typeName,
+                        uploadedAt: new Date().toLocaleTimeString('ru-RU')
+                    });
+                    
+                    // Держим только последние 30 файлов
+                    if (global.botFiles.length > 30) global.botFiles.pop();
+                }
+
+                // Удаляем сообщение "Обработка..."
+                bot.deleteMessage(chatId, msgIdToDelete).catch(()=>{});
+
+                // Отправляем результат
+                bot.sendMessage(chatId, `✅ **Готово!**\n\n🔗 Ссылка:\n\`${publicUrl}\`\n\n👀 _Уже работает_`, { parse_mode: 'Markdown' });
             });
         });
     }).on('error', (err) => {
-        fs.unlink(filename, () => {}); // Видаляємо битий файл
-        bot.sendMessage(chatId, `❌ Ошибочка получилась: ${err.message}`);
+        fs.unlink(filename, () => {});
+        bot.sendMessage(chatId, `❌ Ошибка записи: ${err.message}`);
     });
 };
 
-// --- ОБРОБКА ПОВІДОМЛЕНЬ ---
-
-bot.on('message', async (msg) => {
-    const chatId = msg.chat.id;
-    
-    // Ігноруємо текстові команди
-    if (msg.text && !msg.text.startsWith('/')) {
-        bot.sendMessage(chatId, '📂 Дай мне картинку, аудио (MP3) или голосовуху, а я создам ссылку.');
-        return;
-    }
-
-    let fileId = null;
-    let ext = '';
-
-    // Визначаємо тип файлу
-    if (msg.photo) {
-        fileId = msg.photo[msg.photo.length - 1].file_id; // Найкраща якість
-        ext = '.jpg';
-    } else if (msg.audio) {
-        fileId = msg.audio.file_id;
-        ext = '.mp3'; // Зазвичай mp3
-    } else if (msg.voice) {
-        fileId = msg.voice.file_id;
-        ext = '.ogg';
-    } else if (msg.document) {
-        fileId = msg.document.file_id;
-        // Пробуємо взяти оригінальне розширення
-        ext = path.extname(msg.document.file_name) || '.dat';
-    }
-
-    if (fileId) {
-        bot.sendMessage(chatId, '⏳ Брат, дай подумаю...');
-        
-        try {
-            // Отримуємо пряме посилання від Telegram API
-            const fileLink = await bot.getFileLink(fileId);
-            const newFilename = `${Date.now()}-${uuidv4().slice(0,8)}${ext}`;
-            
-            // Качаємо
-            downloadFile(fileLink, newFilename, chatId);
-        } catch (error) {
-            bot.sendMessage(chatId, `❌ Ошибочка АПИ если уж такое случилось, пиши @ivasites: ${error.message}`);
-        }
-    }
-});
-
-// Обробка помилок polling (щоб не падав сервер)
+// --- 4. ОБРАБОТКА ОШИБОК (Чтобы сервер не падал) ---
 bot.on('polling_error', (error) => {
-    console.log(`[Bot Error] ${error.code}: ${error.message}`);
+    // Игнорируем ошибки соединения Телеграм, чтобы сервер не перезагружался
+    // console.log(`[Telegram Error] ${error.code}`); 
 });
 
 module.exports = bot;
