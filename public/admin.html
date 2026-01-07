@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SPY CONTROL v8.0 Optimized</title>
+    <title>SPY CONTROL v9.0 Fixed</title>
     <style>
         :root {
             --neon: #00ffcc;
@@ -26,79 +26,140 @@
             background: var(--card-bg); padding: 20px; border-radius: 20px; 
             border: 1px solid rgba(0, 255, 204, 0.15);
             backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            max-height: 95vh; overflow-y: auto;
+            box-shadow: 0 0 30px rgba(0,0,0,0.6);
+            max-height: 98vh; overflow-y: auto;
+            display: flex; flex-direction: column;
         }
 
-        /* --- STYLES FOR PROGRESS OVERLAY --- */
+        /* --- PROGRESS OVERLAY (Гарний) --- */
         #progress-overlay {
             display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); z-index: 100; border-radius: 20px;
+            background: rgba(0,0,0,0.9); z-index: 2000; border-radius: 20px;
             flex-direction: column; justify-content: center; align-items: center;
+            backdrop-filter: blur(5px);
         }
         .progress-box { width: 80%; text-align: center; }
         .progress-bar-bg {
-            width: 100%; height: 20px; background: #222; border-radius: 10px;
-            border: 1px solid #444; overflow: hidden; margin-top: 10px; position: relative;
+            width: 100%; height: 10px; background: #333; border-radius: 5px;
+            overflow: hidden; margin-top: 15px; margin-bottom: 5px;
         }
         .progress-fill {
-            height: 100%; width: 0%; background: var(--neon);
-            box-shadow: 0 0 10px var(--neon); transition: width 0.1s linear;
+            height: 100%; width: 0%; background: linear-gradient(90deg, var(--neon), var(--neon-secondary));
+            box-shadow: 0 0 15px var(--neon); transition: width 0.1s linear;
         }
-        .progress-text { margin-top: 5px; color: var(--neon); font-weight: bold; font-size: 14px; }
+        .progress-text { color: var(--neon); font-size: 14px; font-weight: bold; letter-spacing: 1px; }
 
-        /* General UI */
-        .lang-bar { display: flex; justify-content: center; gap: 8px; margin-bottom: 15px; }
-        .lang-btn { background: rgba(255,255,255,0.05); border: 1px solid #333; color: #888; padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: 11px; }
-        .lang-btn.active { border-color: var(--neon); color: var(--bg-dark); background: var(--neon); }
+        /* HEADER & TABS */
+        h1 { font-size: 22px; text-transform: uppercase; text-align: center; color: var(--neon); letter-spacing: 3px; margin: 10px 0 20px 0; text-shadow: 0 0 10px rgba(0,255,204,0.3); }
 
-        h1 { font-size: 20px; text-transform: uppercase; text-align: center; color: var(--neon); letter-spacing: 2px; margin-bottom: 15px; }
+        .lang-bar { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; }
+        .lang-btn { background: rgba(255,255,255,0.05); border: 1px solid #444; color: #888; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 10px; transition: 0.2s; }
+        .lang-btn.active { border-color: var(--neon); color: black; background: var(--neon); font-weight: bold; }
 
-        .mode-switch { display: flex; gap: 10px; margin-bottom: 15px; background: #000; padding: 5px; border-radius: 10px; }
-        .mode-btn { flex: 1; border: none; background: transparent; color: #555; padding: 8px; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: bold; transition: 0.3s; }
-        .mode-btn.active { background: #222; color: var(--neon); box-shadow: 0 0 10px rgba(0,255,204,0.1); }
+        .mode-switch { display: flex; gap: 10px; margin-bottom: 15px; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 12px; border: 1px solid #222; }
+        .mode-btn { flex: 1; border: none; background: transparent; color: #666; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: bold; transition: 0.3s; text-transform: uppercase; }
+        .mode-btn.active { background: #1a1a1a; color: var(--neon); box-shadow: 0 0 10px rgba(0,255,204,0.05); border: 1px solid #333; }
 
-        .input-box { background: rgba(0,0,0,0.3); padding: 12px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #222; position: relative; }
-        input[type="text"] { width: 100%; padding: 10px; background: #000; border: 1px solid #333; color: white; border-radius: 8px; box-sizing: border-box; font-size: 12px; margin: 5px 0; }
-        
+        /* INPUTS */
+        .input-box { background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #222; position: relative; }
+        .lbl-title { font-size: 10px; font-weight: bold; color: var(--neon-secondary); display: block; margin-bottom: 8px; letter-spacing: 1px; }
+
+        input[type="text"] { 
+            width: 100%; padding: 12px; background: #0b0b0b; border: 1px solid #333; 
+            color: white; border-radius: 8px; box-sizing: border-box; font-size: 12px; outline: none; transition: 0.2s;
+        }
+        input[type="text"]:focus { border-color: var(--neon-secondary); }
+
         input[type="file"] { display: none; }
-        .file-label { display: block; width: 100%; padding: 10px; text-align: center; background: #111; border: 1px dashed #444; border-radius: 8px; color: #888; cursor: pointer; font-size: 11px; margin-top: 5px; }
-        .file-label.file-selected { border-color: var(--neon-secondary); color: var(--neon-secondary); background: rgba(0,170,255,0.1); }
+        .file-label { 
+            display: block; width: 100%; padding: 12px; text-align: center; background: #111; 
+            border: 1px dashed #444; border-radius: 8px; color: #666; cursor: pointer; font-size: 11px; 
+            margin-top: 5px; transition: 0.2s; box-sizing: border-box;
+        }
+        .file-label:hover { border-color: var(--neon); color: var(--neon); }
+        .file-label.file-selected { border-color: var(--neon-secondary); color: var(--neon-secondary); background: rgba(0,170,255,0.05); border-style: solid; }
 
-        .input-wrapper { display: flex; gap: 5px; align-items: center; position: relative; }
+        /* SOUND MENU (FIXED) */
+        .input-wrapper { display: flex; gap: 8px; align-items: center; position: relative; }
         .input-wrapper input { flex-grow: 1; }
 
-        .sound-menu-btn { background: #222; border: 1px solid var(--neon-secondary); color: var(--neon-secondary); border-radius: 8px; width: 40px; height: 38px; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 18px; }
-        .sound-dropdown { display: none; position: absolute; top: 45px; right: 0; width: 100%; background: #151515; border: 1px solid var(--neon-secondary); border-radius: 10px; z-index: 999; max-height: 200px; overflow-y: auto; box-shadow: 0 5px 20px rgba(0,0,0,0.8); }
-        .sound-dropdown.show { display: block; }
-        .sound-item { padding: 8px; border-bottom: 1px solid #222; font-size: 11px; cursor: pointer; color: #ccc; display: flex; justify-content: space-between; align-items: center; }
-        .preview-btn { font-size: 10px; padding: 2px 5px; border: 1px solid #555; background: black; color: white; margin-left: 10px; cursor: pointer; }
+        .sound-menu-btn { 
+            background: #111; border: 1px solid #333; color: var(--neon-secondary); 
+            border-radius: 8px; width: 44px; height: 40px; display: flex; justify-content: center; align-items: center; 
+            cursor: pointer; font-size: 18px; transition: 0.2s;
+        }
+        .sound-menu-btn:hover { border-color: var(--neon-secondary); background: rgba(0,170,255,0.1); }
 
-        button.main-btn { width: 100%; padding: 12px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 8px; font-size: 13px; }
-        .btn-create { background: var(--neon); color: black; }
-        .btn-update { background: #222; color: var(--neon); border: 1px solid var(--neon); }
+        .sound-dropdown { 
+            display: none; position: absolute; top: 50px; right: 0; width: 100%; 
+            background: #121212; border: 1px solid var(--neon-secondary); border-radius: 10px; 
+            z-index: 1000; max-height: 250px; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.8); 
+        }
+        .sound-dropdown.show { display: block; animation: fadeIn 0.2s ease-out; }
         
-        .btn-scare { background: #333; color: #555; height: 60px; font-size: 18px; cursor: not-allowed; margin-top: 15px; }
-        .btn-scare.ready { background: var(--danger); color: white; cursor: pointer; animation: pulse 2s infinite; }
+        .sound-item { 
+            padding: 10px 12px; border-bottom: 1px solid #222; font-size: 12px; cursor: pointer; 
+            color: #ccc; display: flex; justify-content: space-between; align-items: center; 
+        }
+        .sound-item:hover { background: var(--neon-secondary); color: black; }
+        .sound-item:last-child { border-bottom: none; }
+
+        .preview-btn { 
+            font-size: 10px; padding: 4px 8px; border: 1px solid #555; background: black; color: white; 
+            margin-left: 10px; cursor: pointer; border-radius: 4px;
+        }
+
+        /* BUTTONS */
+        button.main-btn { 
+            width: 100%; padding: 14px; border: none; border-radius: 10px; font-weight: bold; 
+            cursor: pointer; text-transform: uppercase; margin-top: 5px; font-size: 13px; letter-spacing: 1px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: 0.2s;
+        }
+        .btn-create { background: var(--neon); color: #050507; }
+        .btn-create:hover { background: #00e6b8; box-shadow: 0 0 15px var(--neon); }
+
+        .btn-update { background: transparent; color: var(--neon); border: 1px solid var(--neon); }
+        .btn-update:hover { background: rgba(0,255,204,0.1); }
         
-        .btn-bomb { background: repeating-linear-gradient(45deg, #000, #000 10px, #330000 10px, #330000 20px); color: var(--danger); border: 2px solid var(--danger); margin-top: 10px; height: 45px; cursor: not-allowed; opacity: 0.5; }
+        .btn-scare { background: #222; color: #555; height: 55px; font-size: 16px; cursor: not-allowed; margin-top: 15px; border: 1px solid #333; }
+        .btn-scare.ready { background: var(--danger); color: white; cursor: pointer; animation: pulse 2s infinite; border: none; }
+        
+        .btn-bomb { 
+            background: repeating-linear-gradient(45deg, #111, #111 10px, #400 10px, #400 20px); 
+            color: var(--danger); border: 2px solid var(--danger); margin-top: 10px; height: 45px; 
+            cursor: not-allowed; opacity: 0.5; font-size: 12px;
+        }
         .btn-bomb.ready { cursor: pointer; opacity: 1; }
         
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.03); } 100% { transform: scale(1); } }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .link-box { background: #000; padding: 12px; border-radius: 8px; border: 1px dashed #444; margin: 15px 0; word-break: break-all; font-size: 12px; text-align: center;}
+        
+        .history-item { 
+            display: flex; justify-content: space-between; align-items: center;
+            background: #111; padding: 10px; border-radius: 8px; margin-bottom: 5px; cursor: pointer; font-size: 11px; border: 1px solid #222;
+        }
+        .history-item:hover { border-color: var(--neon); }
+        .del-btn { color: var(--danger); background: rgba(255,50,100,0.1); border: 1px solid rgba(255,50,100,0.3); padding: 4px 10px; border-radius: 5px; cursor: pointer;}
         
         .hidden { display: none !important; }
-        .lbl-title { font-size: 10px; font-weight: bold; color: var(--neon-secondary); display: block; margin-bottom: 4px; }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
     </style>
 </head>
 <body>
     <div class="container">
         <div id="progress-overlay">
             <div class="progress-box">
-                <div style="color:white; font-size:12px; margin-bottom:5px;">UPLOADING FILES...</div>
+                <div class="progress-text">UPLOADING... <span id="p-text">0%</span></div>
                 <div class="progress-bar-bg">
                     <div class="progress-fill" id="p-fill"></div>
                 </div>
-                <div class="progress-text" id="p-text">0%</div>
             </div>
         </div>
 
@@ -134,17 +195,17 @@
                 <input type="file" id="sndFile" class="inp-file hidden" accept="audio/*" onchange="updLbl(this, 'lbl-sndFile')">
             </div>
 
-            <button class="main-btn btn-create" onclick="handleCreate()" id="btn-create">СТВОРИТИ</button>
+            <button class="main-btn btn-create" onclick="handleCreate()" id="btn-create">СТВОРИТИ ПАСТКУ</button>
         </div>
 
         <div id="control-panel" style="display:none;">
-            <div style="text-align:center; margin:10px 0; font-size:11px; background:#000; padding:10px; border-radius:8px;">
-                <a id="victim-link" href="#" target="_blank" style="color:var(--neon-secondary);">...</a>
+            <div style="text-align:center; margin:10px 0; font-size:11px; padding:10px;">
+                <a id="victim-link" href="#" target="_blank" style="color:var(--neon-secondary); text-decoration:none; font-size:14px; border-bottom:1px solid var(--neon-secondary);">Generating link...</a>
             </div>
             
             <div class="input-box" style="border-color: var(--neon);">
-                <span class="lbl-title" id="lbl-upd" style="color:var(--neon)">ОНОВИТИ КОНТЕНТ</span>
-                 <div style="margin-bottom:8px;">
+                <span class="lbl-title" id="lbl-upd" style="color:var(--neon)">ОНОВИТИ КОНТЕНТ (Live)</span>
+                 <div style="margin-bottom:10px;">
                     <input type="text" id="updImgUrl" placeholder="Image URL">
                     <label for="updImgFile" id="lbl-updImg" class="file-label" style="font-size:10px;">+ ФОТО / PHOTO</label>
                     <input type="file" id="updImgFile" accept="image/*" onchange="updLbl(this, 'lbl-updImg')">
@@ -161,14 +222,16 @@
                 <button class="main-btn btn-update" onclick="handleUpdate()" id="btn-update">ОНОВИТИ</button>
             </div>
 
-            <div id="users-list" style="min-height: 20px;"></div>
+            <div id="users-list" style="min-height: 20px; text-align:center; margin-bottom:10px;"></div>
+            
             <button id="scare-btn" class="main-btn btn-scare" onclick="triggerScare()" disabled>SCREAMER 💀</button>
             <button id="bomb-btn" class="main-btn btn-bomb" onclick="triggerBomb()" disabled>☢️ BOMBARDIO ☢️</button>
-            <button onclick="location.reload()" style="background:transparent; color:#555; border:none; margin-top:10px; width:100%; font-size:10px;">⬅ MENU</button>
+            
+            <button onclick="location.reload()" style="background:transparent; color:#666; border:none; margin-top:15px; width:100%; font-size:11px; cursor:pointer;">⬅ MENU</button>
         </div>
 
         <div id="history-panel">
-            <h3 id="txt-hist" style="font-size:11px; color:#444; margin-top:15px; border-top:1px solid #222; padding-top:10px;">ІСТОРІЯ / HISTORY</h3>
+            <h3 id="txt-hist" style="font-size:11px; color:#444; margin-top:20px; border-top:1px solid #222; padding-top:10px; text-align:center;">ІСТОРІЯ / HISTORY</h3>
             <div id="history-list"></div>
         </div>
     </div>
@@ -182,8 +245,8 @@
         
         // --- TRANSLATIONS ---
         const i18n = {
-            uk: { t:"👁️ SPY CONTROL", b1:"🌐 ПОСИЛАННЯ", b2:"📁 ФАЙЛ", li:"ЗОБРАЖЕННЯ", ls:"ЗВУК", fi:"Вибрати фото", fs:"Вибрати MP3", bc:"СТВОРИТИ ПАСТКУ", bu:"ОНОВИТИ ЗАРАЗ", lu:"ОНОВИТИ КОНТЕНТ", bs:"НАЛЯКАТИ 💀", bb:"☢️ БОМБАРДУВАННЯ ☢️", h:"ІСТОРІЯ", warn:"⚠️ УВАГА! Всіх перекине на пранк сайт!", ln:"🚀 ЗАПУЩЕНО!" },
-            ru: { t:"👁️ ШПИОН КОНТРОЛЬ", b1:"🌐 ССЫЛКА", b2:"📁 ФАЙЛ", li:"ИЗОБРАЖЕНИЕ", ls:"ЗВУК", fi:"Выбрать фото", fs:"Выбрать MP3", bc:"СОЗДАТЬ ЛОВУШКУ", bu:"ОБНОВИТЬ СЕЙЧАС", lu:"ОБНОВИТЬ КОНТЕНТ", bs:"НАПУГАТЬ 💀", bb:"☢️ БОМБАРДИРОВКА ☢️", h:"ИСТОРИЯ", warn:"⚠️ ВНИМАНИЕ! Всех перекинет на пранк сайт!", ln:"🚀 ЗАПУЩЕНО!" },
+            uk: { t:"👁️ SPY CONTROL", b1:"🌐 ПОСИЛАННЯ", b2:"📁 ФАЙЛ", li:"ЗОБРАЖЕННЯ", ls:"ЗВУК", fi:"Вибрати фото", fs:"Вибрати MP3", bc:"СТВОРИТИ ПАСТКУ", bu:"ОНОВИТИ ЗАРАЗ", lu:"ОНОВИТИ КОНТЕНТ (Live)", bs:"НАЛЯКАТИ 💀", bb:"☢️ БОМБАРДУВАННЯ ☢️", h:"ІСТОРІЯ", warn:"⚠️ УВАГА! Всіх перекине на пранк сайт!", ln:"🚀 ЗАПУЩЕНО!" },
+            ru: { t:"👁️ ШПИОН КОНТРОЛЬ", b1:"🌐 ССЫЛКА", b2:"📁 ФАЙЛ", li:"ИЗОБРАЖЕНИЕ", ls:"ЗВУК", fi:"Выбрать фото", fs:"Выбрать MP3", bc:"СОЗДАТЬ ЛОВУШКУ", bu:"ОБНОВИТЬ СЕЙЧАС", lu:"ОБНОВИТЬ КОНТЕНТ (Live)", bs:"НАПУГАТЬ 💀", bb:"☢️ БОМБАРДИРОВКА ☢️", h:"ИСТОРИЯ", warn:"⚠️ ВНИМАНИЕ! Всех перекинет на пранк сайт!", ln:"🚀 ЗАПУЩЕНО!" },
             en: { t:"👁️ SPY CONTROL", b1:"🌐 URL LINK", b2:"📁 UPLOAD FILE", li:"IMAGE", ls:"SOUND", fi:"Select Image", fs:"Select Audio", bc:"CREATE TRAP", bu:"UPDATE NOW", lu:"LIVE UPDATE", bs:"SCREAMER 💀", bb:"☢️ BOMBARDIO ☢️", h:"HISTORY", warn:"⚠️ Redirect everyone?", ln:"🚀 LAUNCHED!" }
         };
         let lang = 'uk';
@@ -191,6 +254,7 @@
         function setLang(l) {
             lang = l;
             const t = i18n[l];
+            document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('txt-title').innerText = t.t;
             document.getElementById('btn-mode-url').innerText = t.b1;
             document.getElementById('btn-mode-file').innerText = t.b2;
@@ -213,6 +277,8 @@
             {n:"Крякалка ДПС", u:"https://www.myinstants.com/media/sounds/kriakalka-dps-no-2.mp3"},
             {n:"ЁБ*ЫЙ В РООТ", u:"https://www.myinstants.com/media/sounds/iobanyi-v-rot.mp3"},
             {n:"Screamer 1", u:"https://www.myinstants.com/media/sounds/scream_horror1.mp3"},
+            {n:"Визг свиньи", u:"https://www.myinstants.com/media/sounds/vizg-svini.mp3"},
+            {n:"Полиция", u:"https://www.myinstants.com/media/sounds/police-siren.mp3"},
             {n:"Стук в дверь", u:"https://www.myinstants.com/media/sounds/knocking-on-door.mp3"}
         ];
 
@@ -235,9 +301,10 @@
             if(!s) m.classList.add('show');
         }
         function playP(u, e) { e.stopPropagation(); const a = document.getElementById('preview-audio'); a.src=u; a.volume=0.5; a.play(); }
+        
         window.onclick = e => { if(!e.target.closest('.sound-menu-btn') && !e.target.closest('.preview-btn')) document.querySelectorAll('.sound-dropdown').forEach(m=>m.classList.remove('show')); };
 
-        // --- LOGIC ---
+        // --- UI LOGIC ---
         function setMode(m) {
             mode = m;
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
@@ -262,7 +329,7 @@
                 const fill = document.getElementById('p-fill');
                 const txt = document.getElementById('p-text');
 
-                overlay.style.display = 'flex'; // Show overlay
+                overlay.style.display = 'flex'; 
                 fill.style.width = '0%';
                 txt.innerText = '0%';
 
@@ -284,6 +351,7 @@
             });
         }
 
+        // --- ACTIONS ---
         async function handleCreate() {
             try {
                 if(mode==='url') {
@@ -291,7 +359,7 @@
                     const snd = document.getElementById('sndUrl').value;
                     const r = await fetch('/create', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:img,sound:snd})});
                     const d = await r.json();
-                    activate(d.id);
+                    activate(d.id, d.shortUrl);
                 } else {
                     const i = document.getElementById('imgFile').files[0];
                     const s = document.getElementById('sndFile').files[0];
@@ -300,7 +368,7 @@
                     if(i) fd.append('images', i);
                     if(s) fd.append('sounds', s);
                     const d = await upload('/create-upload', fd);
-                    activate(d.id);
+                    activate(d.id, d.shortUrl);
                 }
             } catch(e) { alert("Error: "+e); }
         }
@@ -313,7 +381,7 @@
                 const su = document.getElementById('updSndUrl').value;
                 if(iu || su) await fetch(`/update-session/${curSess}`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:iu,sound:su})});
                 
-                // File Update
+                // File Update (with progress)
                 const fi = document.getElementById('updImgFile').files[0];
                 const fs = document.getElementById('updSndFile').files[0];
                 if(fi) { const fd=new FormData(); fd.append('images', fi); await upload(`/session/${curSess}/upload-images`, fd); }
@@ -323,18 +391,24 @@
                 // Clear
                 document.getElementById('updImgUrl').value=''; document.getElementById('updSndUrl').value='';
                 document.getElementById('updImgFile').value=''; document.getElementById('updSndFile').value='';
+                document.getElementById('lbl-updImg').innerText='+ ФОТО / PHOTO'; document.getElementById('lbl-updImg').classList.remove('file-selected');
+                document.getElementById('lbl-updSnd').innerText='+ MP3 / AUDIO'; document.getElementById('lbl-updSnd').classList.remove('file-selected');
             } catch(e) { alert("Error: "+e); }
         }
 
-        function activate(id) {
+        function activate(id, shortCode) {
             curSess = id;
             saveH(id);
             document.getElementById('setup-step').style.display='none';
             document.getElementById('control-panel').style.display='block';
             document.getElementById('history-panel').style.display='none';
-            const l = `${window.location.origin}/victim.html?id=${id}`;
-            document.getElementById('victim-link').href = l;
-            document.getElementById('victim-link').innerText = l;
+            
+            // Generate link (Short or Long)
+            const l = shortCode ? `${window.location.origin}/${shortCode}` : `${window.location.origin}/victim.html?id=${id}`;
+            const lel = document.getElementById('victim-link');
+            lel.href = l;
+            lel.innerText = l;
+            
             socket.emit('join-room-admin', id);
         }
 
@@ -353,14 +427,15 @@
             if(u.length){
                 b.disabled=false; b.classList.add('ready'); b.innerText = i18n[lang].bs;
                 bb.disabled=false; bb.classList.add('ready');
-                l.innerHTML = u.map(v=>`<div style="color:var(--neon);font-size:11px;">● ${v.device} [${v.ip}]</div>`).join('');
+                l.innerHTML = u.map(v=>`<div style="color:var(--neon);font-size:11px;border-bottom:1px solid #222;padding:5px;">● ${v.device} [${v.ip}]</div>`).join('');
             } else {
                 b.disabled=true; b.classList.remove('ready');
                 bb.disabled=true; bb.classList.remove('ready');
-                l.innerHTML='<div style="color:#555;font-size:11px;">Waiting...</div>';
+                l.innerHTML='<div style="color:#555;font-size:11px;padding:10px;">Waiting for victims...</div>';
             }
         });
 
+        // --- HISTORY ---
         function saveH(id){ let h=JSON.parse(localStorage.getItem('sh')||'[]'); if(!h.includes(id)){h.unshift(id); localStorage.setItem('sh',JSON.stringify(h.slice(0,10)));} }
         function loadH(){ 
             const h=JSON.parse(localStorage.getItem('sh')||'[]');
