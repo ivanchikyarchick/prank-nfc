@@ -11,6 +11,10 @@ const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+require('./bot.js'); 
+// 👆 ЦЕ ЗАПУСТИТЬ БОТА РАЗОМ З СЕРВЕРОМ
+
+const http = require('http').createServer(app)
 
 // --- КОНФІГУРАЦІЯ ---
 const PORT = process.env.PORT || 3000;
