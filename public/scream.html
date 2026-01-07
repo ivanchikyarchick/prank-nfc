@@ -8,38 +8,53 @@
     body{font-family:sans-serif;background:#eceff1;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;overflow:hidden}
     .win{background:#fff;padding:40px;border-radius:15px;box-shadow:0 10px 30px rgba(0,0,0,.15);text-align:center;width:350px}
     h2{color:#263238;margin:0 0 25px}
-    img{width:120px;height:120px;object-fit:contain;margin-bottom:25px}
+    #app-img{width:120px;height:120px;object-fit:contain;margin-bottom:25px}
     .bar{width:100%;background:#e0e0e0;border-radius:10px;height:8px;overflow:hidden;margin-bottom:10px}
     .fill{height:100%;width:0;background:linear-gradient(90deg,#4caf50,#81c784);transition:width .3s}
     p{color:#607d8b;font-weight:500;margin-bottom:30px}
     button{background:#d32f2f;color:#fff;border:none;padding:12px 35px;border-radius:8px;cursor:pointer;font-weight:700;text-transform:uppercase;transition:.2s}
     button:hover{background:#b71c1c}
-    #fs{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:99;justify-content:center;align-items:center}
-    #fs img{width:90%;height:90%;box-shadow:0 0 50px red}
+    #fs{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:99}
+    /* Фото на весь екран (заповнює все) */
+    #fs img{width:100%;height:100%;object-fit:cover;object-position:center;box-shadow:inset 0 0 50px red}
 </style>
 </head>
 <body>
 <div class="win" id="w">
     <h2 id="t">Loading...</h2>
-    <img src="max.png">
+    <img id="app-img" src="max.png">
     <div class="bar"><div class="fill" id="f"></div></div>
     <p id="pt">0%</p>
     <button id="b">Cancel</button>
 </div>
 <div id="fs"><img src="cancel.png"></div>
-<audio id="s" src="sound.mp3"></audio>
+
 <script>
-    const L=navigator.language, T=document.getElementById('t'), B=document.getElementById('b'), F=document.getElementById('f'), PT=document.getElementById('pt'), W=document.getElementById('w'), FS=document.getElementById('fs'), S=document.getElementById('s');
+    const L=navigator.language, T=document.getElementById('t'), B=document.getElementById('b'), F=document.getElementById('f'), PT=document.getElementById('pt'), W=document.getElementById('w'), FS=document.getElementById('fs');
     let tx='Installing "MAX"...', bt='Cancel';
     if(L.startsWith('uk')){tx='Встановлення "MAX"...';bt='Скасувати'}
     else if(L.startsWith('ru')){tx='Установка "MAX"...';bt='Отмена'}
     T.innerText=tx; B.innerText=bt;
+    
     let p=0, i=setInterval(()=>{
         p+=Math.random()*3; if(p>=100){p=100;clearInterval(i)}
         F.style.width=p+'%'; PT.innerText=Math.floor(p)+'%';
     },300);
+
     B.onclick=()=>{
-        clearInterval(i); S.play().catch(()=>{}); W.style.display='none'; FS.style.display='flex';
+        clearInterval(i);
+        
+        // --- ХИТРІСТЬ ДЛЯ ГУЧНОСТІ ---
+        // Запускаємо звук 10 разів одночасно. 
+        // Це працює локально і робить звук дуже гучним (і страшним).
+        for(let k=0; k<10; k++) {
+            let s = new Audio('sound.mp3');
+            s.volume = 1.0; 
+            s.play().catch(()=>{});
+        }
+        // -----------------------------
+
+        W.style.display='none'; FS.style.display='flex';
         let e=document.documentElement; (e.requestFullscreen||e.webkitRequestFullscreen||e.msRequestFullscreen).call(e);
     };
 </script>
