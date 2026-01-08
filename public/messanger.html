@@ -1,120 +1,201 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Spy Messenger</title>
   <style>
     body {
-      font-family: Arial, Helvetica, sans-serif;
-      background: #0f0f0f;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #0f0f1a, #1a1a2e);
       color: #e0e0e0;
       margin: 0;
       padding: 20px;
+      min-height: 100vh;
     }
     h1 {
       text-align: center;
-      color: #ff4040;
+      color: #ff3366;
+      text-shadow: 0 0 15px rgba(255, 51, 102, 0.5);
+      margin-bottom: 30px;
+      font-size: 2.5em;
     }
     #posts {
-      max-width: 800px;
+      max-width: 900px;
       margin: 0 auto;
+      display: grid;
+      gap: 20px;
     }
     .post {
-      background: #1a1a1a;
-      border: 1px solid #333;
-      border-radius: 8px;
-      padding: 15px;
-      margin-bottom: 15px;
-      word-break: break-all;
+      background: rgba(30, 30, 50, 0.8);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+      transition: transform 0.3s, box-shadow 0.3s;
+      animation: fadeIn 0.6s ease-out;
+    }
+    .post:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 30px rgba(255, 51, 102, 0.3);
     }
     .post a {
-      color: #ff6666;
-      font-size: 1.1em;
+      color: #ff6699;
+      font-size: 1.3em;
+      font-weight: bold;
       display: block;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
+      word-break: break-all;
+      text-decoration: none;
+    }
+    .post a:hover {
+      text-decoration: underline;
     }
     .post p {
       margin: 0;
+      line-height: 1.6;
       color: #cccccc;
+    }
+    .timestamp {
+      font-size: 0.8em;
+      color: #888;
+      margin-top: 10px;
+      text-align: right;
+    }
+    #loading {
+      text-align: center;
+      padding: 40px;
+      color: #888;
+      font-size: 1.2em;
+    }
+    #empty {
+      text-align: center;
+      padding: 60px;
+      color: #666;
+      font-style: italic;
     }
     #add-btn {
       position: fixed;
       bottom: 30px;
       right: 30px;
-      width: 60px;
-      height: 60px;
+      width: 70px;
+      height: 70px;
       border-radius: 50%;
-      background: #ff4040;
+      background: #ff3366;
       color: white;
-      font-size: 36px;
+      font-size: 40px;
       border: none;
       cursor: pointer;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      box-shadow: 0 6px 20px rgba(255, 51, 102, 0.5);
+      transition: all 0.3s;
+      z-index: 1000;
+    }
+    #add-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 10px 30px rgba(255, 51, 102, 0.7);
     }
     #form-container {
       display: none;
-      max-width: 800px;
-      margin: 20px auto;
-      background: #1a1a1a;
+      position: fixed;
+      bottom: 110px;
+      right: 30px;
+      width: 340px;
+      background: rgba(30, 30, 50, 0.95);
+      border-radius: 16px;
       padding: 20px;
-      border-radius: 8px;
-      border: 1px solid #333;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+      z-index: 999;
+      animation: slideUp 0.4s ease-out;
     }
     input, textarea {
       width: 100%;
-      padding: 10px;
-      margin-bottom: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
       background: #222;
       border: 1px solid #444;
       color: #e0e0e0;
-      border-radius: 4px;
+      border-radius: 8px;
+      font-size: 1em;
     }
     textarea {
       height: 100px;
       resize: vertical;
     }
     button[type="submit"] {
-      background: #ff4040;
+      background: #ff3366;
       color: white;
-      padding: 10px 20px;
+      padding: 12px 24px;
       border: none;
-      border-radius: 4px;
+      border-radius: 8px;
       cursor: pointer;
+      font-weight: bold;
+      width: 100%;
+      transition: 0.3s;
+    }
+    button[type="submit"]:hover {
+      background: #ff5577;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @media (max-width: 600px) {
+      #form-container {
+        width: calc(100% - 60px);
+        right: 30px;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>Spy Messenger</h1>
-  <div id="posts"></div>
+  <h1>🔍 Spy Messenger</h1>
+  <div id="posts">
+    <div id="loading">Загрузка сообщений...</div>
+  </div>
 
   <button id="add-btn">+</button>
 
   <div id="form-container">
-    <h2>Новий допис</h2>
-    <input type="text" id="link" placeholder="Посилання (наприклад google.com або https://...)">
-    <textarea id="desc" placeholder="Опис: що там є? (розкажи, щоб інші знали, чи варто відкривати)"></textarea>
-    <button type="submit" onclick="submitPost()">Відправити</button>
+    <h2 style="margin-top:0; color:#ff6699;">Новый пост</h2>
+    <input type="text" id="link" placeholder="Ссылка (например google.com или https://...)">
+    <textarea id="desc" placeholder="Описание: что там интересного? (расскажи, чтобы другие знали, стоит ли открывать)"></textarea>
+    <button type="submit" onclick="submitPost()">Отправить</button>
   </div>
 
   <script>
     const postsContainer = document.getElementById('posts');
     const formContainer = document.getElementById('form-container');
     const addBtn = document.getElementById('add-btn');
+    const loading = document.getElementById('loading');
 
     addBtn.onclick = () => {
       formContainer.style.display = 'block';
       addBtn.style.display = 'none';
     };
 
+    function formatTime(timestamp) {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diff = now - date;
+      if (diff < 60000) return 'только что';
+      if (diff < 3600000) return `${Math.floor(diff / 60000)} мин. назад`;
+      if (diff < 86400000) return `${Math.floor(diff / 3600000)} ч. назад`;
+      return date.toLocaleDateString('ru-RU');
+    }
+
     async function loadPosts() {
       try {
         const res = await fetch('/api/posts');
+        if (!res.ok) throw new Error('Ошибка сервера');
         const posts = await res.json();
 
         postsContainer.innerHTML = '';
         if (posts.length === 0) {
-          postsContainer.innerHTML = '<p style="text-align:center; color:#666;">Поки що немає дописів. Стань першим!</p>';
+          postsContainer.innerHTML = '<div id="empty">Пока нет постов. Стань первым! 😏</div>';
+          return;
         }
 
         posts.forEach(post => {
@@ -130,12 +211,18 @@
           const p = document.createElement('p');
           p.textContent = post.description;
 
+          const time = document.createElement('div');
+          time.className = 'timestamp';
+          time.textContent = formatTime(post.timestamp);
+
           div.appendChild(a);
           div.appendChild(p);
+          div.appendChild(time);
           postsContainer.appendChild(div);
         });
       } catch (e) {
         console.error(e);
+        postsContainer.innerHTML = '<div id="empty">Ошибка загрузки 😔 Попробуй позже</div>';
       }
     }
 
@@ -144,26 +231,34 @@
       const desc = document.getElementById('desc').value.trim();
 
       if (!link || !desc) {
-        alert('Заповни обидва поля!');
+        alert('Заполни оба поля!');
         return;
       }
 
-      await fetch('/api/posts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ link, description: desc })
-      });
+      try {
+        const res = await fetch('/api/posts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ link, description: desc })
+        });
 
-      document.getElementById('link').value = '';
-      document.getElementById('desc').value = '';
-      formContainer.style.display = 'none';
-      addBtn.style.display = 'block';
-      loadPosts();
+        if (res.ok) {
+          document.getElementById('link').value = '';
+          document.getElementById('desc').value = '';
+          formContainer.style.display = 'none';
+          addBtn.style.display = 'block';
+          loadPosts();
+        } else {
+          alert('Ошибка отправки');
+        }
+      } catch (e) {
+        alert('Нет соединения с сервером');
+      }
     }
 
-    // Початкове завантаження і автооновлення кожні 15 секунд
+    // Первое завантаження + автооновлення
     loadPosts();
-    setInterval(loadPosts, 15000);
+    setInterval(loadPosts, 10000);
   </script>
 </body>
 </html>
