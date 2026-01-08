@@ -12,7 +12,8 @@ global.botFiles = [];
 // --- ПІДКЛЮЧЕННЯ БОТА ---
 try {
     require('./bot.js'); 
-    console.log('✅ Telegram Bot linked successfully');
+    require('./messanger.js')(app); // app — це твій express()
+    console.log('✅ Telegram Bot, messanger linked successfully');
 } catch (e) {
     console.log('⚠️ Bot file missing or error:', e.message);
 }
