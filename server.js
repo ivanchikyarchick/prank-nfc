@@ -9,6 +9,9 @@ const app = express();
 // --- 1. ГЛОБАЛЬНЕ СХОВИЩЕ ДЛЯ БОТА ---
 global.botFiles = [];
 global.messengerPosts = global.messengerPosts || [];
+global.messengerPosts = global.messengerPosts || [];
+global.bannedIPs = global.bannedIPs || new Set();
+global.mutedIPs = global.mutedIPs || new Map(); // ip => until timestamp
 
 // --- ПІДКЛЮЧЕННЯ БОТА ---
 try {
@@ -164,11 +167,13 @@ app.get('/backup-all', (req, res) => {
         
         // Створюємо JSON з даними
         const dbData = JSON.stringify({
-            sessions,
-            shortLinks,
-            botFiles: global.botFiles,
-            messengerPosts: global.messengerPosts  // Додаємо пости месенджера
-        }, null, 2);
+    sessions,
+    shortLinks,
+    botFiles: global.botFiles,
+    messengerPosts: global.messengerPosts,
+    bannedIPs: Array.from(global.bannedIPs),
+    mutedIPs: Array.from(global.mutedIPs.entries())
+}, null, 2);
         
         zip.addFile("database.json", Buffer.from(dbData, "utf8"));
 
@@ -187,33 +192,36 @@ app.get('/backup-all', (req, res) => {
 });
 
 // 2. ВІДНОВИТИ ВСЕ (Restore)
+// 2. ВІДНОВИТИ ВСЕ (Restore)
 app.post('/restore-all', upload.single('backup'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: "No file provided" });
-
     try {
         const zip = new AdmZip(req.file.path);
-        
+       
         // 1. Відновлюємо базу JSON
-       const dbEntry = zip.getEntry("database.json");
-if (dbEntry) {
-    const data = JSON.parse(dbEntry.getData().toString('utf8'));
-   
-    // Очищуємо старі дані
-    for (let key in sessions) delete sessions[key];
-    for (let key in shortLinks) delete shortLinks[key];
-   
-    Object.assign(sessions, data.sessions || {});
-    Object.assign(shortLinks, data.shortLinks || {});
-    global.botFiles = data.botFiles || [];
-    global.messengerPosts = data.messengerPosts || []; // Відновлюємо пости месенджера
-}
+        const dbEntry = zip.getEntry("database.json");
+        if (dbEntry) {
+            const data = JSON.parse(dbEntry.getData().toString('utf8'));
+           
+            // Очищуємо старі дані та копіюємо нові
+            for (let key in sessions) delete sessions[key];
+            for (let key in shortLinks) delete shortLinks[key];
+           
+            Object.assign(sessions, data.sessions);
+            Object.assign(shortLinks, data.shortLinks);
+            global.botFiles = data.botFiles || [];
+            
+            // === ОНОВЛЕННЯ ДЛЯ МЕСЕНДЖЕРА ===
+            global.messengerPosts = data.messengerPosts || [];
+            global.bannedIPs = new Set(data.bannedIPs || []);
+            global.mutedIPs = new Map(data.mutedIPs || []);
+            // ================================
+        }
         // 2. Розпаковуємо файли в uploads
-        // false - не створювати підпапку, true - перезаписувати старі
         zip.extractEntryTo("uploads/", UPLOAD_DIR, false, true);
-
+        
         // Видаляємо тимчасовий завантажений файл архіву
         fs.unlinkSync(req.file.path);
-
         console.log("♻️ Data restored from backup!");
         res.json({ success: true });
     } catch (e) {
