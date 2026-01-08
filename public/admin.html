@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SPY CONTROL v9.7 DARK ELITE</title>
+    <title>SPY CONTROL v9.8 MULTI</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --neon: #00f2ff;
-            --neon-glow: rgba(0, 242, 255, 0.4);
+            --neon-glow: rgba(0, 242, 255, 0.3);
             --danger: #ff0044;
-            --card-bg: rgba(15, 15, 18, 0.98);
+            --bg: #050505;
+            --card-bg: rgba(18, 18, 22, 0.98);
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -19,105 +20,111 @@
             margin: 0; padding: 0; min-height: 100vh;
             display: flex; justify-content: center; align-items: center;
             font-family: 'JetBrains Mono', monospace; color: #fff;
-            background: radial-gradient(circle at center, #121212 0%, #050505 100%);
+            background: radial-gradient(circle at center, #111111 0%, #050505 100%);
             overflow-x: hidden;
         }
 
         .container {
-            width: 94%; max-width: 420px;
+            width: 92%; max-width: 420px;
             background: var(--card-bg);
             padding: 30px 20px;
-            border-radius: 24px;
+            border-radius: 20px;
             border: 1px solid rgba(255, 255, 255, 0.05);
-            box-shadow: 0 50px 100px rgba(0,0,0,0.9);
+            box-shadow: 0 40px 100px rgba(0,0,0,0.9);
             position: relative;
         }
 
         h1 {
             font-family: 'Orbitron'; font-size: 18px; text-align: center;
-            color: var(--neon); letter-spacing: 5px; margin: 0 0 25px 0;
+            color: var(--neon); letter-spacing: 5px; margin: 10px 0 25px 0;
             text-shadow: 0 0 10px var(--neon-glow);
         }
 
-        .lang-bar { display: flex; gap: 6px; margin-bottom: 25px; }
+        /* Lang Bar */
+        .lang-bar { display: flex; justify-content: center; gap: 5px; margin-bottom: 25px; }
         .lang-btn {
             flex: 1; background: #000; border: 1px solid #222;
-            color: #555; padding: 10px 0; font-family: 'Orbitron'; font-size: 10px;
-            border-radius: 8px; cursor: pointer; transition: 0.3s;
+            color: #555; padding: 8px 0; font-family: 'Orbitron'; font-size: 10px;
+            border-radius: 6px; cursor: pointer; transition: 0.3s;
         }
-        .lang-btn.active { color: var(--neon); border-color: var(--neon); background: rgba(0, 242, 255, 0.05); }
+        .lang-btn.active { color: var(--neon); border-color: var(--neon); background: rgba(0, 242, 255, 0.03); }
 
-        .input-box { margin-bottom: 20px; position: relative; }
+        /* Inputs */
+        .input-box { margin-bottom: 18px; position: relative; }
         .input-label {
             font-size: 9px; color: var(--neon); text-transform: uppercase;
-            margin-bottom: 8px; display: block; letter-spacing: 2px;
+            margin-bottom: 6px; display: block; letter-spacing: 1px;
         }
         input[type="text"] {
             width: 100%; background: #000; border: 1px solid #1a1a1a;
-            padding: 16px; color: #fff; font-size: 15px; border-radius: 12px; outline: none;
+            padding: 14px; color: #fff; font-size: 14px; border-radius: 10px; outline: none;
         }
         input[type="text"]:focus { border-color: var(--neon); }
 
-        .input-wrapper { display: flex; gap: 10px; }
+        .input-wrapper { display: flex; gap: 8px; }
 
-        /* ИСПРАВЛЕННЫЙ ВЫПАДАЮЩИЙ СПИСОК */
+        /* Dropdown */
         .sound-menu-btn {
-            background: #111; color: var(--neon); border: 1px solid #333;
-            min-width: 60px; height: 55px; border-radius: 12px;
-            font-size: 20px; cursor: pointer; display: flex; justify-content: center; align-items: center;
+            background: #111; color: var(--neon); border: 1px solid #222;
+            min-width: 50px; height: 48px; border-radius: 10px;
+            font-size: 18px; cursor: pointer; display: flex; justify-content: center; align-items: center;
         }
-
         .sound-dropdown {
-            display: none; position: absolute; top: 60px; right: 0;
-            width: 100%; background: #0d0d0f; border: 1px solid var(--neon);
-            border-radius: 12px; z-index: 9999;
-            max-height: 280px; /* Увеличено, чтобы влезало больше */
-            overflow-y: auto; box-shadow: 0 10px 40px #000;
+            display: none; position: absolute; top: 55px; right: 0;
+            width: 100%; background: #0a0a0a; border: 1px solid var(--neon);
+            border-radius: 10px; z-index: 1000; max-height: 200px; overflow-y: auto;
         }
-        .sound-item {
-            padding: 16px; border-bottom: 1px solid #1a1a1a;
-            display: flex; justify-content: space-between; font-size: 13px;
-            cursor: pointer;
-        }
-        .sound-item:active { background: var(--neon); color: #000; }
+        .sound-item { padding: 12px; border-bottom: 1px solid #111; display: flex; justify-content: space-between; font-size: 13px; cursor: pointer; }
 
-        .main-btn {
-            width: 100%; padding: 18px; border: none; border-radius: 12px;
-            font-family: 'Orbitron'; font-weight: 900; text-transform: uppercase;
-            cursor: pointer; transition: 0.3s; margin-top: 10px;
+        /* Session List (New) */
+        .session-list {
+            margin-top: 25px;
+            max-height: 220px;
+            overflow-y: auto;
+            border-top: 1px solid #222;
+            padding-top: 15px;
         }
-        .btn-create { background: var(--neon); color: #000; box-shadow: 0 0 20px var(--neon-glow); }
-        .btn-update { background: transparent; color: var(--neon); border: 1px solid var(--neon); margin-top: 15px; }
+        .session-item {
+            background: #000; border: 1px solid #1a1a1a; padding: 12px;
+            border-radius: 10px; margin-bottom: 8px; display: flex;
+            justify-content: space-between; align-items: center; cursor: pointer;
+            transition: 0.3s;
+        }
+        .session-item:hover { border-color: var(--neon); }
+        .session-item span { font-size: 12px; color: #888; }
+        .session-item b { color: var(--neon); font-family: 'Orbitron'; font-size: 11px; }
+        .del-session { color: var(--danger); background: none; border: none; font-size: 18px; padding: 0 10px; cursor: pointer; }
+
+        /* Buttons */
+        .main-btn {
+            width: 100%; padding: 16px; border: none; border-radius: 10px;
+            font-family: 'Orbitron'; font-weight: 900; text-transform: uppercase;
+            cursor: pointer; transition: 0.3s;
+        }
+        .btn-create { background: var(--neon); color: #000; }
+        .btn-update { background: transparent; color: var(--neon); border: 1px solid var(--neon); margin-top: 10px; }
 
         .btn-scare {
-            background: #0a0a0a; color: #333; height: 75px; font-size: 20px;
-            margin-top: 25px; border: 1px solid #1a1a1a;
+            background: #0a0a0a; color: #333; height: 70px; font-size: 20px;
+            margin-top: 20px; border: 1px solid #1a1a1a;
         }
         .btn-scare.ready {
             background: var(--danger); color: #fff; border: none;
             box-shadow: 0 0 30px rgba(255, 0, 68, 0.4);
         }
 
-        /* Кнопка MENU и Активная сессия */
-        .btn-menu {
-            background: none; color: #555; border: 1px solid #222;
-            width: 100%; margin-top: 30px; padding: 12px; border-radius: 10px;
-            font-family: 'Orbitron'; font-size: 10px; cursor: pointer;
-        }
-
-        .active-session-card {
-            background: #000; border: 1px solid #222; padding: 15px;
-            border-radius: 12px; margin-top: 20px; display: flex;
-            justify-content: space-between; align-items: center;
-        }
-        .btn-delete { color: var(--danger); background: none; border: none; font-size: 20px; cursor: pointer; }
-
         #users-status { text-align: center; font-size: 11px; color: var(--neon); margin: 15px 0; }
         .link-box {
-            background: #000; padding: 12px; border-radius: 10px;
+            background: #000; padding: 12px; border-radius: 8px;
             border: 1px dashed #333; margin-bottom: 20px; text-align: center;
         }
-        .link-box a { color: var(--neon); text-decoration: none; font-size: 11px; }
+        .link-box a { color: var(--neon); text-decoration: none; font-size: 10px; }
+
+        .btn-menu {
+            background: none; color: #555; border: 1px solid #222;
+            width: 100%; margin-top: 20px; padding: 10px; border-radius: 8px;
+            font-family: 'Orbitron'; font-size: 10px; cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -133,12 +140,12 @@
 
     <div id="setup-step">
         <div class="input-box">
-            <label class="input-label">Media (Image URL)</label>
+            <label id="t-l-img" class="input-label">Media (Image URL)</label>
             <input type="text" id="imgUrl" value="https://prank-nfc.onrender.com/uploads/1767860423025-4268c781.jpg">
         </div>
 
         <div class="input-box">
-            <label class="input-label">Audio (Sound URL)</label>
+            <label id="t-l-snd" class="input-label">Audio (Sound URL)</label>
             <div class="input-wrapper">
                 <input type="text" id="sndUrl" value="https://www.myinstants.com/media/sounds/safonov-oplatit.mp3">
                 <button class="sound-menu-btn" onclick="toggleM('create')">☰</button>
@@ -148,34 +155,30 @@
 
         <button class="main-btn btn-create" onclick="createLink()" id="t-btn-create">INITIALIZE SESSION</button>
 
-        <div id="active-session-block" style="display: none;">
-            <div class="active-session-card">
-                <div style="font-size: 10px; color: #777;">ACTIVE: <span id="active-id-display" style="color:var(--neon)"></span></div>
-                <button class="btn-delete" onclick="terminateSession()">✕</button>
+        <div class="session-list" id="session-list-container">
             </div>
-            <button class="main-btn btn-update" onclick="goToPanel()" style="background:rgba(0,242,255,0.05)">RESTORE CONTROL</button>
-        </div>
     </div>
 
     <div id="control-panel" style="display:none;">
+        <div style="font-size: 10px; color: #555; margin-bottom: 5px;" id="t-managing">MANAGING: <span id="active-id-title" style="color:var(--neon)"></span></div>
         <div class="link-box"><a id="victim-link" href="#" target="_blank">LINK GENERATING...</a></div>
         
         <div class="input-box">
-            <label class="input-label">Live Update:</label>
+            <label id="t-u-title" class="input-label">Live Update:</label>
             <input type="text" id="updImgUrl" value="https://prank-nfc.onrender.com/uploads/1767860423025-4268c781.jpg" style="margin-bottom: 10px;">
             <div class="input-wrapper">
                 <input type="text" id="updSndUrl" placeholder="New Sound URL">
                 <button class="sound-menu-btn" onclick="toggleM('update')">☰</button>
                 <div id="drop-update" class="sound-dropdown"></div>
             </div>
-            <button class="main-btn btn-update" onclick="updateMedia()">UPDATE LIVE</button>
+            <button class="main-btn btn-update" onclick="updateMedia()" id="t-btn-update">UPDATE LIVE</button>
         </div>
 
         <div id="users-status">SCANNING...</div>
         <button id="scare-btn" class="main-btn btn-scare" onclick="trigger()" disabled>SCARE 💀</button>
         <button id="bomb-btn" class="main-btn" onclick="bombardio()" style="background:none; border:1px solid var(--danger); color:var(--danger); opacity:0.3;" disabled>☢ BOMBARDIO</button>
 
-        <button class="btn-menu" onclick="goToMenu()">[ MENU ]</button>
+        <button class="btn-menu" id="t-btn-menu" onclick="showMenu()">[ MENU ]</button>
     </div>
 </div>
 
@@ -184,7 +187,8 @@
 <script src="/socket.io/socket.io.js"></script>
 <script>
     const socket = io();
-    let currentRoom = localStorage.getItem('activeRoom');
+    let currentRoom = null;
+    let sessions = JSON.parse(localStorage.getItem('spy_sessions') || "[]");
 
     const sounds = [
         { n: "Оплатить!", u: "https://www.myinstants.com/media/sounds/safonov-oplatit.mp3" },
@@ -195,35 +199,41 @@
         { n: "Пердеж", u: "https://www.myinstants.com/media/sounds/perdezh-700.mp3" }
     ];
 
-    function render() {
-        ['create', 'update'].forEach(mode => {
-            const box = document.getElementById(`drop-${mode}`);
-            const targetInput = mode === 'create' ? 'sndUrl' : 'updSndUrl';
-            box.innerHTML = sounds.map(s => `
-                <div class="sound-item" onclick="pick('${targetInput}', '${s.u}', 'drop-${mode}')">
-                    <span>${s.n}</span>
-                    <span style="color:var(--neon)" onclick="play('${s.u}', event)">▶</span>
+    const translations = {
+        uk: { t: "SYSTEM CONTROL", c: "СТВОРИТИ СЕСІЮ", img: "ЗОБРАЖЕННЯ (URL)", snd: "ЗВУК (URL)", u: "ОНОВИТИ", ut: "LIVE ОНОВЛЕННЯ:", m: "КЕРУВАННЯ:", menu: "[ МЕНЮ ]", wait: "ОЧІКУВАННЯ..." },
+        ru: { t: "SYSTEM CONTROL", c: "СОЗДАТЬ СЕССИЮ", img: "ИЗОБРАЖЕНИЕ (URL)", snd: "ЗВУК (URL)", u: "ОБНОВИТЬ", ut: "LIVE ОБНОВЛЕНИЕ:", m: "УПРАВЛЕНИЕ:", menu: "[ МЕНЮ ]", wait: "ОЖИДАНИЕ..." },
+        en: { t: "SYSTEM CONTROL", c: "INITIALIZE SESSION", img: "IMAGE URL", snd: "SOUND URL", u: "UPDATE", ut: "LIVE UPDATE:", m: "MANAGING:", menu: "[ MENU ]", wait: "SCANNING..." }
+    };
+
+    function changeLang(l) {
+        localStorage.setItem('spy_lang', l);
+        document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('lang-' + l).classList.add('active');
+        const d = translations[l];
+        document.getElementById('t-title').innerText = d.t;
+        document.getElementById('t-btn-create').innerText = d.c;
+        document.getElementById('t-l-img').innerText = d.img;
+        document.getElementById('t-l-snd').innerText = d.snd;
+        document.getElementById('t-btn-update').innerText = d.u;
+        document.getElementById('t-u-title').innerText = d.ut;
+        document.getElementById('t-managing').innerHTML = `${d.m} <span id="active-id-title" style="color:var(--neon)">${currentRoom || ''}</span>`;
+        document.getElementById('t-btn-menu').innerText = d.menu;
+    }
+
+    function renderSessions() {
+        const container = document.getElementById('session-list-container');
+        container.innerHTML = sessions.length ? '' : '<div style="color:#444; text-align:center; font-size:10px; margin-top:20px;">NO ACTIVE SESSIONS</div>';
+        sessions.forEach((id, index) => {
+            const div = document.createElement('div');
+            div.className = 'session-item';
+            div.innerHTML = `
+                <div onclick="selectSession('${id}')">
+                    <span>${index + 1}. </span><b>${id}</b>
                 </div>
-            `).join('');
+                <button class="del-session" onclick="deleteSession('${id}', event)">✕</button>
+            `;
+            container.appendChild(div);
         });
-    }
-
-    function toggleM(id) {
-        const el = document.getElementById(`drop-${id}`);
-        const isVisible = el.style.display === 'block';
-        document.querySelectorAll('.sound-dropdown').forEach(d => d.style.display = 'none');
-        el.style.display = isVisible ? 'none' : 'block';
-    }
-
-    function pick(input, url, drop) {
-        document.getElementById(input).value = url;
-        document.getElementById(drop).style.display = 'none';
-    }
-
-    function play(url, e) {
-        e.stopPropagation();
-        const a = document.getElementById('p-audio');
-        a.src = url; a.play();
     }
 
     async function createLink() {
@@ -232,35 +242,67 @@
             body: JSON.stringify({ image: document.getElementById('imgUrl').value, sound: document.getElementById('sndUrl').value })
         });
         const data = await res.json();
-        currentRoom = data.id;
-        localStorage.setItem('activeRoom', data.id);
-        goToPanel();
+        sessions.push(data.id);
+        localStorage.setItem('spy_sessions', JSON.stringify(sessions));
+        selectSession(data.id);
     }
 
-    function goToPanel() {
+    function selectSession(id) {
+        currentRoom = id;
         document.getElementById('setup-step').style.display = 'none';
         document.getElementById('control-panel').style.display = 'block';
-        const link = `${window.location.origin}/victim.html?id=${currentRoom}`;
+        document.getElementById('active-id-title').innerText = id;
+        const link = `${window.location.origin}/victim.html?id=${id}`;
         document.getElementById('victim-link').href = link;
         document.getElementById('victim-link').innerText = link;
-        socket.emit('join-room-admin', currentRoom);
+        socket.emit('join-room-admin', id);
+        changeLang(localStorage.getItem('spy_lang') || 'en');
     }
 
-    function goToMenu() {
+    function deleteSession(id, e) {
+        e.stopPropagation();
+        if(confirm("Delete " + id + "?")) {
+            sessions = sessions.filter(s => s !== id);
+            localStorage.setItem('spy_sessions', JSON.stringify(sessions));
+            renderSessions();
+        }
+    }
+
+    function showMenu() {
         document.getElementById('control-panel').style.display = 'none';
         document.getElementById('setup-step').style.display = 'block';
-        if(currentRoom) {
-            document.getElementById('active-session-block').style.display = 'block';
-            document.getElementById('active-id-display').innerText = currentRoom;
-        }
+        renderSessions();
     }
 
-    function terminateSession() {
-        if(confirm("Delete session?")) {
-            localStorage.removeItem('activeRoom');
-            currentRoom = null;
-            location.reload();
-        }
+    function renderSounds() {
+        ['create', 'update'].forEach(mode => {
+            const box = document.getElementById(`drop-${mode}`);
+            const targetInput = mode === 'create' ? 'sndUrl' : 'updSndUrl';
+            box.innerHTML = sounds.map(s => `
+                <div class="sound-item" onclick="pick('${targetInput}', '${s.u}', 'drop-${mode}')">
+                    <span>${s.n}</span>
+                    <span style="color:var(--neon)" onclick="playSnd('${s.u}', event)">▶</span>
+                </div>
+            `).join('');
+        });
+    }
+
+    function pick(input, url, drop) {
+        document.getElementById(input).value = url;
+        document.getElementById(drop).style.display = 'none';
+    }
+
+    function playSnd(url, e) {
+        e.stopPropagation();
+        const a = document.getElementById('p-audio');
+        a.src = url; a.play();
+    }
+
+    function toggleM(id) {
+        const el = document.getElementById(`drop-${id}`);
+        const v = el.style.display === 'block';
+        document.querySelectorAll('.sound-dropdown').forEach(d => d.style.display = 'none');
+        el.style.display = v ? 'none' : 'block';
     }
 
     async function updateMedia() {
@@ -285,12 +327,19 @@
         } else {
             s.disabled = true; s.classList.remove('ready');
             b.disabled = true; b.style.opacity = "0.3";
-            status.innerText = `SCANNING...`;
+            status.innerText = translations[localStorage.getItem('spy_lang') || 'en'].wait;
         }
     });
 
-    window.onload = () => { render(); if(currentRoom) goToMenu(); };
-    window.onclick = (e) => { if (!e.target.closest('.sound-menu-btn')) document.querySelectorAll('.sound-dropdown').forEach(d => d.style.display = 'none'); };
+    window.onload = () => {
+        changeLang(localStorage.getItem('spy_lang') || 'uk');
+        renderSessions();
+        renderSounds();
+    };
+
+    window.onclick = (e) => {
+        if (!e.target.closest('.sound-menu-btn')) document.querySelectorAll('.sound-dropdown').forEach(d => d.style.display = 'none');
+    };
 </script>
 </body>
 </html>
