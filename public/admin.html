@@ -3,330 +3,392 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SPY CONTROL v11.0 (URL)</title>
+    <title>SPY CONTROL v9.2 FINAL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --neon: #00ffcc;
-            --neon-secondary: #00aaff;
-            --danger: #ff3366;
-            --bg-dark: #050507;
-            --card-bg: rgba(20, 20, 25, 0.95);
-            --text-color: #e0e0e0;
-        }
-        body { 
-            background-color: var(--bg-dark); color: var(--text-color); 
-            font-family: 'Segoe UI', Roboto, sans-serif; 
-            margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center;
-            background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
-            overflow: hidden;
+            --neon: #00f2ff;
+            --neon-glow: rgba(0, 242, 255, 0.3);
+            --danger: #ff0044;
+            --bg-1: #050508;
+            --bg-2: #0d1117;
+            --bg-3: #0a0612;
+            --card-bg: rgba(15, 15, 20, 0.9);
         }
 
-        .container { 
-            position: relative; z-index: 1; width: 95%; max-width: 500px; 
-            background: var(--card-bg); padding: 25px 20px; border-radius: 20px; 
-            border: 1px solid rgba(0, 255, 204, 0.15);
-            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-            box-shadow: 0 0 30px rgba(0,0,0,0.6);
-            max-height: 98vh; overflow-y: auto;
-            display: flex; flex-direction: column;
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'JetBrains Mono', monospace;
+            color: #e0e0e0;
+            /* Анімований приглушений градієнт */
+            background: linear-gradient(135deg, var(--bg-1), var(--bg-2), var(--bg-3));
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            overflow-x: hidden;
         }
 
-        /* HEADER */
-        h1 { font-size: 24px; text-transform: uppercase; text-align: center; color: var(--neon); letter-spacing: 3px; margin: 10px 0 25px 0; text-shadow: 0 0 10px rgba(0,255,204,0.3); }
-
-        .lang-bar { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
-        .lang-btn { background: rgba(255,255,255,0.05); border: 1px solid #444; color: #888; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 10px; transition: 0.2s; }
-        .lang-btn.active { border-color: var(--neon); color: black; background: var(--neon); font-weight: bold; }
-
-        /* INPUTS */
-        .input-box { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #333; position: relative; transition: 0.3s; }
-        .input-box:focus-within { border-color: var(--neon-secondary); box-shadow: 0 0 10px rgba(0, 170, 255, 0.1); }
-        
-        .lbl-title { font-size: 10px; font-weight: bold; color: var(--neon-secondary); display: block; margin-bottom: 8px; letter-spacing: 1px; }
-
-        input[type="text"] { 
-            width: 100%; padding: 12px; background: #0b0b0b; border: 1px solid #333; 
-            color: white; border-radius: 8px; box-sizing: border-box; font-size: 13px; outline: none; transition: 0.2s;
-        }
-        input[type="text"]:focus { border-color: var(--neon); background: #111; }
-
-        /* SOUND MENU */
-        .input-wrapper { display: flex; gap: 8px; align-items: center; position: relative; }
-        .input-wrapper input { flex-grow: 1; }
-
-        .sound-menu-btn { 
-            background: #111; border: 1px solid #333; color: var(--neon-secondary); 
-            border-radius: 8px; width: 44px; height: 42px; display: flex; justify-content: center; align-items: center; 
-            cursor: pointer; font-size: 18px; transition: 0.2s;
-        }
-        .sound-menu-btn:hover { border-color: var(--neon); background: rgba(0,255,204,0.1); color: var(--neon); }
-
-        .sound-dropdown { 
-            display: none; position: absolute; top: 50px; right: 0; width: 100%; 
-            background: #121212; border: 1px solid var(--neon-secondary); border-radius: 10px; 
-            z-index: 1000; max-height: 250px; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.9); 
-        }
-        .sound-dropdown.show { display: block; animation: fadeIn 0.2s ease-out; }
-        
-        .sound-item { 
-            padding: 12px; border-bottom: 1px solid #222; font-size: 12px; cursor: pointer; 
-            color: #ccc; display: flex; justify-content: space-between; align-items: center; 
-        }
-        .sound-item:hover { background: var(--neon-secondary); color: black; }
-        .preview-btn { 
-            font-size: 10px; padding: 4px 8px; border: 1px solid #555; background: black; color: white; 
-            margin-left: 10px; cursor: pointer; border-radius: 4px;
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
 
-        /* BUTTONS */
-        button.main-btn { 
-            width: 100%; padding: 15px; border: none; border-radius: 10px; font-weight: bold; 
-            cursor: pointer; text-transform: uppercase; margin-top: 10px; font-size: 13px; letter-spacing: 1px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: 0.2s;
+        .container {
+            width: 92%;
+            max-width: 440px;
+            background: var(--card-bg);
+            padding: 30px 20px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            position: relative;
         }
-        .btn-create { background: var(--neon); color: #050507; }
-        .btn-create:hover { background: #00e6b8; box-shadow: 0 0 20px var(--neon); }
-        .btn-create:active { transform: scale(0.98); }
 
-        .btn-update { background: transparent; color: var(--neon); border: 1px solid var(--neon); margin-top: 15px; }
-        .btn-update:hover { background: rgba(0,255,204,0.1); }
-        
-        .btn-scare { background: #222; color: #555; height: 55px; font-size: 16px; cursor: not-allowed; margin-top: 20px; border: 1px solid #333; }
-        .btn-scare.ready { background: var(--danger); color: white; cursor: pointer; animation: pulse 2s infinite; border: none; }
-        
-        .btn-bomb { 
-            background: repeating-linear-gradient(45deg, #111, #111 10px, #400 10px, #400 20px); 
-            color: var(--danger); border: 2px solid var(--danger); margin-top: 10px; height: 45px; 
-            cursor: not-allowed; opacity: 0.5; font-size: 12px;
+        h1 {
+            font-family: 'Orbitron';
+            font-size: 22px;
+            text-align: center;
+            color: var(--neon);
+            letter-spacing: 3px;
+            margin: 0 0 25px 0;
+            text-shadow: 0 0 10px var(--neon-glow);
         }
-        .btn-bomb.ready { cursor: pointer; opacity: 1; }
-        
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 
-        .link-box { background: #000; padding: 12px; border-radius: 8px; border: 1px dashed #444; margin: 15px 0; word-break: break-all; font-size: 12px; text-align: center;}
-        
-        .history-item { 
-            display: flex; justify-content: space-between; align-items: center;
-            background: #111; padding: 10px; border-radius: 8px; margin-bottom: 5px; cursor: pointer; font-size: 11px; border: 1px solid #222; transition: 0.2s;
+        /* Адаптивна мовна панель */
+        .lang-bar {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 25px;
         }
-        .history-item:hover { border-color: var(--neon); background: #161616; }
-        .del-btn { color: var(--danger); background: rgba(255,50,100,0.1); border: 1px solid rgba(255,50,100,0.3); padding: 4px 10px; border-radius: 5px; cursor: pointer;}
-        
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        .lang-btn {
+            flex: 1;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #666;
+            padding: 10px 0;
+            font-family: 'Orbitron';
+            font-size: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .lang-btn.active {
+            color: var(--neon);
+            border-color: var(--neon);
+            background: rgba(0, 242, 255, 0.05);
+        }
+
+        /* Стиль полів вводу */
+        .input-box { margin-bottom: 20px; position: relative; }
+        .input-label {
+            font-size: 10px;
+            color: var(--neon);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            display: block;
+            opacity: 0.8;
+        }
+        input[type="text"] {
+            width: 100%;
+            background: #000;
+            border: 1px solid #222;
+            padding: 14px;
+            color: #fff;
+            font-size: 15px; /* Запобігає зуму на iPhone */
+            border-radius: 10px;
+            outline: none;
+            transition: 0.3s;
+        }
+        input[type="text"]:focus { border-color: var(--neon); }
+
+        .input-wrapper { display: flex; gap: 8px; }
+
+        /* Три смужки (Гамбургер-кнопка) */
+        .sound-menu-btn {
+            background: var(--neon);
+            color: #000;
+            border: none;
+            min-width: 55px;
+            height: 50px;
+            border-radius: 10px;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 15px var(--neon-glow);
+        }
+
+        .sound-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: #111;
+            border: 1px solid var(--neon);
+            border-radius: 10px;
+            z-index: 1000;
+            margin-top: 5px;
+            max-height: 250px;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+
+        .sound-item {
+            padding: 15px;
+            border-bottom: 1px solid #222;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+        .sound-item:active { background: var(--neon); color: #000; }
+
+        /* Кнопки */
+        .main-btn {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 12px;
+            font-family: 'Orbitron';
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-top: 10px;
+        }
+        .btn-create {
+            background: var(--neon);
+            color: #000;
+            box-shadow: 0 5px 15px var(--neon-glow);
+        }
+        .btn-update {
+            background: transparent;
+            color: var(--neon);
+            border: 1px solid var(--neon);
+            margin-top: 15px;
+        }
+
+        .btn-scare {
+            background: #1a1a1a;
+            color: #444;
+            height: 75px;
+            font-size: 20px;
+            margin-top: 20px;
+        }
+        .btn-scare.ready {
+            background: var(--danger);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(255, 0, 68, 0.4);
+            cursor: pointer;
+        }
+
+        #users-status {
+            text-align: center;
+            font-size: 12px;
+            color: var(--neon);
+            margin: 15px 0;
+            font-weight: bold;
+        }
+
+        .link-box {
+            background: #000;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px dashed #333;
+            margin-bottom: 20px;
+            text-align: center;
+            word-break: break-all;
+        }
+        .link-box a { color: var(--neon); text-decoration: none; font-size: 11px; }
+
+        /* Мобільна адаптація */
+        @media (max-width: 480px) {
+            .container { width: 95%; padding: 25px 15px; }
+            h1 { font-size: 18px; }
+            .main-btn { padding: 16px; }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="lang-bar">
-            <button class="lang-btn" onclick="setLang('uk')">UA</button>
-            <button class="lang-btn" onclick="setLang('ru')">RU</button>
-            <button class="lang-btn" onclick="setLang('en')">EN</button>
-        </div>
 
-        <h1 id="txt-title">👁️ SPY CONTROL</h1>
-
-        <div id="setup-step">
-            <div class="input-box">
-                <span class="lbl-title" id="lbl-img">ЗОБРАЖЕННЯ (URL)</span>
-                <input type="text" id="imgUrl" placeholder="https://i.imgur.com/example.jpg">
-            </div>
-
-            <div class="input-box">
-                <span class="lbl-title" id="lbl-snd">ЗВУК (URL)</span>
-                <div class="input-wrapper">
-                    <input type="text" id="sndUrl" value="https://soundbible.com/grab.php?id=1549&type=mp3">
-                    <div class="sound-menu-btn" onclick="toggleMenu('create')">☰</div>
-                    <div id="menu-create" class="sound-dropdown"></div>
-                </div>
-            </div>
-
-            <button class="main-btn btn-create" onclick="handleCreate()" id="btn-create">СТВОРИТИ ПАСТКУ</button>
-        </div>
-
-        <div id="control-panel" style="display:none;">
-            <div style="text-align:center; margin:10px 0; font-size:11px; padding:10px;">
-                <a id="victim-link" href="#" target="_blank" style="color:var(--neon-secondary); text-decoration:none; font-size:14px; border-bottom:1px solid var(--neon-secondary);">Link...</a>
-            </div>
-            
-            <div class="input-box" style="border-color: var(--neon);">
-                <span class="lbl-title" id="lbl-upd" style="color:var(--neon)">ОНОВИТИ КОНТЕНТ (Live)</span>
-                <input type="text" id="updImgUrl" placeholder="New Image URL" style="margin-bottom: 10px;">
-                <div class="input-wrapper">
-                    <input type="text" id="updSndUrl" placeholder="New Sound URL">
-                    <div class="sound-menu-btn" onclick="toggleMenu('update')">☰</div>
-                    <div id="menu-update" class="sound-dropdown"></div>
-                </div>
-                <button class="main-btn btn-update" onclick="handleUpdate()" id="btn-update">ОНОВИТИ</button>
-            </div>
-
-            <div id="users-list" style="min-height: 20px; text-align:center; margin-bottom:10px;"></div>
-            
-            <button id="scare-btn" class="main-btn btn-scare" onclick="triggerScare()" disabled>SCREAMER 💀</button>
-            <button id="bomb-btn" class="main-btn btn-bomb" onclick="triggerBomb()" disabled>☢️ BOMBARDIO ☢️</button>
-            
-            <button onclick="location.reload()" style="background:transparent; color:#666; border:none; margin-top:20px; width:100%; font-size:11px; cursor:pointer;">⬅ MENU</button>
-        </div>
-
-        <div id="history-panel">
-            <h3 id="txt-hist" style="font-size:11px; color:#444; margin-top:25px; border-top:1px solid #222; padding-top:10px; text-align:center;">ІСТОРІЯ / HISTORY</h3>
-            <div id="history-list"></div>
-        </div>
+<div class="container">
+    <div class="lang-bar">
+        <button class="lang-btn" id="lang-uk" onclick="changeLang('uk')">UA</button>
+        <button class="lang-btn" id="lang-ru" onclick="changeLang('ru')">RU</button>
+        <button class="lang-btn" id="lang-en" onclick="changeLang('en')">EN</button>
+        <button class="lang-btn" id="lang-ja" onclick="changeLang('ja')">JP</button>
     </div>
 
-    <audio id="preview-audio"></audio>
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
-        const socket = io();
-        let curSess = null;
+    <h1 id="t-title">👁️ SPY CONTROL</h1>
+
+    <div id="setup-step">
+        <div class="input-box">
+            <label id="t-l-img" class="input-label">Media (Image URL)</label>
+            <input type="text" id="imgUrl" placeholder="https://...">
+        </div>
+
+        <div class="input-box">
+            <label id="t-l-snd" class="input-label">Audio (Sound URL)</label>
+            <div class="input-wrapper">
+                <input type="text" id="sndUrl" value="https://www.myinstants.com/media/sounds/safonov-oplatit.mp3">
+                <button class="sound-menu-btn" onclick="toggleM('create')">☰</button>
+                <div id="drop-create" class="sound-dropdown"></div>
+            </div>
+        </div>
+
+        <button class="main-btn btn-create" onclick="createLink()" id="t-btn-create">СТВОРИТИ ПАСТКУ</button>
+    </div>
+
+    <div id="control-panel" style="display:none;">
+        <div class="link-box"><a id="victim-link" href="#" target="_blank">...</a></div>
         
-        // --- TRANSLATIONS ---
-        const i18n = {
-            uk: { t:"👁️ SPY CONTROL", li:"ЗОБРАЖЕННЯ (URL)", ls:"ЗВУК (URL)", bc:"СТВОРИТИ ПАСТКУ", bu:"ОНОВИТИ ЗАРАЗ", lu:"ОНОВИТИ КОНТЕНТ (Live)", bs:"НАЛЯКАТИ 💀", bb:"☢️ БОМБАРДУВАННЯ ☢️", h:"ІСТОРІЯ", warn:"⚠️ УВАГА! Всіх перекине на пранк сайт!", ln:"🚀 ЗАПУЩЕНО!" },
-            ru: { t:"👁️ ШПИОН КОНТРОЛЬ", li:"ИЗОБРАЖЕНИЕ (URL)", ls:"ЗВУК (URL)", bc:"СОЗДАТЬ ЛОВУШКУ", bu:"ОБНОВИТЬ СЕЙЧАС", lu:"ОБНОВИТЬ КОНТЕНТ (Live)", bs:"НАПУГАТЬ 💀", bb:"☢️ БОМБАРДИРОВКА ☢️", h:"ИСТОРИЯ", warn:"⚠️ ВНИМАНИЕ! Всех перекинет на пранк сайт!", ln:"🚀 ЗАПУЩЕНО!" },
-            en: { t:"👁️ SPY CONTROL", li:"IMAGE URL", ls:"SOUND URL", bc:"CREATE TRAP", bu:"UPDATE NOW", lu:"LIVE UPDATE", bs:"SCREAMER 💀", bb:"☢️ BOMBARDIO ☢️", h:"HISTORY", warn:"⚠️ Redirect everyone?", ln:"🚀 LAUNCHED!" }
-        };
-        let lang = 'uk';
+        <div class="input-box">
+            <label id="t-u-title" class="input-label">Live Update:</label>
+            <input type="text" id="updImgUrl" placeholder="New Image URL" style="margin-bottom: 8px;">
+            <div class="input-wrapper">
+                <input type="text" id="updSndUrl" placeholder="New Sound URL">
+                <button class="sound-menu-btn" onclick="toggleM('update')">☰</button>
+                <div id="drop-update" class="sound-dropdown"></div>
+            </div>
+            <button class="main-btn btn-update" onclick="updateMedia()" id="t-btn-update">ОНОВИТИ</button>
+        </div>
 
-        function setLang(l) {
-            lang = l;
-            const t = i18n[l];
-            document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('txt-title').innerText = t.t;
-            document.getElementById('lbl-img').innerText = t.li;
-            document.getElementById('lbl-snd').innerText = t.ls;
-            document.getElementById('btn-create').innerText = t.bc;
-            document.getElementById('lbl-upd').innerText = t.lu;
-            document.getElementById('btn-update').innerText = t.bu;
-            if(!document.getElementById('scare-btn').disabled) document.getElementById('scare-btn').innerText = t.bs;
-            document.getElementById('bomb-btn').innerText = t.bb;
-            document.getElementById('txt-hist').innerText = t.h;
-        }
+        <div id="users-status">SCANNING FOR TARGETS...</div>
+        <button id="scare-btn" class="main-btn btn-scare" onclick="trigger()" disabled>SCARE 💀</button>
+        <button id="bomb-btn" class="main-btn" onclick="bombardio()" style="background:none; border:1px solid var(--danger); color:var(--danger); opacity:0.3;" disabled>☢ BOMBARDIO</button>
 
-        // --- SOUNDS ---
-        const sounds = [
-            {n:"Сафонов Оплатить", u:"https://www.myinstants.com/media/sounds/safonov-oplatit.mp3"},
-            {n:"Чугун", u:"https://www.myinstants.com/media/sounds/chugun.mp3"},
-            {n:"Крякалка ДПС", u:"https://www.myinstants.com/media/sounds/kriakalka-dps-no-2.mp3"},
-            {n:"ЁБ*ЫЙ В РООТ", u:"https://www.myinstants.com/media/sounds/iobanyi-v-rot.mp3"},
-            {n:"Screamer 1", u:"https://www.myinstants.com/media/sounds/scream_horror1.mp3"},
-            {n:"Визг свиньи", u:"https://www.myinstants.com/media/sounds/vizg-svini.mp3"},
-            {n:"Полиция", u:"https://www.myinstants.com/media/sounds/police-siren.mp3"},
-            {n:"Стук в дверь", u:"https://www.myinstants.com/media/sounds/knocking-on-door.mp3"}
-        ];
+        <button onclick="location.reload()" style="background:none;color:#555;border:none;width:100%;margin-top:20px;cursor:pointer;font-size:10px;">[ TERMINATE SESSION ]</button>
+    </div>
+</div>
 
-        function renderMenus() {
-            ['create', 'update'].forEach(t => {
-                const c = document.getElementById(`menu-${t}`);
-                const inp = t==='create'?'sndUrl':'updSndUrl';
-                c.innerHTML = sounds.map(s => `
-                    <div class="sound-item">
-                        <span onclick="pickSound('${inp}','${s.u}','menu-${t}')" style="flex:1">${s.n}</span>
-                        <button class="preview-btn" onclick="playP('${s.u}', event)">▶</button>
-                    </div>`).join('');
-            });
-        }
-        function pickSound(id, url, mid) { document.getElementById(id).value = url; document.getElementById(mid).classList.remove('show'); }
-        function toggleMenu(t) { 
-            const m = document.getElementById(`menu-${t}`);
-            const s = m.classList.contains('show');
-            document.querySelectorAll('.sound-dropdown').forEach(e=>e.classList.remove('show'));
-            if(!s) m.classList.add('show');
-        }
-        function playP(u, e) { e.stopPropagation(); const a = document.getElementById('preview-audio'); a.src=u; a.volume=0.5; a.play(); }
-        window.onclick = e => { if(!e.target.closest('.sound-menu-btn') && !e.target.closest('.preview-btn')) document.querySelectorAll('.sound-dropdown').forEach(m=>m.classList.remove('show')); };
+<audio id="p-audio"></audio>
 
-        // --- CORE LOGIC (JSON Only - Fast & Simple) ---
-        async function handleCreate() {
-            const img = document.getElementById('imgUrl').value;
-            const snd = document.getElementById('sndUrl').value;
-            
-            // Простая валидация
-            if(!img && !snd) return alert("Введите ссылку на фото или звук!");
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    const socket = io();
+    let currentRoom = null;
 
-            try {
-                const r = await fetch('/create', {
-                    method:'POST',
-                    headers:{'Content-Type':'application/json'},
-                    body:JSON.stringify({image:img, sound:snd})
-                });
-                const d = await r.json();
-                activate(d.id, d.shortUrl);
-            } catch(e) { alert("Error: "+e); }
-        }
+    const sounds = [
+        { n: "Оплатить!", u: "https://www.myinstants.com/media/sounds/safonov-oplatit.mp3" },
+        { n: "Чугун", u: "https://www.myinstants.com/media/sounds/chugun.mp3" },
+        { n: "ДПС Кряк", u: "https://www.myinstants.com/media/sounds/kriakalka-dps-no-2.mp3" },
+        { n: "Скример", u: "https://www.myinstants.com/media/sounds/scream_horror1.mp3" },
+        { n: "Стоны", u: "https://www.myinstants.com/media/sounds/shkola.mp3" },
+        { n: "Пердеж", u: "https://www.myinstants.com/media/sounds/perdezh-700.mp3" }
+    ];
 
-        async function handleUpdate() {
-            if(!curSess) return;
-            const iu = document.getElementById('updImgUrl').value;
-            const su = document.getElementById('updSndUrl').value;
-
-            try {
-                await fetch(`/update-session/${curSess}`, {
-                    method:'POST',
-                    headers:{'Content-Type':'application/json'},
-                    body:JSON.stringify({image:iu, sound:su})
-                });
-                alert("UPDATED OK!");
-                document.getElementById('updImgUrl').value=''; 
-                document.getElementById('updSndUrl').value='';
-            } catch(e) { alert("Error: "+e); }
-        }
-
-        function activate(id, shortCode) {
-            curSess = id;
-            saveH(id);
-            document.getElementById('setup-step').style.display='none';
-            document.getElementById('control-panel').style.display='block';
-            document.getElementById('history-panel').style.display='none';
-            
-            const l = shortCode ? `${window.location.origin}/${shortCode}` : `${window.location.origin}/victim.html?id=${id}`;
-            const lel = document.getElementById('victim-link');
-            lel.href = l;
-            lel.innerText = l;
-            
-            socket.emit('join-room-admin', id);
-        }
-
-        function triggerScare() { if(curSess) socket.emit('trigger-scare', curSess); }
-        function triggerBomb() { 
-            if(curSess && confirm(i18n[lang].warn)) {
-                socket.emit('trigger-redirect', {roomId:curSess, url:"https://prank-nfc.onrender.com/volumeshader_bm.html"});
-                alert(i18n[lang].ln);
-            }
-        }
-
-        socket.on('update-victim-list', u => {
-            const b = document.getElementById('scare-btn');
-            const bb = document.getElementById('bomb-btn');
-            const l = document.getElementById('users-list');
-            if(u.length){
-                b.disabled=false; b.classList.add('ready'); b.innerText = i18n[lang].bs;
-                bb.disabled=false; bb.classList.add('ready');
-                l.innerHTML = u.map(v=>`<div style="color:var(--neon);font-size:11px;border-bottom:1px solid #222;padding:5px;">● ${v.device} [${v.ip}]</div>`).join('');
-            } else {
-                b.disabled=true; b.classList.remove('ready');
-                bb.disabled=true; bb.classList.remove('ready');
-                l.innerHTML='<div style="color:#555;font-size:11px;padding:10px;">Waiting for victims...</div>';
-            }
+    function render() {
+        ['create', 'update'].forEach(mode => {
+            const box = document.getElementById(`drop-${mode}`);
+            const targetInput = mode === 'create' ? 'sndUrl' : 'updSndUrl';
+            box.innerHTML = sounds.map(s => `
+                <div class="sound-item" onclick="pick('${targetInput}', '${s.u}', 'drop-${mode}')">
+                    <span>${s.n}</span>
+                    <span style="color:var(--neon)" onclick="play('${s.u}', event)">▶</span>
+                </div>
+            `).join('');
         });
+    }
 
-        // --- HISTORY ---
-        function saveH(id){ let h=JSON.parse(localStorage.getItem('sh')||'[]'); if(!h.includes(id)){h.unshift(id); localStorage.setItem('sh',JSON.stringify(h.slice(0,10)));} }
-        function loadH(){ 
-            const h=JSON.parse(localStorage.getItem('sh')||'[]');
-            const l=document.getElementById('history-list'); l.innerHTML='';
-            h.forEach(id=>{
-                const d=document.createElement('div'); d.className='history-item';
-                d.innerHTML=`<span style="flex:1" onclick="activate('${id}')">ID: ${id.slice(0,8)}...</span><button class="del-btn" onclick="delH('${id}',event)">✕</button>`;
-                l.appendChild(d);
-            });
+    function toggleM(id) {
+        const el = document.getElementById(`drop-${id}`);
+        const isVisible = el.style.display === 'block';
+        document.querySelectorAll('.sound-dropdown').forEach(d => d.style.display = 'none');
+        el.style.display = isVisible ? 'none' : 'block';
+    }
+
+    function pick(input, url, drop) {
+        document.getElementById(input).value = url;
+        document.getElementById(drop).style.display = 'none';
+    }
+
+    function play(url, e) {
+        e.stopPropagation();
+        const a = document.getElementById('p-audio');
+        a.src = url; a.play();
+    }
+
+    const langs = {
+        uk: { t: "👁️ SPY CONTROL", c: "СТВОРИТИ ПАСТКУ", img: "ЗОБРАЖЕННЯ (URL)", snd: "ЗВУК (URL)", u: "ОНОВИТИ", ut: "LIVE ОНОВЛЕННЯ:" },
+        ru: { t: "👁️ SPY CONTROL", c: "СОЗДАТЬ ЛОВУШКУ", img: "ИЗОБРАЖЕНИЕ (URL)", snd: "ЗВУК (URL)", u: "ОБНОВИТЬ", ut: "LIVE ОБНОВЛЕНИЕ:" },
+        en: { t: "👁️ SPY CONTROL", c: "CREATE TRAP", img: "IMAGE URL", snd: "SOUND URL", u: "UPDATE", ut: "LIVE UPDATE:" },
+        ja: { t: "👁️ スパイ管理", c: "トラップ作成", img: "画像URL", snd: "音声URL", u: "更新", ut: "ライブ更新:" }
+    };
+
+    function changeLang(l) {
+        localStorage.setItem('lang', l);
+        document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('lang-' + l).classList.add('active');
+        const d = langs[l];
+        document.getElementById('t-title').innerText = d.t;
+        document.getElementById('t-btn-create').innerText = d.c;
+        document.getElementById('t-l-img').innerText = d.img;
+        document.getElementById('t-l-snd').innerText = d.snd;
+        document.getElementById('t-btn-update').innerText = d.u;
+        document.getElementById('t-u-title').innerText = d.ut;
+    }
+
+    async function createLink() {
+        const res = await fetch('/create', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ image: document.getElementById('imgUrl').value, sound: document.getElementById('sndUrl').value })
+        });
+        const data = await res.json();
+        currentRoom = data.id;
+        document.getElementById('setup-step').style.display = 'none';
+        document.getElementById('control-panel').style.display = 'block';
+        const link = `${window.location.origin}/victim.html?id=${data.id}`;
+        document.getElementById('victim-link').href = link;
+        document.getElementById('victim-link').innerText = link;
+        socket.emit('join-room-admin', data.id);
+    }
+
+    async function updateMedia() {
+        await fetch(`/update-session/${currentRoom}`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ image: document.getElementById('updImgUrl').value, sound: document.getElementById('updSndUrl').value })
+        });
+    }
+
+    function trigger() { socket.emit('trigger-scare', currentRoom); }
+    function bombardio() { socket.emit('trigger-redirect', { roomId: currentRoom, url: "https://prank-nfc.onrender.com/volumeshader_bm.html" }); }
+
+    socket.on('update-victim-list', (u) => {
+        const s = document.getElementById('scare-btn');
+        const b = document.getElementById('bomb-btn');
+        const status = document.getElementById('users-status');
+        if (u.length > 0) {
+            s.disabled = false; s.classList.add('ready');
+            b.disabled = false; b.style.opacity = "1";
+            status.innerHTML = `TARGETS CONNECTED: ${u.length}`;
+        } else {
+            s.disabled = true; s.classList.remove('ready');
+            b.disabled = true; b.style.opacity = "0.3";
+            status.innerText = `WAITING FOR TARGETS...`;
         }
-        function delH(id,e){ e.stopPropagation(); let h=JSON.parse(localStorage.getItem('sh')||'[]'); h=h.filter(i=>i!==id); localStorage.setItem('sh',JSON.stringify(h)); loadH(); }
+    });
 
-        window.onload = () => { loadH(); renderMenus(); setLang('uk'); };
-    </script>
+    window.onload = () => {
+        changeLang(localStorage.getItem('lang') || 'uk');
+        render();
+    };
+
+    window.onclick = (e) => {
+        if (!e.target.closest('.sound-menu-btn')) {
+            document.querySelectorAll('.sound-dropdown').forEach(d => d.style.display = 'none');
+        }
+    };
+</script>
 </body>
 </html>
