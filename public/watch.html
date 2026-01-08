@@ -99,6 +99,24 @@
     <div class="container">
         <h1>🛰️ SPY DASHBOARD</h1>
 
+        <div style="background: #111; padding: 15px; border: 1px dashed #555; margin-bottom: 25px; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; gap: 15px;">
+    <div style="flex: 1;">
+        <h3 style="margin: 0; font-size: 14px; color: #ffcc00;">💾 СИСТЕМА ПЕРЕНЕСЕННЯ ДАНИХ</h3>
+        <p style="margin: 5px 0 0 0; font-size: 10px; color: #888;">Зберігайте ZIP перед деплоєм та завантажуйте після, щоб не втратити сесії.</p>
+    </div>
+    
+    <div style="display: flex; gap: 10px;">
+        <a href="/backup-all" style="background: #0077aa; color: #fff; text-decoration: none; padding: 10px 15px; border-radius: 5px; font-size: 11px; font-weight: bold; border: 1px solid #00aaff;">
+            📥 СКАЧАТИ ZIP
+        </a>
+
+        <input type="file" id="restoreFile" style="display:none" accept=".zip" onchange="restoreData(this)">
+        <button onclick="document.getElementById('restoreFile').click()" style="background: #222; color: #00ff99; border: 1px solid #00ff99; padding: 10px 15px; border-radius: 5px; font-size: 11px; font-weight: bold; cursor: pointer;">
+            📤 ВІДНОВИТИ З ZIP
+        </button>
+    </div>
+</div>
+
         <div class="tg-container">
             <div class="tg-header">
                 <div class="tg-title">🤖 TELEGRAM UPLOADS</div>
@@ -128,6 +146,36 @@
                 console.error(e); 
             }
         }
+
+        async function restoreData(input) {
+    if (!input.files[0]) return;
+    if (!confirm("Це видалить поточні дані та замінить їх даними з архіву. Продовжити?")) return;
+
+    const fd = new FormData();
+    fd.append('backup', input.files[0]);
+
+    // Візуальний індикатор завантаження
+    input.disabled = true;
+    
+    try {
+        const res = await fetch('/restore-all', {
+            method: 'POST',
+            body: fd
+        });
+        const result = await res.json();
+        if (result.success) {
+            alert("✅ Дані відновлено!");
+            location.reload();
+        } else {
+            alert("❌ Помилка: " + result.error);
+        }
+    } catch (e) {
+        alert("❌ Помилка з'єднання з сервером");
+    } finally {
+        input.disabled = false;
+        input.value = ""; // Скидаємо вибір файлу
+    }
+}
 
         // --- 1. RENDER BOT FILES ---
         function renderBotFiles(files) {
@@ -243,3 +291,4 @@
     </script>
 </body>
 </html>
+
