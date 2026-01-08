@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spy Messenger</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: #0f0f0f;
+      color: #e0e0e0;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #ff4040;
+    }
+    #posts {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .post {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      word-break: break-all;
+    }
+    .post a {
+      color: #ff6666;
+      font-size: 1.1em;
+      display: block;
+      margin-bottom: 8px;
+    }
+    .post p {
+      margin: 0;
+      color: #cccccc;
+    }
+    #add-btn {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: #ff4040;
+      color: white;
+      font-size: 36px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+    #form-container {
+      display: none;
+      max-width: 800px;
+      margin: 20px auto;
+      background: #1a1a1a;
+      padding: 20px;
+      border-radius: 8px;
+      border: 1px solid #333;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      background: #222;
+      border: 1px solid #444;
+      color: #e0e0e0;
+      border-radius: 4px;
+    }
+    textarea {
+      height: 100px;
+      resize: vertical;
+    }
+    button[type="submit"] {
+      background: #ff4040;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Spy Messenger</h1>
+  <div id="posts"></div>
+
+  <button id="add-btn">+</button>
+
+  <div id="form-container">
+    <h2>Новий допис</h2>
+    <input type="text" id="link" placeholder="Посилання (наприклад google.com або https://...)">
+    <textarea id="desc" placeholder="Опис: що там є? (розкажи, щоб інші знали, чи варто відкривати)"></textarea>
+    <button type="submit" onclick="submitPost()">Відправити</button>
+  </div>
+
+  <script>
+    const postsContainer = document.getElementById('posts');
+    const formContainer = document.getElementById('form-container');
+    const addBtn = document.getElementById('add-btn');
+
+    addBtn.onclick = () => {
+      formContainer.style.display = 'block';
+      addBtn.style.display = 'none';
+    };
+
+    async function loadPosts() {
+      try {
+        const res = await fetch('/api/posts');
+        const posts = await res.json();
+
+        postsContainer.innerHTML = '';
+        if (posts.length === 0) {
+          postsContainer.innerHTML = '<p style="text-align:center; color:#666;">Поки що немає дописів. Стань першим!</p>';
+        }
+
+        posts.forEach(post => {
+          const div = document.createElement('div');
+          div.className = 'post';
+
+          const a = document.createElement('a');
+          a.href = post.link;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.textContent = post.link;
+
+          const p = document.createElement('p');
+          p.textContent = post.description;
+
+          div.appendChild(a);
+          div.appendChild(p);
+          postsContainer.appendChild(div);
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function submitPost() {
+      const link = document.getElementById('link').value.trim();
+      const desc = document.getElementById('desc').value.trim();
+
+      if (!link || !desc) {
+        alert('Заповни обидва поля!');
+        return;
+      }
+
+      await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ link, description: desc })
+      });
+
+      document.getElementById('link').value = '';
+      document.getElementById('desc').value = '';
+      formContainer.style.display = 'none';
+      addBtn.style.display = 'block';
+      loadPosts();
+    }
+
+    // Початкове завантаження і автооновлення кожні 15 секунд
+    loadPosts();
+    setInterval(loadPosts, 15000);
+  </script>
+</body>
+</html>
