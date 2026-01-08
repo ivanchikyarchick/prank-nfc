@@ -33,3 +33,19 @@ module.exports = function(app) {
     res.status(201).json({ success: true });
   });
 };
+
+app.delete('/api/posts', (req, res) => {
+  const { timestamp } = req.body;
+
+  if (!timestamp) {
+    return res.status(400).json({ error: 'Нет timestamp' });
+  }
+
+  const index = posts.findIndex(p => p.timestamp === timestamp);
+  if (index !== -1) {
+    posts.splice(index, 1);
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ error: 'Пост не найден' });
+  }
+});
