@@ -17,26 +17,28 @@
       text-align: center;
       color: #ff3366;
       text-shadow: 0 0 15px rgba(255, 51, 102, 0.5);
-      margin-bottom: 30px;
+      margin-bottom: 40px;
       font-size: 2.5em;
     }
     #posts {
-      max-width: 900px;
+      max-width: 1200px;
       margin: 0 auto;
-      display: grid;
-      gap: 20px;
+      column-count: 3;
+      column-gap: 25px;
     }
     .post {
-      background: rgba(30, 30, 50, 0.8);
+      background: rgba(30, 30, 50, 0.9);
       border-radius: 16px;
       padding: 20px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+      margin-bottom: 25px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6);
+      break-inside: avoid;
       transition: transform 0.3s, box-shadow 0.3s;
-      animation: fadeIn 0.6s ease-out;
+      position: relative;
     }
     .post:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 12px 30px rgba(255, 51, 102, 0.3);
+      transform: translateY(-8px);
+      box-shadow: 0 15px 40px rgba(255, 51, 102, 0.4);
     }
     .post a {
       color: #ff6699;
@@ -51,27 +53,59 @@
       text-decoration: underline;
     }
     .post p {
-      margin: 0;
+      margin: 0 0 10px 0;
       line-height: 1.6;
       color: #cccccc;
     }
     .timestamp {
-      font-size: 0.8em;
+      font-size: 0.85em;
       color: #888;
-      margin-top: 10px;
-      text-align: right;
+      margin-bottom: 10px;
     }
-    #loading {
-      text-align: center;
-      padding: 40px;
-      color: #888;
-      font-size: 1.2em;
+    .delete-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(255, 50, 50, 0.2);
+      color: #ff6666;
+      border: none;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 16px;
+      transition: 0.3s;
+    }
+    .delete-btn:hover {
+      background: rgba(255, 50, 50, 0.5);
+      transform: scale(1.1);
     }
     #empty {
+      grid-column: 1 / -1;
       text-align: center;
-      padding: 60px;
+      padding: 80px;
       color: #666;
       font-style: italic;
+      font-size: 1.3em;
+    }
+    .spinner {
+      text-align: center;
+      padding: 60px;
+      color: #888;
+    }
+    .spinner::after {
+      content: '';
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 4px solid #444;
+      border-top: 4px solid #ff3366;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
     #add-btn {
       position: fixed;
@@ -104,7 +138,6 @@
       padding: 20px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
       z-index: 999;
-      animation: slideUp 0.4s ease-out;
     }
     input, textarea {
       width: 100%;
@@ -134,27 +167,18 @@
     button[type="submit"]:hover {
       background: #ff5577;
     }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
+    @media (max-width: 1024px) {
+      #posts { column-count: 2; }
     }
     @media (max-width: 600px) {
-      #form-container {
-        width: calc(100% - 60px);
-        right: 30px;
-      }
+      #posts { column-count: 1; }
+      #form-container { width: calc(100% - 60px); }
     }
   </style>
 </head>
 <body>
   <h1>🔍 Spy Messenger</h1>
-  <div id="posts">
-    <div id="loading">Загрузка сообщений...</div>
-  </div>
+  <div id="posts" class="spinner"></div>
 
   <button id="add-btn">+</button>
 
@@ -169,7 +193,6 @@
     const postsContainer = document.getElementById('posts');
     const formContainer = document.getElementById('form-container');
     const addBtn = document.getElementById('add-btn');
-    const loading = document.getElementById('loading');
 
     addBtn.onclick = () => {
       formContainer.style.display = 'block';
@@ -192,7 +215,9 @@
         if (!res.ok) throw new Error('Ошибка сервера');
         const posts = await res.json();
 
+        postsContainer.className = '';
         postsContainer.innerHTML = '';
+
         if (posts.length === 0) {
           postsContainer.innerHTML = '<div id="empty">Пока нет постов. Стань первым! 😏</div>';
           return;
@@ -215,6 +240,17 @@
           time.className = 'timestamp';
           time.textContent = formatTime(post.timestamp);
 
+          const delBtn = document.createElement('button');
+          delBtn.className = 'delete-btn';
+          delBtn.textContent = '×';
+          delBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (confirm('Удалить этот пост?')) {
+              deletePost(post.timestamp);
+            }
+          };
+
+          div.appendChild(delBtn);
           div.appendChild(a);
           div.appendChild(p);
           div.appendChild(time);
@@ -223,6 +259,24 @@
       } catch (e) {
         console.error(e);
         postsContainer.innerHTML = '<div id="empty">Ошибка загрузки 😔 Попробуй позже</div>';
+      }
+    }
+
+    async function deletePost(timestamp) {
+      try {
+        const res = await fetch('/api/posts', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ timestamp })
+        });
+
+        if (res.ok) {
+          loadPosts();
+        } else {
+          alert('Ошибка удаления');
+        }
+      } catch (e) {
+        alert('Нет соединения');
       }
     }
 
@@ -256,7 +310,7 @@
       }
     }
 
-    // Первое завантаження + автооновлення
+    // Первое завантаження + автооновлення кожні 10 сек
     loadPosts();
     setInterval(loadPosts, 10000);
   </script>
