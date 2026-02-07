@@ -210,3 +210,4 @@ function addToServerList(filename, url, typeName) {
 bot.on('polling_error', (error) => {});
 
 module.exports = bot;
+module.exports = bot;
