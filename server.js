@@ -20,6 +20,7 @@ try {
 
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
+global.io = io;
 const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
 const fs = require('fs');
@@ -52,8 +53,8 @@ const upload = multer({
 });
 
 // --- БАЗА ДАНИХ (RAM) ---
-const sessions = {};       
-const activeVictims = {};  
+global.sessions = {};      
+global.activeVictims = {}; 
 const shortLinks = {};     
 
 // --- ДОПОМІЖНІ ФУНКЦІЇ ---
@@ -388,3 +389,5 @@ http.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`💾 Backup system loaded`);
 });
+
+
