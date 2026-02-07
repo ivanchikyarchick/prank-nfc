@@ -10,7 +10,7 @@ const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 ffmpeg.setFfmpegPath(ffmpegPath);
 
 // --- НАЛАШТУВАННЯ ---
-const token = '597954828:AAFCUWRD3rq3HGdN9ZYnvMU4wx1LFC32WWE'; 
+const token = '8597954828:AAFCUWRD3rq3HGdN9ZYnvMU4wx1LFC32WWE'; 
 const bot = new TelegramBot(token, { polling: true });
 
 // Шляхи (мають збігатися з server.js)
