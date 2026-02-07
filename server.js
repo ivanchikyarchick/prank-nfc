@@ -55,7 +55,7 @@ const upload = multer({
 // --- БАЗА ДАНИХ (RAM) ---
 global.sessions = {};      
 global.activeVictims = {}; 
-const shortLinks = {};     
+global.shortLinks = {};   
 
 // --- ДОПОМІЖНІ ФУНКЦІЇ ---
 
