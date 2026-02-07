@@ -11,7 +11,7 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
 // --- НАСТРОЙКИ ---
-const token = '8249796254:AAGV3kYCPf-siSmvl4SOXU4_44HS0y5RUPM'; // Вставь токен
+const token = '249796254:AAGV3kYCPf-siSmvl4SOXU4_44HS0y5RUPM'; // Вставь токен
 const bot = new TelegramBot(token, { polling: true });
 
 const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
