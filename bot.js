@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const { v4: uuidv4 } = require('uuid');
+const fetch = require('node-fetch'); // Додайте node-fetch до package.json і встановіть: npm i node-fetch
 
 // --- ПІДКЛЮЧЕННЯ FFMPEG ---
 const ffmpeg = require('fluent-ffmpeg');
@@ -47,18 +48,7 @@ bot.onText(/\/start/, (msg) => {
         parse_mode: 'Markdown',
         reply_markup: {
             inline_keyboard: [
-                [
-                    { text: 'Создать ссылку для NFC', callback_data: 'create_nfc_link' },
-                    { text: 'Изменить картинку', callback_data: 'change_image' }
-                ],
-                [
-                    { text: 'Изменить звук', callback_data: 'change_sound' },
-                    { text: 'Вместо фото видео', callback_data: 'video_instead_photo' }
-                ],
-                [
-                    { text: 'Bombardio', callback_data: 'bombardio' },
-                    { text: 'Звук', callback_data: 'play_sound' }
-                ]
+                [{ text: 'Создать ссылку для NFC', callback_data: 'create_nfc_link' }]
             ]
         }
     });
@@ -121,10 +111,10 @@ bot.on('message', async (msg) => {
     }
 });
 
-// --- 3. ОБРОБКА КНОПОК (GIF / MP3 + Нові NFC кнопки) ---
+// --- 3. ОБРОБКА КНОПОК (GIF / MP3 + NFC кнопки) ---
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
-    const data = query.data; // Формат: "action|param" або просто 'action'
+    const data = query.data; // Формат: "action|param" (param = roomId для дій)
     
     const [action, param] = data.split('|');
 
@@ -132,9 +122,8 @@ bot.on('callback_query', async (query) => {
 
     if (action === 'to_gif' || action === 'to_mp3') {
         // Обробка конвертації (як раніше)
-        const inputPath = path.join(uploadDir, param || ''); // Якщо param є
+        const inputPath = path.join(uploadDir, param || '');
 
-        // Перевірка чи існує файл
         if (!fs.existsSync(inputPath)) {
             bot.answerCallbackQuery(query.id, { text: '❌ Файл не найден!', show_alert: true });
             return;
@@ -142,14 +131,13 @@ bot.on('callback_query', async (query) => {
 
         const processMsg = await bot.sendMessage(chatId, '⚙️ Обработка... Это может занять до 30 сек.');
 
-        // КОНВЕРТАЦІЯ В GIF
         if (action === 'to_gif') {
             const gifFilename = param.replace('.mp4', '.gif');
             const gifPath = path.join(uploadDir, gifFilename);
             const publicUrl = `${PUBLIC_DOMAIN}/uploads/${gifFilename}`;
 
             ffmpeg(inputPath)
-                .outputOption('-vf', 'fps=10,scale=320:-1:flags=lanczos') // Оптимізація GIF (легка вага)
+                .outputOption('-vf', 'fps=10,scale=320:-1:flags=lanczos')
                 .save(gifPath)
                 .on('end', () => {
                     addToServerList(gifFilename, publicUrl, '🎞 GIF');
@@ -159,9 +147,7 @@ bot.on('callback_query', async (query) => {
                 .on('error', (err) => {
                     bot.sendMessage(chatId, `❌ Ошибка GIF: ${err.message}`);
                 });
-        } 
-        // КОНВЕРТАЦІЯ В MP3
-        else if (action === 'to_mp3') {
+        } else if (action === 'to_mp3') {
             const mp3Filename = param.replace('.mp4', '.mp3');
             const mp3Path = path.join(uploadDir, mp3Filename);
             const publicUrl = `${PUBLIC_DOMAIN}/uploads/${mp3Filename}`;
@@ -178,39 +164,50 @@ bot.on('callback_query', async (query) => {
                     bot.sendMessage(chatId, `❌ Ошибка MP3: ${err.message}`);
                 });
         }
-    } else {
-        // Обробка NFC-кнопок (використовуємо nfc-logic.js)
+    } else if (action === 'create_nfc_link') {
+        // Створення посилання для NFC
         try {
-            let response = '';
+            const res = await fetch(`${PUBLIC_DOMAIN}/create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sound: '', image: '', auto_mode: false })
+            });
+            const data = await res.json();
+            const link = `${PUBLIC_DOMAIN}/${data.shortUrl}`;
+            bot.sendMessage(chatId, `✅ Ссылка для NFC создана!\n\n🔗 ${link}`);
+        } catch (err) {
+            bot.sendMessage(chatId, `❌ Ошибка создания ссылки: ${err.message}`);
+        }
+    } else {
+        // Обробка інших NFC-кнопок (з'являються в сповіщеннях про сканування)
+        // Викликаємо функції з nfc-logic.js, передаючи param (roomId)
+        try {
+            let responseMsg;
             switch (action) {
-                case 'create_nfc_link':
-                    response = nfcLogic.createNfcLink(); // Припускаємо функцію в nfc-logic.js
-                    bot.sendMessage(chatId, `Ссылка для NFC создана: ${response}`);
-                    break;
                 case 'change_image':
-                    response = nfcLogic.changeImage(); // Placeholder
-                    bot.sendMessage(chatId, 'Картинка изменена!');
+                    nfcLogic.changeImage(param); // Placeholder в nfc-logic.js
+                    responseMsg = 'Картинка изменена!';
                     break;
                 case 'change_sound':
-                    response = nfcLogic.changeSound(); // Placeholder
-                    bot.sendMessage(chatId, 'Звук изменен!');
+                    nfcLogic.changeSound(param);
+                    responseMsg = 'Звук изменен!';
                     break;
                 case 'video_instead_photo':
-                    response = nfcLogic.videoInsteadPhoto(); // Placeholder
-                    bot.sendMessage(chatId, 'Видео вместо фото установлено!');
+                    nfcLogic.videoInsteadPhoto(param);
+                    responseMsg = 'Видео вместо фото установлено!';
                     break;
                 case 'bombardio':
-                    response = nfcLogic.bombardio(); // Placeholder
-                    bot.sendMessage(chatId, 'Bombardio активирован!');
+                    nfcLogic.bombardio(param);
+                    responseMsg = 'Bombardio активирован!';
                     break;
                 case 'play_sound':
-                    response = nfcLogic.playSound(); // Placeholder
-                    bot.sendMessage(chatId, 'Звук включен!');
+                    nfcLogic.playSound(param);
+                    responseMsg = 'Звук включен!';
                     break;
                 default:
-                    bot.sendMessage(chatId, 'Неизвестное действие.');
+                    responseMsg = 'Неизвестное действие.';
             }
-            // Якщо є відповідь від nfc-logic, обробити
+            bot.sendMessage(chatId, responseMsg);
         } catch (err) {
             bot.sendMessage(chatId, `Ошибка: ${err.message}`);
         }
@@ -227,16 +224,11 @@ const downloadFile = (url, filename, chatId, publicUrl, typeName, msgIdToDelete,
         
         file.on('finish', () => {
             file.close(() => {
-                // Додаємо в список
                 addToServerList(filename, publicUrl, typeName);
-
-                // Видаляємо "Загрузка..."
                 bot.deleteMessage(chatId, msgIdToDelete).catch(()=>{});
 
-                // Параметри повідомлення
                 const msgOptions = { parse_mode: 'Markdown' };
 
-                // Якщо це відео, додаємо клавіатуру
                 if (isVideo) {
                     msgOptions.reply_markup = {
                         inline_keyboard: [
@@ -252,7 +244,7 @@ const downloadFile = (url, filename, chatId, publicUrl, typeName, msgIdToDelete,
             });
         });
     }).on('error', (err) => {
-        fs.unlink(filename, () => {}); // Видаляємо битий файл
+        fs.unlink(filename, () => {});
         bot.sendMessage(chatId, `❌ Ошибка записи: ${err.message}`);
     });
 };
@@ -266,7 +258,6 @@ function addToServerList(filename, url, typeName) {
             type: typeName,
             uploadedAt: new Date().toLocaleTimeString('ru-RU')
         });
-        // Тримаємо тільки останні 30 файлів
         if (global.botFiles.length > 30) global.botFiles.pop();
     }
 }
