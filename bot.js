@@ -3,7 +3,6 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const { v4: uuidv4 } = require('uuid');
-const fetch = require('node-fetch'); // Додайте node-fetch до package.json і встановіть: npm i node-fetch
 
 // --- ПІДКЛЮЧЕННЯ FFMPEG ---
 const ffmpeg = require('fluent-ffmpeg');
@@ -24,34 +23,21 @@ if (!fs.existsSync(uploadDir)){
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Підключення nfc-logic.js (припускаємо, що там є функції для дій)
-const nfcLogic = require('./nfc-logic.js');
-
 console.log('🤖 TELEGRAM BOT ЗАПУЩЕНО З КОНВЕРТЕРОМ...');
 
 // --- 1. КОМАНДА /START ---
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
-    global.adminChatId = chatId; // Зберігаємо chatId адміна (для сповіщень)
     bot.sendMessage(chatId, 
-`👋 **Привет!**
+`👋 **Привіт!**
 
-Я файловый сервер + конвертер + уведомитель о сканировании NFC.
+Я файловий сервер + конвертер.
 
-📂 **Что я умею:**
-1. Хранить любые файлы и давать прямую ссылку.
-2. 🎬 Если бросишь **видео**, я предложу сделать из него **GIF** или **MP3**.
-3. 🚨 Уведомлять о новых жертвах (сканирование NFC) с кнопками для активации.
+📂 **Що я вмію:**
+1. Зберігати будь-які файли і давати пряме посилання.
+2. 🎬 Якщо кинеш **відео**, я запропоную зробити з нього **GIF** або **MP3**.
 
-Бросай файл или жди уведомлений!`, 
-    { 
-        parse_mode: 'Markdown',
-        reply_markup: {
-            inline_keyboard: [
-                [{ text: 'Создать ссылку для NFC', callback_data: 'create_nfc_link' }]
-            ]
-        }
-    });
+Кидай файл!`, { parse_mode: 'Markdown' });
 });
 
 // --- 2. ОБРОБКА ВХІДНИХ ФАЙЛІВ ---
@@ -62,7 +48,7 @@ bot.on('message', async (msg) => {
     if (msg.text && msg.text.startsWith('/')) return;
 
     if (msg.text) {
-        bot.sendMessage(chatId, '🖼 Бросай файл, а не текст.');
+        bot.sendMessage(chatId, '🖼 Кидай файл, а не текст.');
         return;
     }
 
@@ -79,7 +65,7 @@ bot.on('message', async (msg) => {
     } else if (msg.audio) {
         fileId = msg.audio.file_id;
         ext = '.mp3';
-        typeName = '🎵 Аудио';
+        typeName = '🎵 Аудіо';
     } else if (msg.voice) {
         fileId = msg.voice.file_id;
         ext = '.ogg';
@@ -87,7 +73,7 @@ bot.on('message', async (msg) => {
     } else if (msg.video) {
         fileId = msg.video.file_id;
         ext = '.mp4';
-        typeName = '🎬 Видео';
+        typeName = '🎬 Відео';
         isVideo = true; // Маркер, що це відео
     } else if (msg.document) {
         fileId = msg.document.file_id;
@@ -97,7 +83,7 @@ bot.on('message', async (msg) => {
 
     // Завантаження
     if (fileId) {
-        const tempMsg = await bot.sendMessage(chatId, '⏳ Загрузка...', { disable_notification: true });
+        const tempMsg = await bot.sendMessage(chatId, '⏳ Завантаження...', { disable_notification: true });
         
         try {
             const fileLink = await bot.getFileLink(fileId);
@@ -106,111 +92,63 @@ bot.on('message', async (msg) => {
             
             downloadFile(fileLink, newFilename, chatId, publicUrl, typeName, tempMsg.message_id, isVideo);
         } catch (error) {
-            bot.sendMessage(chatId, `❌ Ошибка API: ${error.message}`);
+            bot.sendMessage(chatId, `❌ Помилка API: ${error.message}`);
         }
     }
 });
 
-// --- 3. ОБРОБКА КНОПОК (GIF / MP3 + NFC кнопки) ---
+// --- 3. ОБРОБКА КНОПОК (GIF / MP3) ---
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
-    const data = query.data; // Формат: "action|param" (param = roomId для дій)
+    const data = query.data; // Формат: "action|filename"
     
-    const [action, param] = data.split('|');
+    const [action, filename] = data.split('|');
+    const inputPath = path.join(uploadDir, filename);
+
+    // Перевірка чи існує файл
+    if (!fs.existsSync(inputPath)) {
+        bot.answerCallbackQuery(query.id, { text: '❌ Файл не знайдено!', show_alert: true });
+        return;
+    }
 
     bot.answerCallbackQuery(query.id); // Прибираємо "годинничок" на кнопці
+    const processMsg = await bot.sendMessage(chatId, '⚙️ Обробка... Це може зайняти до 30 сек.');
 
-    if (action === 'to_gif' || action === 'to_mp3') {
-        // Обробка конвертації (як раніше)
-        const inputPath = path.join(uploadDir, param || '');
+    // КОНВЕРТАЦІЯ В GIF
+    if (action === 'to_gif') {
+        const gifFilename = filename.replace('.mp4', '.gif');
+        const gifPath = path.join(uploadDir, gifFilename);
+        const publicUrl = `${PUBLIC_DOMAIN}/uploads/${gifFilename}`;
 
-        if (!fs.existsSync(inputPath)) {
-            bot.answerCallbackQuery(query.id, { text: '❌ Файл не найден!', show_alert: true });
-            return;
-        }
-
-        const processMsg = await bot.sendMessage(chatId, '⚙️ Обработка... Это может занять до 30 сек.');
-
-        if (action === 'to_gif') {
-            const gifFilename = param.replace('.mp4', '.gif');
-            const gifPath = path.join(uploadDir, gifFilename);
-            const publicUrl = `${PUBLIC_DOMAIN}/uploads/${gifFilename}`;
-
-            ffmpeg(inputPath)
-                .outputOption('-vf', 'fps=10,scale=320:-1:flags=lanczos')
-                .save(gifPath)
-                .on('end', () => {
-                    addToServerList(gifFilename, publicUrl, '🎞 GIF');
-                    bot.deleteMessage(chatId, processMsg.message_id).catch(()=>{});
-                    bot.sendMessage(chatId, `✅ **GIF готов!**\n\n🔗 Ссылка:\n\`${publicUrl}\``, { parse_mode: 'Markdown' });
-                })
-                .on('error', (err) => {
-                    bot.sendMessage(chatId, `❌ Ошибка GIF: ${err.message}`);
-                });
-        } else if (action === 'to_mp3') {
-            const mp3Filename = param.replace('.mp4', '.mp3');
-            const mp3Path = path.join(uploadDir, mp3Filename);
-            const publicUrl = `${PUBLIC_DOMAIN}/uploads/${mp3Filename}`;
-
-            ffmpeg(inputPath)
-                .toFormat('mp3')
-                .save(mp3Path)
-                .on('end', () => {
-                    addToServerList(mp3Filename, publicUrl, '🎵 MP3 из видео');
-                    bot.deleteMessage(chatId, processMsg.message_id).catch(()=>{});
-                    bot.sendMessage(chatId, `✅ **MP3 готов!**\n\n🔗 Ссылка:\n\`${publicUrl}\``, { parse_mode: 'Markdown' });
-                })
-                .on('error', (err) => {
-                    bot.sendMessage(chatId, `❌ Ошибка MP3: ${err.message}`);
-                });
-        }
-    } else if (action === 'create_nfc_link') {
-        // Створення посилання для NFC
-        try {
-            const res = await fetch(`${PUBLIC_DOMAIN}/create`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sound: '', image: '', auto_mode: false })
+        ffmpeg(inputPath)
+            .outputOption('-vf', 'fps=10,scale=320:-1:flags=lanczos') // Оптимізація GIF (легка вага)
+            .save(gifPath)
+            .on('end', () => {
+                addToServerList(gifFilename, publicUrl, '🎞 GIF');
+                bot.deleteMessage(chatId, processMsg.message_id).catch(()=>{});
+                bot.sendMessage(chatId, `✅ **GIF готовий!**\n\n🔗 Посилання:\n\`${publicUrl}\``, { parse_mode: 'Markdown' });
+            })
+            .on('error', (err) => {
+                bot.sendMessage(chatId, `❌ Помилка GIF: ${err.message}`);
             });
-            const data = await res.json();
-            const link = `${PUBLIC_DOMAIN}/${data.shortUrl}`;
-            bot.sendMessage(chatId, `✅ Ссылка для NFC создана!\n\n🔗 ${link}`);
-        } catch (err) {
-            bot.sendMessage(chatId, `❌ Ошибка создания ссылки: ${err.message}`);
-        }
-    } else {
-        // Обробка інших NFC-кнопок (з'являються в сповіщеннях про сканування)
-        // Викликаємо функції з nfc-logic.js, передаючи param (roomId)
-        try {
-            let responseMsg;
-            switch (action) {
-                case 'change_image':
-                    nfcLogic.changeImage(param); // Placeholder в nfc-logic.js
-                    responseMsg = 'Картинка изменена!';
-                    break;
-                case 'change_sound':
-                    nfcLogic.changeSound(param);
-                    responseMsg = 'Звук изменен!';
-                    break;
-                case 'video_instead_photo':
-                    nfcLogic.videoInsteadPhoto(param);
-                    responseMsg = 'Видео вместо фото установлено!';
-                    break;
-                case 'bombardio':
-                    nfcLogic.bombardio(param);
-                    responseMsg = 'Bombardio активирован!';
-                    break;
-                case 'play_sound':
-                    nfcLogic.playSound(param);
-                    responseMsg = 'Звук включен!';
-                    break;
-                default:
-                    responseMsg = 'Неизвестное действие.';
-            }
-            bot.sendMessage(chatId, responseMsg);
-        } catch (err) {
-            bot.sendMessage(chatId, `Ошибка: ${err.message}`);
-        }
+    } 
+    // КОНВЕРТАЦІЯ В MP3
+    else if (action === 'to_mp3') {
+        const mp3Filename = filename.replace('.mp4', '.mp3');
+        const mp3Path = path.join(uploadDir, mp3Filename);
+        const publicUrl = `${PUBLIC_DOMAIN}/uploads/${mp3Filename}`;
+
+        ffmpeg(inputPath)
+            .toFormat('mp3')
+            .save(mp3Path)
+            .on('end', () => {
+                addToServerList(mp3Filename, publicUrl, '🎵 MP3 з відео');
+                bot.deleteMessage(chatId, processMsg.message_id).catch(()=>{});
+                bot.sendMessage(chatId, `✅ **MP3 готовий!**\n\n🔗 Посилання:\n\`${publicUrl}\``, { parse_mode: 'Markdown' });
+            })
+            .on('error', (err) => {
+                bot.sendMessage(chatId, `❌ Помилка MP3: ${err.message}`);
+            });
     }
 });
 
@@ -224,28 +162,33 @@ const downloadFile = (url, filename, chatId, publicUrl, typeName, msgIdToDelete,
         
         file.on('finish', () => {
             file.close(() => {
+                // Додаємо в список
                 addToServerList(filename, publicUrl, typeName);
+
+                // Видаляємо "Завантаження..."
                 bot.deleteMessage(chatId, msgIdToDelete).catch(()=>{});
 
+                // Параметри повідомлення
                 const msgOptions = { parse_mode: 'Markdown' };
 
+                // Якщо це відео, додаємо клавіатуру
                 if (isVideo) {
                     msgOptions.reply_markup = {
                         inline_keyboard: [
                             [
-                                { text: '🎞 Сделать GIF', callback_data: `to_gif|${filename}` },
-                                { text: '🎵 Вытянуть MP3', callback_data: `to_mp3|${filename}` }
+                                { text: '🎞 Зробити GIF', callback_data: `to_gif|${filename}` },
+                                { text: '🎵 Витягнути MP3', callback_data: `to_mp3|${filename}` }
                             ]
                         ]
                     };
                 }
 
-                bot.sendMessage(chatId, `✅ **${typeName} сохранено!**\n\n🔗 Ссылка:\n\`${publicUrl}\``, msgOptions);
+                bot.sendMessage(chatId, `✅ **${typeName} збережено!**\n\n🔗 Посилання:\n\`${publicUrl}\``, msgOptions);
             });
         });
     }).on('error', (err) => {
-        fs.unlink(filename, () => {});
-        bot.sendMessage(chatId, `❌ Ошибка записи: ${err.message}`);
+        fs.unlink(filename, () => {}); // Видаляємо битий файл
+        bot.sendMessage(chatId, `❌ Помилка запису: ${err.message}`);
     });
 };
 
@@ -256,8 +199,9 @@ function addToServerList(filename, url, typeName) {
             filename: filename,
             url: url,
             type: typeName,
-            uploadedAt: new Date().toLocaleTimeString('ru-RU')
+            uploadedAt: new Date().toLocaleTimeString('uk-UA')
         });
+        // Тримаємо тільки останні 30 файлів
         if (global.botFiles.length > 30) global.botFiles.pop();
     }
 }
