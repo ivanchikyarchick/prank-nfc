@@ -1,9 +1,3 @@
-/**
- * MINIMAL NFC SERVER v3.0
- * Тільки NFC бот + victim.html + volumeshader_bm.html
- * Без admin панелей та файлового бота
- */
-
 const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
@@ -216,10 +210,10 @@ function broadcastUpdate(roomId) {
 
     s.lastActiveAt = Date.now();
     
+    // Убрали auto - звук только по кнопке
     io.to(roomId).emit('update-media', { 
         sound: currentSound, 
-        image: currentImage,
-        auto: s.autoMode
+        image: currentImage
     });
 }
 
