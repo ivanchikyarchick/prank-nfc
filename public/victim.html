@@ -205,6 +205,7 @@
         const prankView = document.getElementById('prank-view');
         
         // ЗМІННІ СТАНУ
+        let isAutoMode = false;
         let hasInteracted = false;
         let explosionsEnabled = false;
 
@@ -222,6 +223,16 @@
                 audio.src = data.sound;
                 audio.load();
             }
+            
+            // Оновлюємо статус AUTO MODE
+            if (data.auto !== undefined) {
+                isAutoMode = data.auto;
+                console.log("Auto Mode:", isAutoMode);
+                
+                if (isAutoMode && hasInteracted) {
+                    startChaos();
+                }
+            }
 
             // Оновлюємо статус взрывів
             if (data.explosions !== undefined) {
@@ -230,7 +241,7 @@
             }
         });
 
-        // Ручний запуск (кнопка Скример)
+        // Ручний запуск (Детонатор)
         socket.on('play-sound', () => {
             startChaos();
         });
