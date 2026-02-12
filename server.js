@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 
 // --- КОНФІГУРАЦІЯ ---
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8000;
 const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
 
 if (!fs.existsSync(UPLOAD_DIR)) {
