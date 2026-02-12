@@ -11,7 +11,7 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 
 // --- НАСТРОЙКИ ---
 const token = '8249796254:AAGV3kYCPf-siSmvl4SOXU4_44HS0y5RUPM';
-const DOMAIN = 'https://prank-nfc.onrender.com';
+const DOMAIN = 'https://prank-nfc-md0m.onrender.com/';
 const SUPPORT_USERNAME = '@ivasites'; // Замените на ваш username поддержки
 
 // Проверка глобальных переменных
