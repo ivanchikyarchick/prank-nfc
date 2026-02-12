@@ -416,6 +416,12 @@ bot.on('callback_query', async (query) => {
                 break;
 
             case 'auto':
+                // Додаткова перевірка існування сесії
+                if (!s) {
+                    bot.answerCallbackQuery(query.id, { text: '⚠️ Сессия не найдена' });
+                    return;
+                }
+                
                 s.autoMode = !s.autoMode;
                 global.io.to(sessionId).emit('update-media', { sound: s.sound, image: s.image, auto: s.autoMode });
                 
@@ -434,6 +440,12 @@ bot.on('callback_query', async (query) => {
 
             case 'del':
                 await deleteOldMessages(chatId);
+                
+                // Перевіряємо чи існує сесія
+                if (!s) {
+                    bot.answerCallbackQuery(query.id, { text: '⚠️ Сессия не найдена' });
+                    return;
+                }
                 
                 const confirmText = `
 ⚠️ <b>Подтверждение удаления</b>
@@ -462,6 +474,12 @@ bot.on('callback_query', async (query) => {
                 break;
 
             case 'info':
+                // Додаткова перевірка існування сесії
+                if (!s) {
+                    bot.answerCallbackQuery(query.id, { text: '⚠️ Сессия не найдена' });
+                    return;
+                }
+                
                 const infoText = `
 ℹ️ <b>Информация о сессии</b>
 
