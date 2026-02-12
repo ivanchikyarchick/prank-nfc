@@ -233,27 +233,37 @@
         
         // Если ID нет в параметрах, значит используется короткая ссылка
         if (!id) {
-            const pathParts = window.location.pathname.split('/');
-            const shortCode = pathParts[pathParts.length - 1];
+            // Получаем путь из URL
+            const path = window.location.pathname;
             
-            // Запрашиваем session ID по короткому коду
-            if (shortCode && shortCode !== '' && shortCode !== 'victim.html') {
+            // Если путь не пустой и не '/', значит это короткий код
+            if (path && path !== '/' && path !== '/victim.html') {
+                const shortCode = path.substring(1); // Убираем первый слеш
+                
+                console.log('🔍 Resolving short code:', shortCode);
+                
+                // Запрашиваем session ID по короткому коду
                 fetch(`/api/resolve/${shortCode}`)
                     .then(response => response.json())
                     .then(data => {
+                        console.log('📡 API Response:', data);
                         if (data.success) {
                             id = data.sessionId;
+                            console.log('✅ Session ID found:', id);
                             initializeConnection();
                         } else {
-                            console.error('Session not found');
+                            console.error('❌ Session not found for code:', shortCode);
                         }
                     })
                     .catch(err => {
-                        console.error('Error resolving short code:', err);
+                        console.error('❌ Error resolving short code:', err);
                     });
+            } else {
+                console.log('⚠️ No session ID or short code found');
             }
         } else {
             // ID есть в параметрах, инициализируем сразу
+            console.log('✅ Session ID from URL params:', id);
             initializeConnection();
         }
         
@@ -268,23 +278,29 @@
         audio.preload = 'auto';
         
         function initializeConnection() {
-            if (!id) return;
+            if (!id) {
+                console.error('❌ Cannot initialize: no session ID');
+                return;
+            }
+            
+            console.log('🚀 Initializing connection for session:', id);
             
             socket.emit('join-room-victim', { roomId: id, userAgent: navigator.userAgent });
 
             socket.on('update-media', (data) => {
-                console.log('Media update:', data);
+                console.log('📦 Media update received:', data);
                 
                 if (data.image) {
                     currentImageUrl = data.image;
                     prankBackground.style.backgroundImage = `url('${data.image}')`;
                     prankImage.src = data.image;
+                    console.log('🖼 Image loaded:', data.image);
                 }
                 
                 if (data.sound) {
                     audio.src = data.sound;
                     audio.load();
-                    console.log('Sound loaded:', data.sound);
+                    console.log('🔊 Sound loaded:', data.sound);
                 }
             });
 
@@ -294,10 +310,11 @@
             });
 
             socket.on('force-redirect', (data) => {
+                console.log('🔀 Redirect command:', data.url);
                 window.location.href = data.url;
             });
             
-            console.log('🎯 Prank ready | ID:', id);
+            console.log('✅ Connection initialized for session:', id);
         }
 
         function startChaos() {
