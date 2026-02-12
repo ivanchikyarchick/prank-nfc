@@ -1,8 +1,3 @@
-/**
- * 🛡️ NFC CONTROL SYSTEM - PREMIUM EDITION
- * Улучшенная версия с красивым UI и поддержкой
- */
-
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 const fs = require('fs');
@@ -358,7 +353,13 @@ bot.on('callback_query', async (query) => {
     if (data.includes('_')) {
         const parts = data.split('_');
         const action = parts[0];
-        const sessionId = parts.slice(1).join('_'); // На случай если в ID есть _
+        let sessionId = parts.slice(1).join('_'); // На случай если в ID есть _
+        
+        // Для кнопок редактирования парсим по-особому
+        if (action === 'edit') {
+            const editType = parts[1]; // image или sound
+            sessionId = parts.slice(2).join('_');
+        }
         
         // Для удаления не проверяем существование сессии
         if (action === 'confirm') {
@@ -393,7 +394,7 @@ bot.on('callback_query', async (query) => {
         
         const s = global.sessions ? global.sessions[sessionId] : null;
 
-        if (!s && action !== 'del') {
+        if (!s && action !== 'del' && action !== 'edit') {
             bot.answerCallbackQuery(query.id, { text: '⚠️ Сессия не найдена' });
             return;
         }
@@ -491,8 +492,14 @@ bot.on('callback_query', async (query) => {
                 break;
 
             case 'edit':
-                const editType = parts[1]; // edit_image или edit_sound
+                const editType = parts[1]; // image или sound
                 const editSessionId = parts.slice(2).join('_');
+                
+                // Проверяем существование сессии
+                if (!global.sessions[editSessionId]) {
+                    bot.answerCallbackQuery(query.id, { text: '⚠️ Сессия не найдена' });
+                    return;
+                }
                 
                 wizardState[chatId] = { 
                     step: editType === 'image' ? 'edit_image' : 'edit_sound', 
