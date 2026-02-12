@@ -91,15 +91,26 @@ async function downloadFile(fileId, type) {
 async function extractAudioFromVideo(videoPath) {
     return new Promise((resolve, reject) => {
         const audioPath = videoPath.replace(/\.(mp4|mov|avi|mkv)$/i, '.mp3');
+        
+        const timeout = setTimeout(() => {
+            reject(new Error('Video processing timeout'));
+        }, 30000); // 30 секунд максимум
+        
         ffmpeg(videoPath)
             .toFormat('mp3')
             .audioCodec('libmp3lame')
-            .audioBitrate('192k')
+            .audioBitrate('96k') // Знижено з 192k для швидкості
+            .audioChannels(1) // Моно замість стерео
+            .audioFrequency(22050) // Знижена частота
             .on('end', () => {
+                clearTimeout(timeout);
                 const audioUrl = audioPath.replace(UPLOAD_DIR, '/uploads').replace(/\\/g, '/');
                 resolve({ url: audioUrl, path: audioPath });
             })
-            .on('error', (err) => reject(err))
+            .on('error', (err) => {
+                clearTimeout(timeout);
+                reject(err);
+            })
             .save(audioPath);
     });
 }
@@ -107,15 +118,27 @@ async function extractAudioFromVideo(videoPath) {
 async function convertStickerToImage(stickerPath) {
     return new Promise((resolve, reject) => {
         const imagePath = stickerPath.replace(/\.webp$/i, '.jpg');
+        
+        const timeout = setTimeout(() => {
+            reject(new Error('Sticker processing timeout'));
+        }, 20000); // 20 секунд максимум
+        
         ffmpeg(stickerPath)
-            .outputOptions(['-vf', 'scale=800:800:force_original_aspect_ratio=decrease,pad=800:800:(ow-iw)/2:(oh-ih)/2:black'])
+            .outputOptions([
+                '-vf', 'scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:black', // Знижено з 800x800
+                '-q:v', '5' // Якість JPEG (2-31, менше = краще)
+            ])
             .toFormat('mjpeg')
             .on('end', () => {
+                clearTimeout(timeout);
                 const imageUrl = imagePath.replace(UPLOAD_DIR, '/uploads').replace(/\\/g, '/');
                 fs.unlink(stickerPath, () => {});
                 resolve({ url: imageUrl, path: imagePath });
             })
-            .on('error', (err) => reject(err))
+            .on('error', (err) => {
+                clearTimeout(timeout);
+                reject(err);
+            })
             .save(imagePath);
     });
 }
@@ -567,7 +590,7 @@ bot.on('message', async (msg) => {
                 return;
             }
 
-            const loadingMsg = await bot.sendMessage(chatId, '⏳ <b>Обработка нового фона...</b>', { parse_mode: 'HTML' });
+            const loadingMsg = await bot.sendMessage(chatId, '⏳ <b>Обработка...</b>\n\n▓░░░░░░░░░ 10%', { parse_mode: 'HTML' });
             
             try {
                 let newImage = '';
@@ -577,7 +600,20 @@ bot.on('message', async (msg) => {
                     newImage = f.url || '';
                 } 
                 else if (msg.sticker) {
+                    await bot.editMessageText('⏳ <b>Обработка...</b>\n\n▓▓▓░░░░░░░ 30%', {
+                        chat_id: chatId,
+                        message_id: loadingMsg.message_id,
+                        parse_mode: 'HTML'
+                    }).catch(() => {});
+                    
                     const f = await downloadFile(msg.sticker.file_id, 'sticker');
+                    
+                    await bot.editMessageText('⏳ <b>Обработка...</b>\n\n▓▓▓▓▓▓░░░░ 60%', {
+                        chat_id: chatId,
+                        message_id: loadingMsg.message_id,
+                        parse_mode: 'HTML'
+                    }).catch(() => {});
+                    
                     if (f.path) {
                         const converted = await convertStickerToImage(f.path);
                         newImage = converted.url || '';
@@ -635,22 +671,53 @@ bot.on('message', async (msg) => {
                 return;
             }
 
-            const loadingMsg = await bot.sendMessage(chatId, '⏳ <b>Загрузка нового звука...</b>', { parse_mode: 'HTML' });
+            const loadingMsg = await bot.sendMessage(chatId, '⏳ <b>Обработка...</b>\n\n▓░░░░░░░░░ 10%', { parse_mode: 'HTML' });
             
             try {
                 let newSound = '';
                 
                 if (msg.audio) {
+                    await bot.editMessageText('⏳ <b>Обработка...</b>\n\n▓▓▓░░░░░░░ 30%', {
+                        chat_id: chatId,
+                        message_id: loadingMsg.message_id,
+                        parse_mode: 'HTML'
+                    }).catch(() => {});
+                    
                     const f = await downloadFile(msg.audio.file_id, 'snd');
                     newSound = f.url || '';
                 }
                 else if (msg.voice) {
+                    await bot.editMessageText('⏳ <b>Обработка...</b>\n\n▓▓▓░░░░░░░ 30%', {
+                        chat_id: chatId,
+                        message_id: loadingMsg.message_id,
+                        parse_mode: 'HTML'
+                    }).catch(() => {});
+                    
                     const f = await downloadFile(msg.voice.file_id, 'voice');
                     newSound = f.url || '';
                 }
                 else if (msg.video) {
+                    await bot.editMessageText('⏳ <b>Обработка...</b>\n\n▓▓░░░░░░░░ 20%', {
+                        chat_id: chatId,
+                        message_id: loadingMsg.message_id,
+                        parse_mode: 'HTML'
+                    }).catch(() => {});
+                    
                     const f = await downloadFile(msg.video.file_id, 'video');
+                    
+                    await bot.editMessageText('⏳ <b>Обработка...</b>\n\n▓▓▓▓░░░░░░ 40%', {
+                        chat_id: chatId,
+                        message_id: loadingMsg.message_id,
+                        parse_mode: 'HTML'
+                    }).catch(() => {});
+                    
                     if (f.path) {
+                        await bot.editMessageText('⏳ <b>Извлечение аудио...</b>\n\n▓▓▓▓▓▓░░░░ 60%', {
+                            chat_id: chatId,
+                            message_id: loadingMsg.message_id,
+                            parse_mode: 'HTML'
+                        }).catch(() => {});
+                        
                         const audioData = await extractAudioFromVideo(f.path);
                         newSound = audioData.url || '';
                     }
@@ -700,16 +767,35 @@ bot.on('message', async (msg) => {
 
         // ШАГ 1: ФОН
         if (st.step === 1) {
-            const loadingMsg = await bot.sendMessage(chatId, '⏳ <b>Обработка файла...</b>', { parse_mode: 'HTML' });
+            const loadingMsg = await bot.sendMessage(chatId, '⏳ <b>Обработка...</b>\n\n▓░░░░░░░░░ 10%', { parse_mode: 'HTML' });
             
             try {
                 if (msg.photo) {
+                    await bot.editMessageText('⏳ <b>Загрузка...</b>\n\n▓▓▓░░░░░░░ 30%', {
+                        chat_id: chatId,
+                        message_id: loadingMsg.message_id,
+                        parse_mode: 'HTML'
+                    }).catch(() => {});
+                    
                     const f = await downloadFile(msg.photo[msg.photo.length - 1].file_id, 'img');
                     st.data.image = f.url || '';
                     st.data.sound = '';
                 } 
                 else if (msg.sticker) {
+                    await bot.editMessageText('⏳ <b>Загрузка...</b>\n\n▓▓░░░░░░░░ 20%', {
+                        chat_id: chatId,
+                        message_id: loadingMsg.message_id,
+                        parse_mode: 'HTML'
+                    }).catch(() => {});
+                    
                     const f = await downloadFile(msg.sticker.file_id, 'sticker');
+                    
+                    await bot.editMessageText('⏳ <b>Конвертация...</b>\n\n▓▓▓▓▓░░░░░ 50%', {
+                        chat_id: chatId,
+                        message_id: loadingMsg.message_id,
+                        parse_mode: 'HTML'
+                    }).catch(() => {});
+                    
                     if (f.path) {
                         const converted = await convertStickerToImage(f.path);
                         st.data.image = converted.url || '';
@@ -717,8 +803,21 @@ bot.on('message', async (msg) => {
                     st.data.sound = '';
                 }
                 else if (msg.video || msg.video_note) {
+                    await bot.editMessageText('⏳ <b>Загрузка...</b>\n\n▓▓░░░░░░░░ 20%', {
+                        chat_id: chatId,
+                        message_id: loadingMsg.message_id,
+                        parse_mode: 'HTML'
+                    }).catch(() => {});
+                    
                     const fileId = msg.video ? msg.video.file_id : msg.video_note.file_id;
                     const f = await downloadFile(fileId, 'video');
+                    
+                    await bot.editMessageText('⏳ <b>Извлечение аудио...</b>\n\n▓▓▓▓▓░░░░░ 50%', {
+                        chat_id: chatId,
+                        message_id: loadingMsg.message_id,
+                        parse_mode: 'HTML'
+                    }).catch(() => {});
+                    
                     if (f.path) {
                         const audioData = await extractAudioFromVideo(f.path);
                         st.data.sound = audioData.url || '';
