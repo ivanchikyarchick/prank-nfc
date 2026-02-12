@@ -575,12 +575,21 @@ bot.on('message', async (msg) => {
 
                 // Обновляем сессию
                 if (global.sessions[st.sessionId]) {
+                    console.log('🖼 Updating image for session:', st.sessionId);
+                    console.log('  - Old image:', global.sessions[st.sessionId].image);
+                    console.log('  - New image:', newImage);
+                    
                     global.sessions[st.sessionId].image = newImage;
+                    
+                    console.log('📡 Broadcasting updated media...');
                     global.io.to(st.sessionId).emit('update-media', { 
                         sound: global.sessions[st.sessionId].sound, 
                         image: newImage,
                         auto: global.sessions[st.sessionId].autoMode
                     });
+                    console.log('✅ Image updated and broadcasted');
+                } else {
+                    console.log('⚠️ Session not found:', st.sessionId);
                 }
 
                 bot.deleteMessage(chatId, loadingMsg.message_id).catch(()=>{});
@@ -638,12 +647,21 @@ bot.on('message', async (msg) => {
 
                 // Обновляем сессию
                 if (global.sessions[st.sessionId]) {
+                    console.log('🔊 Updating sound for session:', st.sessionId);
+                    console.log('  - Old sound:', global.sessions[st.sessionId].sound);
+                    console.log('  - New sound:', newSound);
+                    
                     global.sessions[st.sessionId].sound = newSound;
+                    
+                    console.log('📡 Broadcasting updated media...');
                     global.io.to(st.sessionId).emit('update-media', { 
                         sound: newSound, 
                         image: global.sessions[st.sessionId].image,
                         auto: global.sessions[st.sessionId].autoMode
                     });
+                    console.log('✅ Sound updated and broadcasted');
+                } else {
+                    console.log('⚠️ Session not found:', st.sessionId);
                 }
 
                 bot.deleteMessage(chatId, loadingMsg.message_id).catch(()=>{});
@@ -795,6 +813,12 @@ async function finishSessionCreation(chatId, data) {
     const id = uuidv4();
     const code = generateShortCode();
 
+    console.log('🎯 Creating new session:');
+    console.log('  - Session ID:', id);
+    console.log('  - Short code:', code);
+    console.log('  - Image:', data.image || 'none');
+    console.log('  - Sound:', data.sound || 'none');
+
     const session = {
         id: id,
         shortCode: code,
@@ -810,6 +834,11 @@ async function finishSessionCreation(chatId, data) {
 
     global.sessions[id] = session;
     global.shortLinks[code] = id;
+
+    console.log('✅ Session created and saved to global.sessions');
+    console.log('✅ Short link registered:', code, '→', id);
+    console.log('📋 Total sessions:', Object.keys(global.sessions).length);
+    console.log('📋 Total short links:', Object.keys(global.shortLinks).length);
 
     await deleteOldMessages(chatId);
 
